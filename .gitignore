@@ -1,0 +1,19 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+docs
+/doc/
+/Meta/
+inst/doc
+.positai
+
+# compiled objects (regenerated on install)
+src/*.o
+src/*.so
+src/*.dll
+.RDataTmp
+Rplots.pdf
+
+# git history bundles (large, local only)
+*.bundle
