@@ -11,10 +11,11 @@ Direction Dependence Analysis (Package: \code{dda}) provides framework for analy
 * `dda.indep()` independence property tests, including non‐linear correlation tests, Breusch–Pagan homoscedasticity tests, and the HSIC test 
 * `dda.resdist()` residual distribution tests, including D'Agostino and Anscombe–Glynn tests and bootstrap CIs on higher moment differences
 * `dda.vardist()` variable distribution‐based tests, including D'Agostino and Anscombe–Glynn tests and bootstrap CIs on higher moment differences
-* `dda.bagging()` bootstrap aggregation (bagging) of any of the above, summarizing the stability of direction-of-dependence decisions across resamples
+* `dda.bagging()` bootstrap aggregation (bagging) of any of the above functions, summarizing the stability of direction-of-dependence decisions across resamples
 
-If you are new to Direction Dependence Analysis (DDA) concepts, the best place to start is the [Direction Dependence in Statistical Modeling: Methods of Analysis](https://www.cambridge.org/us/universitypress/subjects/psychology/psychology-research-methods-and-statistics/direction-dependence-analysis-foundations-and-statistical-methods) text.
+If you are new to Direction Dependence Analysis (DDA) concepts, the best place to start is Direction Dependence Analysis: Foundations and Statistical Methods. 
 
+Here is the link for the book: https://www.cambridge.org/core/books/abs/direction-dependence-analysis/direction-dependence-analysis/82C5034A871E82913873F783964C9094
 ## Installation
 
 The `dda` development version can be installed from GitHub: 
