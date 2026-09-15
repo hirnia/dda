@@ -1,3 +1,236 @@
+#' @title Model Selection Decisions for a Fitted DDA Object
+#'
+#' @description
+#' \code{dda.decisions} translates the tests stored in a fitted DDA object
+#' (\code{dda.indep}, \code{dda.resdist}, or \code{dda.vardist}) into causal
+#' model selection decisions. Decisions based on significance tests compare
+#' p-values against \code{alpha}; decisions based on bootstrap confidence
+#' intervals check whether the interval excludes zero. The same rules are
+#' used inside \code{dda.bagging}, so simulation code can call
+#' \code{dda.decisions} directly instead of re-implementing decision logic.
+#'
+#' @param dda_result An output object from \code{dda.indep},
+#'   \code{dda.resdist}, or \code{dda.vardist}.
+#' @param alpha Numeric. Significance level used for causal model selection
+#'   (default: 0.05).
+#'
+#' @details
+#' Throughout, the target model is \code{x -> y} and the alternative model is
+#' \code{y -> x}; \code{p_yx} denotes a p-value obtained under the target
+#' model and \code{p_xy} a p-value obtained under the alternative model.
+#'
+#' Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
+#' Breusch-Pagan, non-linear correlation):
+#' \itemize{
+#'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: \code{"Target"}
+#'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: \code{"Alternative"}
+#'   \item both \code{<= alpha}: \code{"Confounding"}
+#'   \item both \code{> alpha}: \code{"Undecided"}
+#' }
+#' Difference statistics (HSIC, dCor, MI) use their bootstrap confidence
+#' intervals: an interval above zero speaks for the target model, below zero
+#' for the alternative model, otherwise the decision is \code{"Undecided"}.
+#'
+#' Separate normality tests on residuals (\code{dda.resdist}, D'Agostino and
+#' Anscombe-Glynn) depend on the \code{prob.trans} setting of the fitted
+#' object. Under \code{prob.trans = FALSE}:
+#' \itemize{
+#'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: \code{"Target"}
+#'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: \code{"Alternative"}
+#'   \item otherwise: \code{"Undecided"}
+#' }
+#' Under \code{prob.trans = TRUE} the roles are reversed
+#' (\code{p_yx <= alpha} and \code{p_xy > alpha} speaks for the target
+#' model). Skewness and kurtosis difference intervals are likewise reversed
+#' under \code{prob.trans = TRUE}; co-skewness and co-kurtosis intervals are
+#' never reversed.
+#'
+#' Separate normality tests on observed variables (\code{dda.vardist}):
+#' \itemize{
+#'   \item outcome p \code{> alpha} and predictor p \code{<= alpha}:
+#'     \code{"Target"}
+#'   \item outcome p \code{<= alpha} and predictor p \code{> alpha}:
+#'     \code{"Alternative"}
+#'   \item otherwise: \code{"Undecided"}
+#' }
+#' All higher-moment difference intervals in \code{dda.vardist} use the
+#' interval-excludes-zero rule with values above zero speaking for the
+#' target model.
+#'
+#' @return A named character vector of decisions, one element per test
+#'   available in the object. Values are \code{"Target"},
+#'   \code{"Alternative"}, \code{"Undecided"}, \code{"Confounding"} (separate
+#'   independence tests only), or \code{NA} when a test result is missing.
+#'
+#' @seealso \code{\link{dda.bagging}}
+#'
+#' @examples
+#' set.seed(123)
+#' n <- 200
+#' x <- rchisq(n, df = 4) - 4
+#' e <- rchisq(n, df = 3) - 3
+#' y <- 0.5 * x + e
+#' d <- data.frame(x, y)
+#'
+#' fit <- dda.vardist(y ~ x, pred = "x", data = d, B = 50)
+#' dda.decisions(fit, alpha = 0.05)
+#'
+#' @export
+dda.decisions <- function(dda_result, alpha = 0.05) {
+
+  if (!inherits(dda_result, c("dda.indep", "dda.resdist", "dda.vardist"))) {
+    stop("Unsupported DDA object. Must be dda.indep, dda.resdist, or dda.vardist.")
+  }
+  stopifnot(is.numeric(alpha), length(alpha) == 1, alpha > 0, alpha < 1)
+
+  # first element as numeric, NA if missing
+  p1 <- function(x) {
+    x <- suppressWarnings(as.numeric(unlist(x)[1]))
+    if (length(x) == 0) NA_real_ else x
+  }
+
+  # last two elements of a result vector are its confidence bounds;
+  # min_len guards against objects fitted with B = 0 (no bootstrap CI)
+  ci_tail <- function(v, min_len = 3) {
+    v <- suppressWarnings(as.numeric(v))
+    if (length(v) < min_len) return(c(NA_real_, NA_real_))
+    c(v[length(v) - 1], v[length(v)])
+  }
+
+  # separate-test decision from target and alternative model p-values;
+  # confounding = TRUE adds the both-significant category used for
+  # independence tests
+  dec_sep <- function(p_tar, p_alt, confounding = FALSE) {
+    if (is.na(p_tar) || is.na(p_alt)) return(NA_character_)
+    if (p_tar >  alpha && p_alt <= alpha) return("Target")
+    if (p_tar <= alpha && p_alt >  alpha) return("Alternative")
+    if (confounding && p_tar <= alpha && p_alt <= alpha) return("Confounding")
+    "Undecided"
+  }
+
+  # confidence interval decision; flip = TRUE reverses the direction
+  # (used for skewness/kurtosis differences under prob.trans = TRUE)
+  dec_ci <- function(lower, upper, flip = FALSE) {
+    if (is.na(lower) || is.na(upper)) return(NA_character_)
+    if (!flip) {
+      if (lower > 0 && upper > 0) return("Target")
+      if (lower < 0 && upper < 0) return("Alternative")
+    } else {
+      if (lower < 0 && upper < 0) return("Target")
+      if (lower > 0 && upper > 0) return("Alternative")
+    }
+    "Undecided"
+  }
+
+  obj <- dda_result
+  out <- character(0)
+
+  if (inherits(obj, "dda.indep")) {
+
+    if (!is.null(obj$hsic.yx)) {
+      out["hsic"] <- dec_sep(p1(obj$hsic.yx$p.value), p1(obj$hsic.xy$p.value),
+                             confounding = TRUE)
+    }
+
+    dcor_yx <- if (!is.null(obj$distance_cor.dcor_yx)) obj$distance_cor.dcor_yx else obj$dcor.yx
+    dcor_xy <- if (!is.null(obj$distance_cor.dcor_xy)) obj$distance_cor.dcor_xy else obj$dcor.xy
+    if (!is.null(dcor_yx) && !is.null(dcor_xy)) {
+      out["dcor"] <- dec_sep(p1(dcor_yx$p.value), p1(dcor_xy$p.value),
+                             confounding = TRUE)
+    }
+
+    if (!is.null(obj$breusch_pagan) && length(obj$breusch_pagan) >= 4) {
+      # elements 2 and 4 hold the robust Breusch-Pagan tests
+      out["dec_bp"] <- dec_sep(p1(obj$breusch_pagan[[2]]$p.value),
+                               p1(obj$breusch_pagan[[4]]$p.value),
+                               confounding = TRUE)
+    }
+
+    if (!is.null(obj$nlcor.yx)) {
+      # minimum p-value across the three non-linear transformations
+      p_yx <- suppressWarnings(min(c(p1(obj$nlcor.yx$t1[4]),
+                                     p1(obj$nlcor.yx$t2[4]),
+                                     p1(obj$nlcor.yx$t3[4])), na.rm = TRUE))
+      p_xy <- suppressWarnings(min(c(p1(obj$nlcor.xy$t1[4]),
+                                     p1(obj$nlcor.xy$t2[4]),
+                                     p1(obj$nlcor.xy$t3[4])), na.rm = TRUE))
+      if (!is.finite(p_yx)) p_yx <- NA_real_
+      if (!is.finite(p_xy)) p_xy <- NA_real_
+      out["dec_nl.min"] <- dec_sep(p_yx, p_xy, confounding = TRUE)
+    }
+
+    if (!is.null(obj$out.diff)) {
+      dm <- as.matrix(obj$out.diff)
+      nc <- ncol(dm)
+      if (nc >= 2) {
+        if (nrow(dm) >= 1) out["diff_hsic"] <- dec_ci(dm[1, nc - 1], dm[1, nc])
+        if (nrow(dm) >= 2) out["diff_dcor"] <- dec_ci(dm[2, nc - 1], dm[2, nc])
+        if (nrow(dm) >= 3) out["diff_mi"]   <- dec_ci(dm[3, nc - 1], dm[3, nc])
+      }
+    }
+  }
+
+  if (inherits(obj, "dda.resdist")) {
+
+    prob_trans <- obj$probtrans
+
+    p_skew_tar <- p1(obj$agostino$target$p.value)
+    p_skew_alt <- p1(obj$agostino$alternative$p.value)
+    p_kurt_tar <- p1(obj$anscombe$target$p.value)
+    p_kurt_alt <- p1(obj$anscombe$alternative$p.value)
+
+    if (isTRUE(prob_trans)) {
+      # non-normal true error: non-normal target-model residuals together
+      # with normal-looking alternative-model residuals speak for the target
+      out["dec_agost"]  <- dec_sep(p_skew_alt, p_skew_tar)
+      out["dec_anscom"] <- dec_sep(p_kurt_alt, p_kurt_tar)
+    } else if (isFALSE(prob_trans)) {
+      # normal true error, non-normal predictor: normal-looking target-model
+      # residuals together with non-normal alternative-model residuals speak
+      # for the target
+      out["dec_agost"]  <- dec_sep(p_skew_tar, p_skew_alt)
+      out["dec_anscom"] <- dec_sep(p_kurt_tar, p_kurt_alt)
+    } else {
+      stop("'prob.trans' status of the dda.resdist object could not be determined.")
+    }
+
+    flip <- isTRUE(prob_trans)
+    ci <- ci_tail(obj$skewdiff, min_len = 5)
+    out["dec_skewdiff"] <- dec_ci(ci[1], ci[2], flip = flip)
+    ci <- ci_tail(obj$kurtdiff, min_len = 5)
+    out["dec_kurtdiff"] <- dec_ci(ci[1], ci[2], flip = flip)
+
+    for (k in c("cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
+      if (!is.null(obj[[k]])) {
+        ci <- ci_tail(obj[[k]], min_len = 3)
+        out[paste0("dec_", k)] <- dec_ci(ci[1], ci[2])
+      }
+    }
+  }
+
+  if (inherits(obj, "dda.vardist")) {
+
+    p_skew_out  <- p1(obj$agostino$outcome$p.value)
+    p_skew_pred <- p1(obj$agostino$predictor$p.value)
+    p_kurt_out  <- p1(obj$anscombe$outcome$p.value)
+    p_kurt_pred <- p1(obj$anscombe$predictor$p.value)
+
+    # a normal-looking outcome together with a non-normal predictor speaks
+    # for the target model
+    out["dec_agost"]  <- dec_sep(p_skew_out, p_skew_pred)
+    out["dec_anscom"] <- dec_sep(p_kurt_out, p_kurt_pred)
+
+    for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) {
+      if (!is.null(obj[[k]])) {
+        ci <- ci_tail(obj[[k]], min_len = 3)
+        out[paste0("dec_", k)] <- dec_ci(ci[1], ci[2])
+      }
+    }
+  }
+
+  out
+}
+
 #' @title Bootstrap Aggregated Direction Dependence Analysis (DDA)
 #'
 #' @description
@@ -46,7 +279,11 @@
 #' statistics across \code{iter} bootstrap samples and aggregates the results
 #' to evaluate the stability and robustness of DDA model selection. p-values
 #' obtained from significance tests are aggregated using the harmonic mean
-#' p-value approach (Wilson, 2019).
+#' p-value approach (Wilson, 2019). Model selection decisions within each
+#' bootstrap sample are obtained with \code{\link{dda.decisions}} (p-value
+#' based rules for significance tests, interval-excludes-zero rules for
+#' bootstrap difference statistics) and reported as decision proportions
+#' across samples.
 #'
 #' Run time scales with \code{iter} multiplied by the resampling budget of the
 #' base DDA call, and the underlying independence statistics are quadratic in
@@ -72,7 +309,7 @@
 #'   \code{dda.vardist}, or \code{dda.resdist}).
 #'
 #' @seealso \code{\link{dda.indep}}, \code{\link{dda.vardist}},
-#'   \code{\link{dda.resdist}}
+#'   \code{\link{dda.resdist}}, \code{\link{dda.decisions}}
 #'
 #' @examples
 #' set.seed(123)
@@ -198,13 +435,27 @@ dda.bagging <- function(
     harmonicmeanp::p.hmp(pvec, L = length(pvec))
   }
 
+  # --- Helper: Matrix Aggregation that Keeps P-Value Columns Harmonic ---
+  # 5-column results (resdist skewness/kurtosis differences) are
+  # c(diff, z, p, lower, upper); column 3 is a p-value and is combined with
+  # the harmonic mean instead of agg_stat
+  agg_mat <- function(mat) {
+    if (is.null(mat)) return(NULL)
+    res <- apply(mat, 2, agg_helper)
+    if (ncol(mat) == 5) res[3] <- harmonic_p(mat[, 3])
+    res
+  }
+
   # --- Helper: Decision Proportions ---
-  calc_props <- function(dec_vec) {
-    levs    <- c("Target", "Alternative", "Undecided")
+  calc_props <- function(dec_vec, levs = c("Target", "Alternative", "Undecided")) {
     dec_vec <- dec_vec[!is.na(dec_vec)]
     tab     <- table(factor(dec_vec, levels = levs))
     sm      <- sum(tab)
-    if (sm == 0) return(c(Target = 0, Alternative = 0, Undecided = 0))
+    if (sm == 0) {
+      empty <- rep(0, length(levs))
+      names(empty) <- levs
+      return(empty)
+    }
     return(tab / sm)
   }
 
@@ -359,7 +610,6 @@ dda.bagging <- function(
   raw_stats <- list()
   agg       <- list()
   decs      <- list()
-  crit_val  <- qnorm(1 - alpha / 2)
 
   # --- Aggregate OLS Results ---
   raw_stats$ols_tar_coefs <- tryCatch(do.call(rbind, ols_tar_coefs[is_valid]), error = function(e) NULL)
@@ -410,11 +660,6 @@ dda.bagging <- function(
     agg$hsic_yx_pval <- harmonic_p(raw_stats$hsic_yx_pval)
     agg$hsic_xy_pval <- harmonic_p(raw_stats$hsic_xy_pval)
 
-    decs$hsic <- calc_props(ifelse(
-      raw_stats$hsic_yx_pval >  alpha & raw_stats$hsic_xy_pval <= alpha, "Target",
-      ifelse(raw_stats$hsic_xy_pval > alpha & raw_stats$hsic_yx_pval <= alpha, "Alternative", "Undecided")
-    ))
-
     if (!is.null(valid_res[[1]]$distance_cor.dcor_yx) || !is.null(valid_res[[1]]$dcor.yx)) {
       dcor_name_yx <- if (!is.null(valid_res[[1]]$distance_cor.dcor_yx)) "distance_cor.dcor_yx" else "dcor.yx"
       dcor_name_xy <- if (!is.null(valid_res[[1]]$distance_cor.dcor_xy)) "distance_cor.dcor_xy" else "dcor.xy"
@@ -428,11 +673,6 @@ dda.bagging <- function(
       agg$dcor_xy_stat <- agg_helper(raw_stats$dcor_xy_stat)
       agg$dcor_yx_pval <- harmonic_p(raw_stats$dcor_yx_pval)
       agg$dcor_xy_pval <- harmonic_p(raw_stats$dcor_xy_pval)
-
-      decs$dcor <- calc_props(ifelse(
-        raw_stats$dcor_yx_pval >  alpha & raw_stats$dcor_xy_pval <= alpha, "Target",
-        ifelse(raw_stats$dcor_xy_pval > alpha & raw_stats$dcor_yx_pval <= alpha, "Alternative", "Undecided")
-      ))
     }
 
     if (!is.null(valid_res[[1]]$breusch_pagan)) {
@@ -455,10 +695,6 @@ dda.bagging <- function(
         list(statistic = agg_helper(raw_stats$bp_xy_stat),  parameter = agg_helper(raw_stats$bp_xy_df),  p.value = harmonic_p(raw_stats$bp_xy_p)),
         list(statistic = agg_helper(raw_stats$rbp_xy_stat), parameter = agg_helper(raw_stats$rbp_xy_df), p.value = harmonic_p(raw_stats$rbp_xy_p))
       )
-      decs$dec_bp <- calc_props(ifelse(
-        raw_stats$rbp_yx_p >  alpha & raw_stats$rbp_xy_p <= alpha, "Target",
-        ifelse(raw_stats$rbp_yx_p <= alpha & raw_stats$rbp_xy_p > alpha, "Alternative", "Undecided")
-      ))
     }
 
     if (!is.null(valid_res[[1]]$nlcor.yx)) {
@@ -482,37 +718,11 @@ dda.bagging <- function(
         func = valid_res[[1]]$nlcor.xy$func
       )
 
-      raw_stats$nlcor_yx_min <- apply(cbind(raw_stats$nlcor_yx_t1[,4], raw_stats$nlcor_yx_t2[,4], raw_stats$nlcor_yx_t3[,4]), 1, min, na.rm = TRUE)
-      raw_stats$nlcor_xy_min <- apply(cbind(raw_stats$nlcor_xy_t1[,4], raw_stats$nlcor_xy_t2[,4], raw_stats$nlcor_xy_t3[,4]), 1, min, na.rm = TRUE)
-      decs$dec_nl.min <- calc_props(ifelse(
-        raw_stats$nlcor_yx_min >  alpha & raw_stats$nlcor_xy_min <= alpha, "Target",
-        ifelse(raw_stats$nlcor_yx_min <= alpha & raw_stats$nlcor_xy_min > alpha, "Alternative", "Undecided")
-      ))
     }
 
     if (!is.null(valid_res[[1]]$out.diff)) {
       raw_stats$diff_arr <- simplify2array(lapply(valid_res, function(x) as.matrix(x$out.diff)))
       agg$diff_matrix    <- apply(raw_stats$diff_arr, c(1, 2), agg_helper)
-
-      nc <- ncol(valid_res[[1]]$out.diff)
-
-      if (is.numeric(nc) && nc >= 2) {
-        low_hsic <- raw_stats$diff_arr[1, nc - 1, ]
-        upp_hsic <- raw_stats$diff_arr[1, nc, ]
-        decs$diff_hsic <- calc_props(ifelse(low_hsic > 0 & upp_hsic > 0, "Target", ifelse(low_hsic < 0 & upp_hsic < 0, "Alternative", "Undecided")))
-      }
-
-      if (is.numeric(nc) && nc >= 2 && nrow(valid_res[[1]]$out.diff) >= 2) {
-        low_dcor <- raw_stats$diff_arr[2, nc - 1, ]
-        upp_dcor <- raw_stats$diff_arr[2, nc, ]
-        decs$diff_dcor <- calc_props(ifelse(low_dcor > 0 & upp_dcor > 0, "Target", ifelse(low_dcor < 0 & upp_dcor < 0, "Alternative", "Undecided")))
-      }
-
-      if (is.numeric(nc) && nc >= 2 && nrow(valid_res[[1]]$out.diff) >= 3) {
-        low_mi <- raw_stats$diff_arr[3, nc - 1, ]
-        upp_mi <- raw_stats$diff_arr[3, nc, ]
-        decs$diff_mi <- calc_props(ifelse(low_mi > 0 & upp_mi > 0, "Target", ifelse(low_mi < 0 & upp_mi < 0, "Alternative", "Undecided")))
-      }
     }
   }
 
@@ -554,106 +764,13 @@ dda.bagging <- function(
     agg$anscombe.alternative.z         <- agg_helper(raw_stats$anscom_alt_z)
     agg$anscombe.alternative.p.value   <- harmonic_p(raw_stats$anscom_alt_pval)
 
-    decs$dec_agost  <- calc_props(ifelse(
-      abs(raw_stats$agost_alt_z) >= crit_val & abs(raw_stats$agost_tar_z) <  crit_val, "Target",
-      ifelse(abs(raw_stats$agost_tar_z) >= crit_val & abs(raw_stats$agost_alt_z) < crit_val, "Alternative", "Undecided")
-    ))
-    decs$dec_anscom <- calc_props(ifelse(
-      abs(raw_stats$anscom_alt_z) >= crit_val & abs(raw_stats$anscom_tar_z) <  crit_val, "Target",
-      ifelse(abs(raw_stats$anscom_tar_z) >= crit_val & abs(raw_stats$anscom_alt_z) < crit_val, "Alternative", "Undecided")
-    ))
-
-    if (!is.null(valid_res[[1]]$skewdiff)) {
-      mat_skew <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$skewdiff))), error = function(e) NULL)
-      if (!is.null(mat_skew) && ncol(mat_skew) >= 2) {
-        raw_stats$skewdiff <- mat_skew
-        agg$skewdiff       <- apply(mat_skew, 2, agg_helper)
-        low_skew <- mat_skew[, ncol(mat_skew) - 1]
-        upp_skew <- mat_skew[, ncol(mat_skew)]
-        if (prob_trans_flag) {
-          decs$dec_skewdiff <- calc_props(ifelse(low_skew < 0 & upp_skew < 0, "Target",
-                                                 ifelse(low_skew > 0 & upp_skew > 0, "Alternative", "Undecided")))
-        } else {
-          decs$dec_skewdiff <- calc_props(ifelse(low_skew > 0 & upp_skew > 0, "Target",
-                                                 ifelse(low_skew < 0 & upp_skew < 0, "Alternative", "Undecided")))
+    for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
+      if (!is.null(valid_res[[1]][[k]])) {
+        mat_k <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x[[k]]))), error = function(e) NULL)
+        if (!is.null(mat_k) && ncol(mat_k) >= 2) {
+          raw_stats[[k]] <- mat_k
+          agg[[k]]       <- agg_mat(mat_k)
         }
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$kurtdiff)) {
-      mat_kurt <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$kurtdiff))), error = function(e) NULL)
-      if (!is.null(mat_kurt) && ncol(mat_kurt) >= 2) {
-        raw_stats$kurtdiff <- mat_kurt
-        agg$kurtdiff       <- apply(mat_kurt, 2, agg_helper)
-        low_kurt <- mat_kurt[, ncol(mat_kurt) - 1]
-        upp_kurt <- mat_kurt[, ncol(mat_kurt)]
-        if (prob_trans_flag) {
-          decs$dec_kurtdiff <- calc_props(ifelse(low_kurt < 0 & upp_kurt < 0, "Target",
-                                                 ifelse(low_kurt > 0 & upp_kurt > 0, "Alternative", "Undecided")))
-        } else {
-          decs$dec_kurtdiff <- calc_props(ifelse(low_kurt > 0 & upp_kurt > 0, "Target",
-                                                 ifelse(low_kurt < 0 & upp_kurt < 0, "Alternative", "Undecided")))
-        }
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$cor12diff)) {
-      mat_cor12 <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$cor12diff))), error = function(e) NULL)
-      if (!is.null(mat_cor12) && ncol(mat_cor12) >= 2) {
-        raw_stats$cor12diff <- mat_cor12
-        agg$cor12diff       <- apply(mat_cor12, 2, agg_helper)
-        low_cor12 <- mat_cor12[, ncol(mat_cor12) - 1]
-        upp_cor12 <- mat_cor12[, ncol(mat_cor12)]
-        decs$dec_cor12diff <- calc_props(ifelse(low_cor12 > 0 & upp_cor12 > 0, "Target",
-                                                ifelse(low_cor12 < 0 & upp_cor12 < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$cor13diff)) {
-      mat_cor13 <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$cor13diff))), error = function(e) NULL)
-      if (!is.null(mat_cor13) && ncol(mat_cor13) >= 2) {
-        raw_stats$cor13diff <- mat_cor13
-        agg$cor13diff       <- apply(mat_cor13, 2, agg_helper)
-        low_cor13 <- mat_cor13[, ncol(mat_cor13) - 1]
-        upp_cor13 <- mat_cor13[, ncol(mat_cor13)]
-        decs$dec_cor13diff <- calc_props(ifelse(low_cor13 > 0 & upp_cor13 > 0, "Target",
-                                                ifelse(low_cor13 < 0 & upp_cor13 < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$RHS3)) {
-      mat_rhs3 <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$RHS3))), error = function(e) NULL)
-      if (!is.null(mat_rhs3) && ncol(mat_rhs3) >= 2) {
-        raw_stats$RHS3 <- mat_rhs3
-        agg$RHS3       <- apply(mat_rhs3, 2, agg_helper)
-        low_rhs3 <- mat_rhs3[, ncol(mat_rhs3) - 1]
-        upp_rhs3 <- mat_rhs3[, ncol(mat_rhs3)]
-        decs$dec_RHS3 <- calc_props(ifelse(low_rhs3 > 0 & upp_rhs3 > 0, "Target",
-                                           ifelse(low_rhs3 < 0 & upp_rhs3 < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$RCC)) {
-      mat_rcc <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$RCC))), error = function(e) NULL)
-      if (!is.null(mat_rcc) && ncol(mat_rcc) >= 2) {
-        raw_stats$RCC <- mat_rcc
-        agg$RCC       <- apply(mat_rcc, 2, agg_helper)
-        low_rcc <- mat_rcc[, ncol(mat_rcc) - 1]
-        upp_rcc <- mat_rcc[, ncol(mat_rcc)]
-        decs$dec_RCC <- calc_props(ifelse(low_rcc > 0 & upp_rcc > 0, "Target",
-                                          ifelse(low_rcc < 0 & upp_rcc < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$RHS4)) {
-      mat_rhs4 <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$RHS4))), error = function(e) NULL)
-      if (!is.null(mat_rhs4) && ncol(mat_rhs4) >= 2) {
-        raw_stats$RHS4 <- mat_rhs4
-        agg$RHS4       <- apply(mat_rhs4, 2, agg_helper)
-        low_rhs4 <- mat_rhs4[, ncol(mat_rhs4) - 1]
-        upp_rhs4 <- mat_rhs4[, ncol(mat_rhs4)]
-        decs$dec_RHS4 <- calc_props(ifelse(low_rhs4 > 0 & upp_rhs4 > 0, "Target",
-                                           ifelse(low_rhs4 < 0 & upp_rhs4 < 0, "Alternative", "Undecided")))
       }
     }
   }
@@ -692,98 +809,37 @@ dda.bagging <- function(
     agg$anscombe.outcome.statistic.z      <- agg_helper(raw_stats$anscom_out_z)
     agg$anscombe.outcome.p.value          <- harmonic_p(raw_stats$anscom_out_pval)
 
-    decs$dec_agost  <- calc_props(ifelse(
-      abs(raw_stats$agost_pre_z) >= crit_val & abs(raw_stats$agost_out_z) <  crit_val, "Target",
-      ifelse(abs(raw_stats$agost_pre_z) <  crit_val & abs(raw_stats$agost_out_z) >= crit_val, "Alternative", "Undecided")
-    ))
-    decs$dec_anscom <- calc_props(ifelse(
-      abs(raw_stats$anscom_pre_z) >= crit_val & abs(raw_stats$anscom_out_z) <  crit_val, "Target",
-      ifelse(abs(raw_stats$anscom_pre_z) <  crit_val & abs(raw_stats$anscom_out_z) >= crit_val, "Alternative", "Undecided")
-    ))
-
-    if (!is.null(valid_res[[1]]$skewdiff)) {
-      mat_skew <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$skewdiff))), error = function(e) NULL)
-      if (!is.null(mat_skew) && ncol(mat_skew) >= 2) {
-        raw_stats$skewdiff <- mat_skew
-        agg$skewdiff       <- apply(mat_skew, 2, agg_helper)
-        low_skew <- mat_skew[, ncol(mat_skew) - 1]
-        upp_skew <- mat_skew[, ncol(mat_skew)]
-        decs$dec_skewdiff <- calc_props(ifelse(low_skew > 0 & upp_skew > 0, "Target",
-                                               ifelse(low_skew < 0 & upp_skew < 0, "Alternative", "Undecided")))
+    for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) {
+      if (!is.null(valid_res[[1]][[k]])) {
+        mat_k <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x[[k]]))), error = function(e) NULL)
+        if (!is.null(mat_k) && ncol(mat_k) >= 2) {
+          raw_stats[[k]] <- mat_k
+          agg[[k]]       <- agg_mat(mat_k)
+        }
       }
     }
+  }
 
-    if (!is.null(valid_res[[1]]$kurtdiff)) {
-      mat_kurt <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$kurtdiff))), error = function(e) NULL)
-      if (!is.null(mat_kurt) && ncol(mat_kurt) >= 2) {
-        raw_stats$kurtdiff <- mat_kurt
-        agg$kurtdiff       <- apply(mat_kurt, 2, agg_helper)
-        low_kurt <- mat_kurt[, ncol(mat_kurt) - 1]
-        upp_kurt <- mat_kurt[, ncol(mat_kurt)]
-        decs$dec_kurtdiff <- calc_props(ifelse(low_kurt > 0 & upp_kurt > 0, "Target",
-                                               ifelse(low_kurt < 0 & upp_kurt < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$cor12diff)) {
-      mat_cor12 <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$cor12diff))), error = function(e) NULL)
-      if (!is.null(mat_cor12) && ncol(mat_cor12) >= 2) {
-        raw_stats$cor12diff <- mat_cor12
-        agg$cor12diff       <- apply(mat_cor12, 2, agg_helper)
-        low_cor12 <- mat_cor12[, ncol(mat_cor12) - 1]
-        upp_cor12 <- mat_cor12[, ncol(mat_cor12)]
-        decs$dec_cor12diff <- calc_props(ifelse(low_cor12 > 0 & upp_cor12 > 0, "Target",
-                                                ifelse(low_cor12 < 0 & upp_cor12 < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$cor13diff)) {
-      mat_cor13 <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$cor13diff))), error = function(e) NULL)
-      if (!is.null(mat_cor13) && ncol(mat_cor13) >= 2) {
-        raw_stats$cor13diff <- mat_cor13
-        agg$cor13diff       <- apply(mat_cor13, 2, agg_helper)
-        low_cor13 <- mat_cor13[, ncol(mat_cor13) - 1]
-        upp_cor13 <- mat_cor13[, ncol(mat_cor13)]
-        decs$dec_cor13diff <- calc_props(ifelse(low_cor13 > 0 & upp_cor13 > 0, "Target",
-                                                ifelse(low_cor13 < 0 & upp_cor13 < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$RHS)) {
-      mat_rhs <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$RHS))), error = function(e) NULL)
-      if (!is.null(mat_rhs) && ncol(mat_rhs) >= 2) {
-        raw_stats$RHS <- mat_rhs
-        agg$RHS       <- apply(mat_rhs, 2, agg_helper)
-        low_rhs <- mat_rhs[, ncol(mat_rhs) - 1]
-        upp_rhs <- mat_rhs[, ncol(mat_rhs)]
-        decs$dec_RHS <- calc_props(ifelse(low_rhs > 0 & upp_rhs > 0, "Target",
-                                          ifelse(low_rhs < 0 & upp_rhs < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$RCC)) {
-      mat_rcc <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$RCC))), error = function(e) NULL)
-      if (!is.null(mat_rcc) && ncol(mat_rcc) >= 2) {
-        raw_stats$RCC <- mat_rcc
-        agg$RCC       <- apply(mat_rcc, 2, agg_helper)
-        low_rcc <- mat_rcc[, ncol(mat_rcc) - 1]
-        upp_rcc <- mat_rcc[, ncol(mat_rcc)]
-        decs$dec_RCC <- calc_props(ifelse(low_rcc > 0 & upp_rcc > 0, "Target",
-                                          ifelse(low_rcc < 0 & upp_rcc < 0, "Alternative", "Undecided")))
-      }
-    }
-
-    if (!is.null(valid_res[[1]]$Rtanh)) {
-      mat_rtanh <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x$Rtanh))), error = function(e) NULL)
-      if (!is.null(mat_rtanh) && ncol(mat_rtanh) >= 2) {
-        raw_stats$Rtanh <- mat_rtanh
-        agg$Rtanh       <- apply(mat_rtanh, 2, agg_helper)
-        low_rtanh <- mat_rtanh[, ncol(mat_rtanh) - 1]
-        upp_rtanh <- mat_rtanh[, ncol(mat_rtanh)]
-        decs$dec_Rtanh <- calc_props(ifelse(low_rtanh > 0 & upp_rtanh > 0, "Target",
-                                            ifelse(low_rtanh < 0 & upp_rtanh < 0, "Alternative", "Undecided")))
-      }
-    }
+  # ============================================================================
+  # model selection decisions
+  # ============================================================================
+  # One decision per test per bootstrap sample, computed by dda.decisions()
+  # so that dda.bagging and simulation code share the same rules; decs holds
+  # the proportion of each decision across the valid samples.
+  dec_list <- lapply(valid_res, function(x) {
+    tryCatch(dda.decisions(x, alpha = alpha), error = function(e) NULL)
+  })
+  dec_keys <- unique(unlist(lapply(dec_list, names)))
+  dec_levs <- if (obj_type == "dda.indep") {
+    c("Target", "Alternative", "Confounding", "Undecided")
+  } else {
+    c("Target", "Alternative", "Undecided")
+  }
+  for (k in dec_keys) {
+    dvec <- vapply(dec_list, function(d) {
+      if (!is.null(d) && k %in% names(d)) d[[k]] else NA_character_
+    }, character(1))
+    decs[[k]] <- calc_props(dvec, levs = dec_levs)
   }
 
   # --- Compile & Return ---

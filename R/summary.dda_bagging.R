@@ -134,32 +134,30 @@ print_bagging_decisions <- function(object, show = NULL, moment = NULL, type = "
     display_title <- if (!is.null(label_map[[dname]])) label_map[[dname]] else dname
     cat(display_title, "\n")
 
-    # Extract exact values
+    # Extract exact values; Confounding is a real category for the separate
+    # independence tests (both directions significant), not a relabeling of
+    # Undecided
     t_val <- if ("Target" %in% names(prop)) prop["Target"] else 0
     a_val <- if ("Alternative" %in% names(prop)) prop["Alternative"] else 0
+    c_val <- if ("Confounding" %in% names(prop)) prop["Confounding"] else 0
     u_val <- if ("Undecided" %in% names(prop)) prop["Undecided"] else 0
 
     # Apply Largest Remainder Method rounding dynamically based on user digits
-    vals <- c(t_val, a_val, u_val)
-    vals_rounded <- round_preserve_sum(vals, digits = digits)
-
-    t_val_rd <- vals_rounded[1]
-    a_val_rd <- vals_rounded[2]
-    u_val_rd <- vals_rounded[3]
-
-    # Output formatting
     if (type == "indep") {
+      vals_rounded <- round_preserve_sum(c(t_val, a_val, c_val, u_val), digits = digits)
       df_print <- data.frame(
-        Target      = sprintf(fmt, t_val_rd),
-        Alternative = sprintf(fmt, a_val_rd),
-        Confounding = sprintf(fmt, u_val_rd),
+        Target      = sprintf(fmt, vals_rounded[1]),
+        Alternative = sprintf(fmt, vals_rounded[2]),
+        Confounding = sprintf(fmt, vals_rounded[3]),
+        Undecided   = sprintf(fmt, vals_rounded[4]),
         check.names = FALSE
       )
     } else {
+      vals_rounded <- round_preserve_sum(c(t_val, a_val, u_val), digits = digits)
       df_print <- data.frame(
-        Target      = sprintf(fmt, t_val_rd),
-        Alternative = sprintf(fmt, a_val_rd),
-        Undecided   = sprintf(fmt, u_val_rd),
+        Target      = sprintf(fmt, vals_rounded[1]),
+        Alternative = sprintf(fmt, vals_rounded[2]),
+        Undecided   = sprintf(fmt, vals_rounded[3]),
         check.names = FALSE
       )
     }
