@@ -203,11 +203,11 @@ test_that("each decision entry sums to 1", {
   }
 })
 
-test_that("decision levels are Target / Alternative / Undecided", {
+test_that("indep decision levels are Target / Alternative / Confounding / Undecided", {
   result <- run_bag(base_indep, d)
   for (nm in names(result$decision_percentages)) {
     expect_setequal(names(result$decision_percentages[[nm]]),
-                    c("Target", "Alternative", "Undecided"))
+                    c("Target", "Alternative", "Confounding", "Undecided"))
   }
 })
 

@@ -3,16 +3,21 @@
 #' @description
 #' \code{dda.decisions} translates the tests stored in a fitted DDA object
 #' (\code{dda.indep}, \code{dda.resdist}, or \code{dda.vardist}) into causal
-#' model selection decisions. Decisions based on significance tests compare
-#' p-values against \code{alpha}; decisions based on bootstrap confidence
-#' intervals check whether the interval excludes zero. The same rules are
-#' used inside \code{dda.bagging}, so simulation code can call
-#' \code{dda.decisions} directly instead of re-implementing decision logic.
+#' model selection decisions. Significance tests are compared against
+#' \code{alpha}; difference statistics are decided by whether their bootstrap
+#' confidence interval excludes zero. The same rules are used inside
+#' \code{dda.bagging}, so simulation code can call \code{dda.decisions}
+#' directly instead of re-implementing decision logic.
 #'
 #' @param dda_result An output object from \code{dda.indep},
 #'   \code{dda.resdist}, or \code{dda.vardist}.
 #' @param alpha Numeric. Significance level used for causal model selection
 #'   (default: 0.05).
+#' @param nlcor.adjust Character. Multiplicity adjustment applied to the
+#'   smallest non-linear correlation p-value across the three transformations
+#'   (\code{dda.indep} only). \code{"none"} (default) uses the smallest
+#'   p-value directly. \code{"bonferroni"} multiplies it by the number of
+#'   transformations.
 #'
 #' @details
 #' Throughout, the target model is \code{x -> y} and the alternative model is
@@ -27,6 +32,12 @@
 #'   \item both \code{<= alpha}: \code{"Confounding"}
 #'   \item both \code{> alpha}: \code{"Undecided"}
 #' }
+#' The non-linear correlation decision combines the three transformations by
+#' taking the smallest p-value in each direction, matching the reference
+#' implementation. That combination is not adjusted for multiplicity by
+#' default; \code{nlcor.adjust = "bonferroni"} applies a correction, which
+#' lowers the rate of decisive outcomes when neither direction is identified.
+#'
 #' Difference statistics (HSIC, dCor, MI) use their bootstrap confidence
 #' intervals: an interval above zero speaks for the target model, below zero
 #' for the alternative model, otherwise the decision is \code{"Undecided"}.
@@ -41,9 +52,16 @@
 #' }
 #' Under \code{prob.trans = TRUE} the roles are reversed
 #' (\code{p_yx <= alpha} and \code{p_xy > alpha} speaks for the target
-#' model). Skewness and kurtosis difference intervals are likewise reversed
-#' under \code{prob.trans = TRUE}; co-skewness and co-kurtosis intervals are
-#' never reversed.
+#' model). The skewness and kurtosis differences reverse in the same way, so
+#' that under \code{prob.trans = TRUE} a difference below zero speaks for the
+#' target model. Co-skewness, co-kurtosis and the likelihood-ratio
+#' approximations never reverse: a difference above zero speaks for the
+#' target model under both settings.
+#'
+#' When \code{dda.resdist} is called with \code{B = 0} no bootstrap interval
+#' is available for the skewness and kurtosis differences. The asymptotic
+#' difference test stored alongside them is used instead, combining its
+#' p-value with the sign of the difference.
 #'
 #' Separate normality tests on observed variables (\code{dda.vardist}):
 #' \itemize{
@@ -76,31 +94,30 @@
 #' dda.decisions(fit, alpha = 0.05)
 #'
 #' @export
-dda.decisions <- function(dda_result, alpha = 0.05) {
+dda.decisions <- function(dda_result, alpha = 0.05,
+                          nlcor.adjust = c("none", "bonferroni")) {
 
   if (!inherits(dda_result, c("dda.indep", "dda.resdist", "dda.vardist"))) {
     stop("Unsupported DDA object. Must be dda.indep, dda.resdist, or dda.vardist.")
   }
   stopifnot(is.numeric(alpha), length(alpha) == 1, alpha > 0, alpha < 1)
+  nlcor.adjust <- match.arg(nlcor.adjust)
 
-  # first element as numeric, NA if missing
-  p1 <- function(x) {
-    x <- suppressWarnings(as.numeric(unlist(x)[1]))
-    if (length(x) == 0) NA_real_ else x
+  obj <- dda_result
+
+  # list element by exact name, NULL when absent
+  el <- function(x, name) if (is.list(x) && name %in% names(x)) x[[name]] else NULL
+
+  # first value of a stored result as a number, NA when unavailable
+  num1 <- function(x) {
+    x <- suppressWarnings(as.numeric(unlist(x)))
+    if (length(x) == 0) NA_real_ else x[1]
   }
 
-  # last two elements of a result vector are its confidence bounds;
-  # min_len guards against objects fitted with B = 0 (no bootstrap CI)
-  ci_tail <- function(v, min_len = 3) {
-    v <- suppressWarnings(as.numeric(v))
-    if (length(v) < min_len) return(c(NA_real_, NA_real_))
-    c(v[length(v) - 1], v[length(v)])
-  }
-
-  # separate-test decision from target and alternative model p-values;
-  # confounding = TRUE adds the both-significant category used for
-  # independence tests
-  dec_sep <- function(p_tar, p_alt, confounding = FALSE) {
+  # decision from a target-model and an alternative-model p-value;
+  # confounding = TRUE adds the both-significant category used by the
+  # separate independence tests
+  dec_p <- function(p_tar, p_alt, confounding = FALSE) {
     if (is.na(p_tar) || is.na(p_alt)) return(NA_character_)
     if (p_tar >  alpha && p_alt <= alpha) return("Target")
     if (p_tar <= alpha && p_alt >  alpha) return("Alternative")
@@ -108,123 +125,138 @@ dda.decisions <- function(dda_result, alpha = 0.05) {
     "Undecided"
   }
 
-  # confidence interval decision; flip = TRUE reverses the direction
-  # (used for skewness/kurtosis differences under prob.trans = TRUE)
-  dec_ci <- function(lower, upper, flip = FALSE) {
+  # decision from a bootstrap confidence interval; reverse = TRUE swaps the
+  # two directions
+  dec_ci <- function(lower, upper, reverse = FALSE) {
     if (is.na(lower) || is.na(upper)) return(NA_character_)
-    if (!flip) {
-      if (lower > 0 && upper > 0) return("Target")
-      if (lower < 0 && upper < 0) return("Alternative")
-    } else {
-      if (lower < 0 && upper < 0) return("Target")
-      if (lower > 0 && upper > 0) return("Alternative")
-    }
-    "Undecided"
+    above <- lower > 0 && upper > 0
+    below <- lower < 0 && upper < 0
+    if (!above && !below) return("Undecided")
+    if (xor(above, reverse)) "Target" else "Alternative"
   }
 
-  obj <- dda_result
+  # difference statistic stored as c(estimate, lower, upper)
+  dec_interval <- function(v, reverse = FALSE) {
+    v <- suppressWarnings(as.numeric(v))
+    if (length(v) < 3) return(NA_character_)
+    dec_ci(v[length(v) - 1], v[length(v)], reverse)
+  }
+
+  # dda.resdist skewness and kurtosis differences: c(diff, z, p) without a
+  # bootstrap, c(diff, z, p, lower, upper) with one
+  dec_skewkurt <- function(v, reverse = FALSE) {
+    v <- suppressWarnings(as.numeric(v))
+    if (length(v) >= 5) return(dec_ci(v[4], v[5], reverse))
+    if (length(v) >= 3 && !is.na(v[1]) && !is.na(v[3])) {
+      if (v[3] > alpha || v[1] == 0) return("Undecided")
+      return(if (xor(v[1] > 0, reverse)) "Target" else "Alternative")
+    }
+    NA_character_
+  }
+
   out <- character(0)
 
   if (inherits(obj, "dda.indep")) {
 
-    if (!is.null(obj$hsic.yx)) {
-      out["hsic"] <- dec_sep(p1(obj$hsic.yx$p.value), p1(obj$hsic.xy$p.value),
-                             confounding = TRUE)
+    if (!is.null(el(obj, "hsic.yx")) && !is.null(el(obj, "hsic.xy"))) {
+      out["hsic"] <- dec_p(num1(el(obj, "hsic.yx")$p.value),
+                           num1(el(obj, "hsic.xy")$p.value), confounding = TRUE)
     }
 
-    dcor_yx <- if (!is.null(obj$distance_cor.dcor_yx)) obj$distance_cor.dcor_yx else obj$dcor.yx
-    dcor_xy <- if (!is.null(obj$distance_cor.dcor_xy)) obj$distance_cor.dcor_xy else obj$dcor.xy
+    dcor_yx <- el(obj, "distance_cor.dcor_yx")
+    dcor_xy <- el(obj, "distance_cor.dcor_xy")
     if (!is.null(dcor_yx) && !is.null(dcor_xy)) {
-      out["dcor"] <- dec_sep(p1(dcor_yx$p.value), p1(dcor_xy$p.value),
+      out["dcor"] <- dec_p(num1(dcor_yx$p.value), num1(dcor_xy$p.value),
+                           confounding = TRUE)
+    }
+
+    bp <- el(obj, "breusch_pagan")
+    if (!is.null(bp) && length(bp) >= 4) {
+      # elements 2 and 4 hold the robust Breusch-Pagan tests
+      out["dec_bp"] <- dec_p(num1(bp[[2]]$p.value), num1(bp[[4]]$p.value),
                              confounding = TRUE)
     }
 
-    if (!is.null(obj$breusch_pagan) && length(obj$breusch_pagan) >= 4) {
-      # elements 2 and 4 hold the robust Breusch-Pagan tests
-      out["dec_bp"] <- dec_sep(p1(obj$breusch_pagan[[2]]$p.value),
-                               p1(obj$breusch_pagan[[4]]$p.value),
-                               confounding = TRUE)
+    nl_yx <- el(obj, "nlcor.yx")
+    nl_xy <- el(obj, "nlcor.xy")
+    if (!is.null(nl_yx) && !is.null(nl_xy)) {
+      # smallest p-value across the transformations, optionally Bonferroni
+      # adjusted by the number of transformations available
+      min_p <- function(o) {
+        p <- c(num1(el(o, "t1")[4]), num1(el(o, "t2")[4]), num1(el(o, "t3")[4]))
+        p <- p[!is.na(p)]
+        if (length(p) == 0) return(NA_real_)
+        if (identical(nlcor.adjust, "bonferroni")) min(min(p) * length(p), 1)
+        else min(p)
+      }
+      out["dec_nl.min"] <- dec_p(min_p(nl_yx), min_p(nl_xy), confounding = TRUE)
     }
 
-    if (!is.null(obj$nlcor.yx)) {
-      # minimum p-value across the three non-linear transformations
-      p_yx <- suppressWarnings(min(c(p1(obj$nlcor.yx$t1[4]),
-                                     p1(obj$nlcor.yx$t2[4]),
-                                     p1(obj$nlcor.yx$t3[4])), na.rm = TRUE))
-      p_xy <- suppressWarnings(min(c(p1(obj$nlcor.xy$t1[4]),
-                                     p1(obj$nlcor.xy$t2[4]),
-                                     p1(obj$nlcor.xy$t3[4])), na.rm = TRUE))
-      if (!is.finite(p_yx)) p_yx <- NA_real_
-      if (!is.finite(p_xy)) p_xy <- NA_real_
-      out["dec_nl.min"] <- dec_sep(p_yx, p_xy, confounding = TRUE)
-    }
-
-    if (!is.null(obj$out.diff)) {
-      dm <- as.matrix(obj$out.diff)
+    dm <- el(obj, "out.diff")
+    if (!is.null(dm)) {
+      dm <- as.matrix(dm)
       nc <- ncol(dm)
+      nm <- c("diff_hsic", "diff_dcor", "diff_mi")
       if (nc >= 2) {
-        if (nrow(dm) >= 1) out["diff_hsic"] <- dec_ci(dm[1, nc - 1], dm[1, nc])
-        if (nrow(dm) >= 2) out["diff_dcor"] <- dec_ci(dm[2, nc - 1], dm[2, nc])
-        if (nrow(dm) >= 3) out["diff_mi"]   <- dec_ci(dm[3, nc - 1], dm[3, nc])
+        for (i in seq_len(min(nrow(dm), length(nm)))) {
+          out[nm[i]] <- dec_ci(dm[i, nc - 1], dm[i, nc])
+        }
       }
     }
   }
 
   if (inherits(obj, "dda.resdist")) {
 
-    prob_trans <- obj$probtrans
-
-    p_skew_tar <- p1(obj$agostino$target$p.value)
-    p_skew_alt <- p1(obj$agostino$alternative$p.value)
-    p_kurt_tar <- p1(obj$anscombe$target$p.value)
-    p_kurt_alt <- p1(obj$anscombe$alternative$p.value)
-
-    if (isTRUE(prob_trans)) {
-      # non-normal true error: non-normal target-model residuals together
-      # with normal-looking alternative-model residuals speak for the target
-      out["dec_agost"]  <- dec_sep(p_skew_alt, p_skew_tar)
-      out["dec_anscom"] <- dec_sep(p_kurt_alt, p_kurt_tar)
-    } else if (isFALSE(prob_trans)) {
-      # normal true error, non-normal predictor: normal-looking target-model
-      # residuals together with non-normal alternative-model residuals speak
-      # for the target
-      out["dec_agost"]  <- dec_sep(p_skew_tar, p_skew_alt)
-      out["dec_anscom"] <- dec_sep(p_kurt_tar, p_kurt_alt)
-    } else {
+    prob_trans <- el(obj, "probtrans")
+    if (!isTRUE(prob_trans) && !isFALSE(prob_trans)) {
       stop("'prob.trans' status of the dda.resdist object could not be determined.")
     }
+    reverse <- isTRUE(prob_trans)
 
-    flip <- isTRUE(prob_trans)
-    ci <- ci_tail(obj$skewdiff, min_len = 5)
-    out["dec_skewdiff"] <- dec_ci(ci[1], ci[2], flip = flip)
-    ci <- ci_tail(obj$kurtdiff, min_len = 5)
-    out["dec_kurtdiff"] <- dec_ci(ci[1], ci[2], flip = flip)
+    ago <- el(obj, "agostino")
+    ans <- el(obj, "anscombe")
+    p_skew_tar <- num1(el(ago, "target")$p.value)
+    p_skew_alt <- num1(el(ago, "alternative")$p.value)
+    p_kurt_tar <- num1(el(ans, "target")$p.value)
+    p_kurt_alt <- num1(el(ans, "alternative")$p.value)
 
+    # Under prob.trans = FALSE a normal-looking target-model residual paired
+    # with a non-normal alternative-model residual speaks for the target
+    # model; under prob.trans = TRUE the two roles are reversed.
+    if (reverse) {
+      out["dec_agost"]  <- dec_p(p_skew_alt, p_skew_tar)
+      out["dec_anscom"] <- dec_p(p_kurt_alt, p_kurt_tar)
+    } else {
+      out["dec_agost"]  <- dec_p(p_skew_tar, p_skew_alt)
+      out["dec_anscom"] <- dec_p(p_kurt_tar, p_kurt_alt)
+    }
+
+    # skewness and kurtosis differences reverse with prob.trans
+    if (!is.null(el(obj, "skewdiff")))
+      out["dec_skewdiff"] <- dec_skewkurt(el(obj, "skewdiff"), reverse)
+    if (!is.null(el(obj, "kurtdiff")))
+      out["dec_kurtdiff"] <- dec_skewkurt(el(obj, "kurtdiff"), reverse)
+
+    # co-moments and likelihood-ratio approximations never reverse
     for (k in c("cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
-      if (!is.null(obj[[k]])) {
-        ci <- ci_tail(obj[[k]], min_len = 3)
-        out[paste0("dec_", k)] <- dec_ci(ci[1], ci[2])
-      }
+      if (!is.null(el(obj, k))) out[paste0("dec_", k)] <- dec_interval(el(obj, k))
     }
   }
 
   if (inherits(obj, "dda.vardist")) {
 
-    p_skew_out  <- p1(obj$agostino$outcome$p.value)
-    p_skew_pred <- p1(obj$agostino$predictor$p.value)
-    p_kurt_out  <- p1(obj$anscombe$outcome$p.value)
-    p_kurt_pred <- p1(obj$anscombe$predictor$p.value)
+    ago <- el(obj, "agostino")
+    ans <- el(obj, "anscombe")
 
     # a normal-looking outcome together with a non-normal predictor speaks
     # for the target model
-    out["dec_agost"]  <- dec_sep(p_skew_out, p_skew_pred)
-    out["dec_anscom"] <- dec_sep(p_kurt_out, p_kurt_pred)
+    out["dec_agost"]  <- dec_p(num1(el(ago, "outcome")$p.value),
+                               num1(el(ago, "predictor")$p.value))
+    out["dec_anscom"] <- dec_p(num1(el(ans, "outcome")$p.value),
+                               num1(el(ans, "predictor")$p.value))
 
     for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) {
-      if (!is.null(obj[[k]])) {
-        ci <- ci_tail(obj[[k]], min_len = 3)
-        out[paste0("dec_", k)] <- dec_ci(ci[1], ci[2])
-      }
+      if (!is.null(el(obj, k))) out[paste0("dec_", k)] <- dec_interval(el(obj, k))
     }
   }
 
@@ -271,6 +303,9 @@ dda.decisions <- function(dda_result, alpha = 0.05) {
 #'   difference-statistic bootstrap, and for \code{dda.resdist} and
 #'   \code{dda.vardist}, which bootstrap their confidence intervals
 #'   internally.
+#' @param nlcor.adjust Character. Multiplicity adjustment passed to
+#'   \code{\link{dda.decisions}} for the non-linear correlation decision.
+#'   One of \code{"none"} (default) or \code{"bonferroni"}.
 #'
 #' @details
 #' This function uses a fitted DDA output object (obtained from
@@ -358,14 +393,16 @@ dda.bagging <- function(
     agg_stat     = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
     trim_prob    = 0.10,
     win_prob     = 0.10,
-    inner_B      = NULL
+    inner_B      = NULL,
+    nlcor.adjust = c("none", "bonferroni")
 ) {
 
   # Capture caller environment immediately. Symbols stored in call_info$all_args
   # (e.g. data = dat, B = my_b) are resolved here, not inside the loop.
   caller_env <- parent.frame()
 
-  agg_stat <- match.arg(agg_stat)
+  agg_stat     <- match.arg(agg_stat)
+  nlcor.adjust <- match.arg(nlcor.adjust)
 
   # --- Input Validation ---
   if (!inherits(dda_result, c("dda.indep", "dda.resdist", "dda.vardist"))) {
@@ -827,7 +864,8 @@ dda.bagging <- function(
   # so that dda.bagging and simulation code share the same rules; decs holds
   # the proportion of each decision across the valid samples.
   dec_list <- lapply(valid_res, function(x) {
-    tryCatch(dda.decisions(x, alpha = alpha), error = function(e) NULL)
+    tryCatch(dda.decisions(x, alpha = alpha, nlcor.adjust = nlcor.adjust),
+             error = function(e) NULL)
   })
   dec_keys <- unique(unlist(lapply(dec_list, names)))
   dec_levs <- if (obj_type == "dda.indep") {

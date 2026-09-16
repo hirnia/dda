@@ -84,7 +84,13 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
     agg$anscombe.alternative.z <- agg_helper(raw$anscom_alt_z)
 
     for(k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
-      if (!is.null(raw[[k]])) agg[[k]] <- apply(raw[[k]], 2, agg_helper)
+      if (!is.null(raw[[k]])) {
+        new_agg <- apply(raw[[k]], 2, agg_helper)
+        # keep the harmonic-mean p-value computed in dda.bagging (column 3
+        # of the 5-column skewness/kurtosis difference results)
+        if (ncol(raw[[k]]) == 5 && length(agg[[k]]) >= 3) new_agg[3] <- agg[[k]][3]
+        agg[[k]] <- new_agg
+      }
     }
 
   } else if (obj_type == "dda_bagging_vardist") {
@@ -98,7 +104,12 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
     agg$anscombe.outcome.statistic.z <- agg_helper(raw$anscom_out_z)
 
     for(k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) {
-      if (!is.null(raw[[k]])) agg[[k]] <- apply(raw[[k]], 2, agg_helper)
+      if (!is.null(raw[[k]])) {
+        new_agg <- apply(raw[[k]], 2, agg_helper)
+        # keep the harmonic-mean p-value if a 5-column result is ever present
+        if (ncol(raw[[k]]) == 5 && length(agg[[k]]) >= 3) new_agg[3] <- agg[[k]][3]
+        agg[[k]] <- new_agg
+      }
     }
   }
 

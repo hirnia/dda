@@ -14,7 +14,8 @@ dda.bagging(
   agg_stat = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
   trim_prob = 0.1,
   win_prob = 0.1,
-  inner_B = NULL
+  inner_B = NULL,
+  nlcor.adjust = c("bonferroni", "none")
 )
 }
 \arguments{
@@ -60,6 +61,10 @@ with \code{diff = TRUE}, where each outer iteration runs a full
 difference-statistic bootstrap, and for \code{dda.resdist} and
 \code{dda.vardist}, which bootstrap their confidence intervals
 internally.}
+
+\item{nlcor.adjust}{Character. Multiplicity adjustment passed to
+\code{\link{dda.decisions}} for the non-linear correlation decision.
+One of \code{"bonferroni"} (default) or \code{"none"}.}
 }
 \value{
 An object of class \code{dda_bagging} (with subclasses
@@ -80,7 +85,11 @@ bootstrap aggregation of DDA test statistics. The function computes DDA
 statistics across \code{iter} bootstrap samples and aggregates the results
 to evaluate the stability and robustness of DDA model selection. p-values
 obtained from significance tests are aggregated using the harmonic mean
-p-value approach (Wilson, 2019).
+p-value approach (Wilson, 2019). Model selection decisions within each
+bootstrap sample are obtained with \code{\link{dda.decisions}} (p-value
+based rules for significance tests, interval-excludes-zero rules for
+bootstrap difference statistics) and reported as decision proportions
+across samples.
 
 Run time scales with \code{iter} multiplied by the resampling budget of the
 base DDA call, and the underlying independence statistics are quadratic in
@@ -138,5 +147,5 @@ tests. \emph{Proceedings of the National Academy of Sciences}, \emph{116}(4),
 }
 \seealso{
 \code{\link{dda.indep}}, \code{\link{dda.vardist}},
-  \code{\link{dda.resdist}}
+  \code{\link{dda.resdist}}, \code{\link{dda.decisions}}
 }

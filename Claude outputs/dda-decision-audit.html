@@ -1,0 +1,828 @@
+<title>DDA Decision Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:      #f5f7f8;
+  --surface:     #ffffff;
+  --surface-alt: #eef1f3;
+  --ink:         #17212a;
+  --ink-2:       #566470;
+  --ink-3:       #8996a1;
+  --rule:        #dbe1e5;
+  --rule-strong: #b9c3ca;
+  --accent:      #14535f;
+  --accent-soft: #e0edef;
+  --good:        #2f6a4c;
+  --good-soft:   #e2efe8;
+  --warn:        #8d6212;
+  --warn-soft:   #f6ecd8;
+  --bad:         #91392c;
+  --bad-soft:    #f7e5e1;
+  --flag:        #b8842a;
+
+  --f-display: Spectral, Georgia, "Times New Roman", serif;
+  --f-body:    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #10151a;
+    --surface:     #171e25;
+    --surface-alt: #1e262e;
+    --ink:         #e4eaef;
+    --ink-2:       #9aa8b4;
+    --ink-3:       #6d7d8a;
+    --rule:        #2a333c;
+    --rule-strong: #3c4854;
+    --accent:      #6cbcc9;
+    --accent-soft: #16323a;
+    --good:        #74c39c;
+    --good-soft:   #16302a;
+    --warn:        #d9ac5b;
+    --warn-soft:   #322914;
+    --bad:         #e0897a;
+    --bad-soft:    #331e1b;
+    --flag:        #d6a44f;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #10151a;
+  --surface:     #171e25;
+  --surface-alt: #1e262e;
+  --ink:         #e4eaef;
+  --ink-2:       #9aa8b4;
+  --ink-3:       #6d7d8a;
+  --rule:        #2a333c;
+  --rule-strong: #3c4854;
+  --accent:      #6cbcc9;
+  --accent-soft: #16323a;
+  --good:        #74c39c;
+  --good-soft:   #16302a;
+  --warn:        #d9ac5b;
+  --warn-soft:   #322914;
+  --bad:         #e0897a;
+  --bad-soft:    #331e1b;
+  --flag:        #d6a44f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-inline: 20px;
+  padding-block: 48px 72px;
+}
+
+/* ---------- masthead ---------- */
+
+.masthead { border-bottom: 2px solid var(--ink); padding-bottom: 22px; }
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 10px;
+}
+
+h1 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(30px, 5vw, 42px);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+  text-wrap: balance;
+}
+
+.standfirst {
+  font-family: var(--f-display);
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 62ch;
+  margin: 0;
+}
+
+.runs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  margin-top: 22px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.runs b { color: var(--ink); font-weight: 600; }
+
+/* ---------- sections ---------- */
+
+section { margin-top: 52px; }
+
+h2 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 25px;
+  letter-spacing: -0.005em;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+
+h3 {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 26px 0 8px;
+}
+
+.lede { color: var(--ink-2); max-width: 68ch; margin: 0 0 22px; }
+.lede.tight { margin-bottom: 14px; }
+
+/* ---------- caveat ---------- */
+
+.caveat {
+  border-left: 3px solid var(--flag);
+  background: var(--warn-soft);
+  padding: 14px 18px;
+  margin-top: 24px;
+  font-size: 14px;
+  color: var(--ink);
+  max-width: 76ch;
+}
+.caveat b { font-weight: 600; }
+
+/* ---------- tally ---------- */
+
+.tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 24px;
+}
+.tally-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border: 1px solid var(--rule);
+  border-left-width: 3px;
+  background: var(--surface);
+  padding: 8px 14px;
+}
+.tally-item .n {
+  font-family: var(--f-mono);
+  font-size: 19px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tally-item .t { font-size: 13px; color: var(--ink-2); }
+.tally-item.is-fixed     { border-left-color: var(--good); }
+.tally-item.is-fixed .n  { color: var(--good); }
+.tally-item.is-same      { border-left-color: var(--ink-3); }
+.tally-item.is-same .n   { color: var(--ink-2); }
+.tally-item.is-worse     { border-left-color: var(--bad); }
+.tally-item.is-worse .n  { color: var(--bad); }
+
+/* ---------- tables ---------- */
+
+.scroller { overflow-x: auto; margin-top: 4px; }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+  font-size: 13.5px;
+}
+
+thead th {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-align: right;
+  padding: 0 9px 7px;
+  border-bottom: 1px solid var(--rule-strong);
+  white-space: nowrap;
+}
+thead th.grp {
+  text-align: center;
+  padding-bottom: 3px;
+  border-bottom: none;
+  color: var(--ink-3);
+}
+thead th.lead { text-align: left; padding-left: 12px; }
+
+tbody td {
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+tbody td.lead {
+  text-align: left;
+  font-family: var(--f-body);
+  padding-left: 12px;
+  white-space: normal;
+  min-width: 190px;
+}
+tbody tr:last-child td { border-bottom: none; }
+
+td.sep, th.sep { border-left: 1px solid var(--rule-strong); }
+.zero { color: var(--ink-3); }
+
+/* flagged rows keep a stripe so they're findable in the full tables */
+tr.flagged td.lead {
+  border-left: 3px solid var(--flag);
+  padding-left: 9px;
+  font-weight: 500;
+}
+tr.flagged { background: var(--surface-alt); }
+
+td.cell-flag {
+  background: var(--warn-soft);
+  color: var(--flag);
+  font-weight: 600;
+}
+
+.moved { color: var(--accent); font-weight: 600; }
+
+.block {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 16px 0 6px;
+  margin-top: 10px;
+}
+.block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0 16px 10px;
+}
+.block-title {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+.block-note { font-size: 12.5px; color: var(--ink-2); margin: 0; max-width: 56ch; }
+
+/* ---------- condition headers ---------- */
+
+.cond { margin-top: 40px; }
+.cond-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--rule-strong);
+  padding-bottom: 8px;
+}
+.cond-id {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--surface);
+  background: var(--accent);
+  padding: 2px 9px;
+  letter-spacing: 0.06em;
+}
+.cond-label {
+  font-family: var(--f-display);
+  font-size: 21px;
+  font-weight: 600;
+  margin: 0;
+}
+.cond-truth {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+  margin-left: auto;
+}
+
+/* ---------- status chips ---------- */
+
+.chip {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.chip.fixed { background: var(--good-soft); color: var(--good); }
+.chip.same  { background: var(--surface-alt); color: var(--ink-2); }
+.chip.worse { background: var(--bad-soft); color: var(--bad); }
+.chip.mixed { background: var(--warn-soft); color: var(--warn); }
+
+/* ---------- flagged-cell table ---------- */
+
+.flagtable td.lead { min-width: 160px; }
+.flagtable td.why {
+  text-align: left;
+  font-family: var(--f-body);
+  white-space: normal;
+  color: var(--ink-2);
+  font-size: 13px;
+  min-width: 240px;
+}
+.flagtable td.arrow { color: var(--ink-3); padding-inline: 2px; }
+.flagtable .src {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  display: block;
+  margin-top: 1px;
+}
+
+/* ---------- notes ---------- */
+
+.notes { margin-top: 18px; }
+.note {
+  border-top: 1px solid var(--rule);
+  padding: 14px 0;
+  max-width: 76ch;
+}
+.note:last-child { border-bottom: 1px solid var(--rule); }
+.note h4 {
+  font-family: var(--f-body);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.note p { margin: 0; color: var(--ink-2); font-size: 14px; }
+.note code, .lede code, .caveat code, .block-note code, .why code {
+  font-family: var(--f-mono);
+  font-size: 0.88em;
+  background: var(--surface-alt);
+  padding: 1px 4px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.legend span { display: flex; align-items: center; gap: 7px; }
+.swatch { width: 13px; height: 13px; flex: none; border: 1px solid var(--rule-strong); }
+.swatch.f { background: var(--warn-soft); border-color: var(--flag); }
+.swatch.s { background: var(--surface-alt); border-left: 3px solid var(--flag); }
+.swatch.m { background: var(--accent); border-color: var(--accent); }
+
+footer {
+  margin-top: 56px;
+  border-top: 2px solid var(--ink);
+  padding-top: 16px;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .wrap { padding-block: 32px 56px; }
+  .cond-truth { margin-left: 0; width: 100%; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Monte Carlo · four conditions · n = 500 · 100 reps · B = 2000</p>
+    <h1>DDA Decision Audit</h1>
+    <p class="standfirst">Decision proportions from the June run and the September rerun, side by side. The cells you highlighted in red and the two you commented on are tracked first; the full tables follow.</p>
+    <div class="runs">
+      <span><b>Old</b> · 23 Jun 2026 · pre-fix decision logic · 11 cores</span>
+      <span><b>New</b> · 14 Sep 2026 · <code>dda.decisions()</code> · 19 cores · sha e1ed8f5</span>
+    </div>
+  </header>
+
+  <div class="caveat">
+    <b>These are not the same datasets.</b> Changing the core count (11 → 19) and the scheduler (<code>parLapply</code> → <code>parLapplyLB</code>) re-assigns every replication to a different <code>clusterSetRNGStream</code> substream. At 100 reps the binomial standard error is about 0.05 near 0.50 and 0.03 near 0.10, so treat anything under roughly ±0.10 as noise rather than change.
+  </div>
+
+  <section>
+    <h2>Flagged cells</h2>
+    <p class="lede tight">Ten cells carried a red highlight in the June document and two carried comments. Here is what each one did.</p>
+
+    <div class="tally">
+      <div class="tally-item is-fixed"><span class="n">3</span><span class="t">fixed</span></div>
+      <div class="tally-item is-same"><span class="n">6</span><span class="t">unchanged — now explained</span></div>
+      <div class="tally-item is-worse"><span class="n">2</span><span class="t">moved the wrong way</span></div>
+      <div class="tally-item is-same"><span class="n">1</span><span class="t">improved slightly</span></div>
+    </div>
+
+    <div class="scroller">
+      <table class="flagtable">
+        <thead>
+          <tr>
+            <th class="lead">Cell</th>
+            <th>Column</th>
+            <th class="sep">Old</th>
+            <th></th>
+            <th>New</th>
+            <th class="sep">Status</th>
+            <th class="why" style="text-align:left">Reading</th>
+          </tr>
+        </thead>
+        <tbody id="flagbody"></tbody>
+      </table>
+    </div>
+
+    <div class="legend">
+      <span><i class="swatch f"></i> red-highlighted in June</span>
+      <span><i class="swatch s"></i> flagged row, shown in context below</span>
+      <span><i class="swatch m"></i> moved ≥ 0.10 between runs</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Full side-by-side</h2>
+    <p class="lede">Every test in every block. Proportions sum to 1 across each run's categories. Figures that moved by 0.10 or more between runs are set in the accent colour; zeros are dimmed so the signal carries.</p>
+    <div id="conditions"></div>
+  </section>
+
+  <section>
+    <h2>What the pattern says</h2>
+    <div class="notes" id="notes"></div>
+  </section>
+
+  <footer>
+    <span>dda 0.2.0 · decision rules from dda.decisions()</span>
+    <span>true model in every condition: x → y</span>
+  </footer>
+</div>
+
+<script>
+const L4 = ["Target", "Alternative", "Confounding", "Undecided"];
+const L3 = ["Target", "Alternative", "Undecided"];
+
+// r(name, old[], new[], flaggedColumnIndex)
+const r = (n, o, w, f) => ({ n, o, w, f: (f === undefined ? null : f) });
+
+const DATA = [
+  {
+    id: "C1", label: "X Normal, Error Normal",
+    truth: "not identifiable — Undecided is the correct answer",
+    blocks: [
+      { t: "Independence", lv: L4,
+        note: "June's fourth column was mislabelled: the catch-all was printed as Confounding, so that mass was really Undecided.",
+        rows: [
+          r("HSIC",                   [0.00,0.01,0.99,0.00], [0.00,0.02,0.01,0.97], 3),
+          r("dCor",                   [0.00,0.00,1.00,0.00], [0.00,0.00,0.00,1.00]),
+          r("Breusch-Pagan (robust)", [0.04,0.03,0.93,0.00], [0.05,0.04,0.00,0.91], 2),
+          r("Nonlinear correlation",  [0.15,0.06,0.79,0.00], [0.11,0.08,0.04,0.77], 2),
+          r("HSIC difference",        [0.00,0.00,0.00,1.00], [0.00,0.00,0.00,1.00]),
+          r("dCor difference",        [0.00,0.00,0.00,1.00], [0.00,0.00,0.00,1.00]),
+          r("MI difference",          [0.00,0.00,0.00,1.00], [0.00,0.00,0.00,1.00])
+        ]},
+      { t: "Resdist · prob.trans = FALSE", lv: L3, rows: [
+          r("D'Agostino (skew)",           [0.06,0.04,0.90], [0.03,0.07,0.90]),
+          r("Anscombe (kurt)",             [0.03,0.07,0.90], [0.04,0.05,0.91]),
+          r("Skewness difference",         [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Kurtosis difference",         [0.00,0.00,1.00], [0.01,0.00,0.99]),
+          r("Co-Skewness",                 [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Co-Kurtosis",                 [0.01,0.00,0.99], [0.02,0.00,0.98]),
+          r("Hyvarinen-Smith Co-Skewness", [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Hyvarinen-Smith Co-Kurtosis", [0.01,0.00,0.99], [0.02,0.00,0.98]),
+          r("Chen-Chan Co-Kurtosis",       [0.00,0.00,1.00], [0.01,0.01,0.98])
+        ]},
+      { t: "Resdist · prob.trans = TRUE", lv: L3, rows: [
+          r("D'Agostino (skew)",           [0.11,0.05,0.84], [0.04,0.05,0.91]),
+          r("Anscombe (kurt)",             [0.02,0.05,0.93], [0.02,0.02,0.96]),
+          r("Skewness difference",         [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Kurtosis difference",         [0.00,0.00,1.00], [0.01,0.00,0.99]),
+          r("Co-Skewness",                 [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Co-Kurtosis",                 [0.01,0.00,0.99], [0.01,0.00,0.99]),
+          r("Hyvarinen-Smith Co-Skewness", [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Hyvarinen-Smith Co-Kurtosis", [0.01,0.00,0.99], [0.01,0.00,0.99]),
+          r("Chen-Chan Co-Kurtosis",       [0.00,0.00,1.00], [0.00,0.00,1.00])
+        ]},
+      { t: "Variable distributions", lv: L3, rows: [
+          r("D'Agostino (skew)",           [0.05,0.02,0.93], [0.05,0.07,0.88]),
+          r("Anscombe (kurt)",             [0.05,0.04,0.91], [0.10,0.05,0.85]),
+          r("Skewness difference",         [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Kurtosis difference",         [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Co-Skewness",                 [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Co-Kurtosis",                 [0.00,0.00,1.00], [0.01,0.00,0.99]),
+          r("Hyvarinen-Smith Co-Skewness", [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Hyvarinen-Smith tanh",        [0.00,0.01,0.99], [0.01,0.03,0.96]),
+          r("Chen-Chan Co-Kurtosis",       [0.00,0.00,1.00], [0.00,0.00,1.00])
+        ]}
+    ]
+  },
+  {
+    id: "C2", label: "X Non-Normal, Error Normal",
+    truth: "the identified case — prob.trans = FALSE is the right branch",
+    blocks: [
+      { t: "Independence", lv: L4, rows: [
+          r("HSIC",                   [0.99,0.00,0.01,0.00], [0.99,0.00,0.01,0.00]),
+          r("dCor",                   [1.00,0.00,0.00,0.00], [1.00,0.00,0.00,0.00]),
+          r("Breusch-Pagan (robust)", [0.97,0.00,0.03,0.00], [0.99,0.00,0.01,0.00]),
+          r("Nonlinear correlation",  [0.97,0.00,0.03,0.00], [0.98,0.00,0.02,0.00]),
+          r("HSIC difference",        [1.00,0.00,0.00,0.00], [1.00,0.00,0.00,0.00]),
+          r("dCor difference",        [1.00,0.00,0.00,0.00], [1.00,0.00,0.00,0.00]),
+          r("MI difference",          [1.00,0.00,0.00,0.00], [1.00,0.00,0.00,0.00])
+        ]},
+      { t: "Resdist · prob.trans = FALSE", lv: L3,
+        note: "The correct branch for this condition. Unchanged within noise, which confirms the FALSE rule was never the broken one.",
+        rows: [
+          r("D'Agostino (skew)",           [0.90,0.03,0.07], [0.94,0.01,0.05]),
+          r("Anscombe (kurt)",             [0.43,0.02,0.55], [0.55,0.02,0.43]),
+          r("Skewness difference",         [0.43,0.00,0.57], [0.60,0.00,0.40]),
+          r("Kurtosis difference",         [0.01,0.01,0.98], [0.04,0.01,0.95]),
+          r("Co-Skewness",                 [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Co-Kurtosis",                 [0.03,0.00,0.97], [0.01,0.00,0.99]),
+          r("Hyvarinen-Smith Co-Skewness", [0.03,0.00,0.97], [0.04,0.00,0.96]),
+          r("Hyvarinen-Smith Co-Kurtosis", [0.03,0.00,0.97], [0.01,0.00,0.99]),
+          r("Chen-Chan Co-Kurtosis",       [0.00,0.01,0.99], [0.00,0.00,1.00])
+        ]},
+      { t: "Resdist · prob.trans = TRUE", lv: L3,
+        note: "Off-assumption here: the true error is normal, so TRUE is the wrong branch. The Target-to-Alternative swap in the two separate tests is the flip working as specified, not a fault.",
+        rows: [
+          r("D'Agostino (skew)",           [0.35,0.00,0.65], [0.02,0.26,0.72]),
+          r("Anscombe (kurt)",             [0.11,0.02,0.87], [0.03,0.12,0.85]),
+          r("Skewness difference",         [0.00,0.02,0.98], [0.01,0.07,0.92]),
+          r("Kurtosis difference",         [0.00,0.01,0.99], [0.01,0.00,0.99]),
+          r("Co-Skewness",                 [0.00,0.00,1.00], [0.01,0.12,0.87]),
+          r("Co-Kurtosis",                 [0.02,0.00,0.98], [0.03,0.00,0.97]),
+          r("Hyvarinen-Smith Co-Skewness", [0.04,0.00,0.96], [0.01,0.12,0.87]),
+          r("Hyvarinen-Smith Co-Kurtosis", [0.02,0.00,0.98], [0.03,0.00,0.97]),
+          r("Chen-Chan Co-Kurtosis",       [0.00,0.01,0.99], [0.01,0.00,0.99])
+        ]},
+      { t: "Variable distributions", lv: L3,
+        note: "The comparative statistics find the target cleanly; the two separate tests cannot, in either run.",
+        rows: [
+          r("D'Agostino (skew)",           [0.00,0.00,1.00], [0.00,0.00,1.00], 2),
+          r("Anscombe (kurt)",             [0.08,0.00,0.92], [0.14,0.00,0.86], 2),
+          r("Skewness difference",         [1.00,0.00,0.00], [1.00,0.00,0.00]),
+          r("Kurtosis difference",         [0.92,0.00,0.08], [0.95,0.00,0.05]),
+          r("Co-Skewness",                 [1.00,0.00,0.00], [1.00,0.00,0.00]),
+          r("Co-Kurtosis",                 [0.94,0.00,0.06], [0.94,0.00,0.06]),
+          r("Hyvarinen-Smith Co-Skewness", [1.00,0.00,0.00], [1.00,0.00,0.00]),
+          r("Hyvarinen-Smith tanh",        [0.01,0.08,0.91], [0.02,0.05,0.93]),
+          r("Chen-Chan Co-Kurtosis",       [0.92,0.00,0.08], [0.93,0.00,0.07])
+        ]}
+    ]
+  },
+  {
+    id: "C3", label: "X Normal, Error Non-Normal",
+    truth: "non-normal error — prob.trans = TRUE is the right branch",
+    blocks: [
+      { t: "Independence", lv: L4, rows: [
+          r("HSIC",                   [0.95,0.00,0.05,0.00], [0.91,0.00,0.06,0.03]),
+          r("dCor",                   [0.93,0.01,0.06,0.00], [0.92,0.01,0.02,0.05]),
+          r("Breusch-Pagan (robust)", [0.12,0.06,0.82,0.00], [0.18,0.06,0.02,0.74]),
+          r("Nonlinear correlation",  [0.77,0.02,0.21,0.00], [0.79,0.01,0.13,0.07]),
+          r("HSIC difference",        [0.66,0.00,0.00,0.34], [0.75,0.00,0.00,0.25]),
+          r("dCor difference",        [0.77,0.00,0.00,0.23], [0.77,0.00,0.00,0.23]),
+          r("MI difference",          [0.57,0.00,0.00,0.43], [0.58,0.00,0.00,0.42])
+        ]},
+      { t: "Resdist · prob.trans = FALSE", lv: L3,
+        note: "The wrong branch here, and it does not hesitate: the marginal statistics point confidently at the alternative model while the co-moments below them point at the target. That contradiction is itself the diagnostic.",
+        rows: [
+          r("D'Agostino (skew)",           [0.00,0.95,0.05], [0.00,0.95,0.05]),
+          r("Anscombe (kurt)",             [0.00,0.99,0.01], [0.00,0.95,0.05]),
+          r("Skewness difference",         [0.00,1.00,0.00], [0.00,1.00,0.00]),
+          r("Kurtosis difference",         [0.00,0.98,0.02], [0.00,0.96,0.04]),
+          r("Co-Skewness",                 [0.59,0.00,0.41], [0.63,0.00,0.37]),
+          r("Co-Kurtosis",                 [0.43,0.00,0.57], [0.46,0.00,0.54]),
+          r("Hyvarinen-Smith Co-Skewness", [0.66,0.00,0.34], [0.78,0.00,0.22]),
+          r("Hyvarinen-Smith Co-Kurtosis", [0.43,0.00,0.57], [0.46,0.00,0.54]),
+          r("Chen-Chan Co-Kurtosis",       [0.30,0.00,0.70], [0.30,0.00,0.70])
+        ]},
+      { t: "Resdist · prob.trans = TRUE", lv: L3,
+        note: "The branch that ought to work in this condition. Every marginal statistic is inert, and the co-moments lost roughly half their power relative to June — on rules that did not change.",
+        rows: [
+          r("D'Agostino (skew)",           [0.00,0.00,1.00], [0.00,0.00,1.00], 2),
+          r("Anscombe (kurt)",             [0.00,0.00,1.00], [0.00,0.00,1.00], 2),
+          r("Skewness difference",         [0.11,0.00,0.89], [0.00,0.00,1.00], 2),
+          r("Kurtosis difference",         [0.02,0.01,0.97], [0.00,0.00,1.00], 2),
+          r("Co-Skewness",                 [0.63,0.00,0.37], [0.33,0.00,0.67]),
+          r("Co-Kurtosis",                 [0.42,0.00,0.58], [0.17,0.00,0.83]),
+          r("Hyvarinen-Smith Co-Skewness", [0.68,0.00,0.32], [0.46,0.00,0.54]),
+          r("Hyvarinen-Smith Co-Kurtosis", [0.42,0.00,0.58], [0.19,0.00,0.81]),
+          r("Chen-Chan Co-Kurtosis",       [0.30,0.00,0.70], [0.11,0.00,0.89])
+        ]},
+      { t: "Variable distributions", lv: L3, rows: [
+          r("D'Agostino (skew)",           [0.00,0.95,0.05], [0.00,0.94,0.06]),
+          r("Anscombe (kurt)",             [0.00,0.97,0.03], [0.00,0.93,0.07]),
+          r("Skewness difference",         [0.00,1.00,0.00], [0.00,1.00,0.00]),
+          r("Kurtosis difference",         [0.00,0.98,0.02], [0.00,0.94,0.06]),
+          r("Co-Skewness",                 [0.00,0.03,0.97], [0.00,0.00,1.00]),
+          r("Co-Kurtosis",                 [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Hyvarinen-Smith Co-Skewness", [0.03,0.02,0.95], [0.01,0.00,0.99]),
+          r("Hyvarinen-Smith tanh",        [0.05,0.02,0.93], [0.06,0.00,0.94]),
+          r("Chen-Chan Co-Kurtosis",       [0.00,0.02,0.98], [0.00,0.02,0.98])
+        ]}
+    ]
+  },
+  {
+    id: "C4", label: "X Non-Normal, Error Non-Normal",
+    truth: "both sources non-normal",
+    blocks: [
+      { t: "Independence", lv: L4, rows: [
+          r("HSIC",                   [0.96,0.00,0.04,0.00], [0.91,0.00,0.09,0.00]),
+          r("dCor",                   [0.99,0.00,0.01,0.00], [0.98,0.00,0.02,0.00]),
+          r("Breusch-Pagan (robust)", [0.96,0.00,0.04,0.00], [0.95,0.00,0.05,0.00]),
+          r("Nonlinear correlation",  [0.94,0.00,0.06,0.00], [0.94,0.00,0.06,0.00]),
+          r("HSIC difference",        [1.00,0.00,0.00,0.00], [1.00,0.00,0.00,0.00]),
+          r("dCor difference",        [1.00,0.00,0.00,0.00], [1.00,0.00,0.00,0.00]),
+          r("MI difference",          [1.00,0.00,0.00,0.00], [1.00,0.00,0.00,0.00])
+        ]},
+      { t: "Resdist · prob.trans = FALSE", lv: L3, rows: [
+          r("D'Agostino (skew)",           [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Anscombe (kurt)",             [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Skewness difference",         [0.00,0.52,0.48], [0.00,0.47,0.53]),
+          r("Kurtosis difference",         [0.00,0.13,0.87], [0.00,0.09,0.91]),
+          r("Co-Skewness",                 [0.98,0.00,0.02], [0.97,0.00,0.03]),
+          r("Co-Kurtosis",                 [0.74,0.00,0.26], [0.67,0.00,0.33]),
+          r("Hyvarinen-Smith Co-Skewness", [1.00,0.00,0.00], [1.00,0.00,0.00]),
+          r("Hyvarinen-Smith Co-Kurtosis", [0.74,0.00,0.26], [0.67,0.00,0.33]),
+          r("Chen-Chan Co-Kurtosis",       [0.65,0.00,0.35], [0.60,0.00,0.40])
+        ]},
+      { t: "Resdist · prob.trans = TRUE", lv: L3,
+        note: "The flip is visible here: what FALSE calls Alternative on the skewness difference (0.47), TRUE calls Target (0.88).",
+        rows: [
+          r("D'Agostino (skew)",           [0.00,0.00,1.00], [0.01,0.00,0.99], 2),
+          r("Anscombe (kurt)",             [0.00,0.04,0.96], [0.13,0.00,0.87], 2),
+          r("Skewness difference",         [1.00,0.00,0.00], [0.88,0.00,0.12]),
+          r("Kurtosis difference",         [0.68,0.00,0.32], [0.33,0.00,0.67]),
+          r("Co-Skewness",                 [0.98,0.00,0.02], [0.92,0.00,0.08]),
+          r("Co-Kurtosis",                 [0.74,0.00,0.26], [0.73,0.00,0.27]),
+          r("Hyvarinen-Smith Co-Skewness", [1.00,0.00,0.00], [1.00,0.00,0.00]),
+          r("Hyvarinen-Smith Co-Kurtosis", [0.74,0.00,0.26], [0.73,0.00,0.27]),
+          r("Chen-Chan Co-Kurtosis",       [0.69,0.00,0.31], [0.65,0.00,0.35])
+        ]},
+      { t: "Variable distributions", lv: L3, rows: [
+          r("D'Agostino (skew)",           [0.00,0.00,1.00], [0.00,0.00,1.00]),
+          r("Anscombe (kurt)",             [0.00,0.00,1.00], [0.01,0.00,0.99]),
+          r("Skewness difference",         [0.21,0.00,0.79], [0.25,0.00,0.75]),
+          r("Kurtosis difference",         [0.13,0.02,0.85], [0.14,0.00,0.86]),
+          r("Co-Skewness",                 [0.96,0.00,0.04], [0.94,0.00,0.06]),
+          r("Co-Kurtosis",                 [0.69,0.00,0.31], [0.65,0.00,0.35]),
+          r("Hyvarinen-Smith Co-Skewness", [0.96,0.00,0.04], [0.94,0.00,0.06]),
+          r("Hyvarinen-Smith tanh",        [0.93,0.00,0.07], [0.87,0.00,0.13]),
+          r("Chen-Chan Co-Kurtosis",       [0.27,0.00,0.73], [0.34,0.00,0.66])
+        ]}
+    ]
+  }
+];
+
+const FLAGS = [
+  { cell: "C1 · Independence · Breusch-Pagan (robust)", src: "red highlight",
+    col: "Confounding", o: 0.93, w: 0.00, st: "fixed",
+    why: "Pure mislabel. June printed the catch-all as Confounding; that mass is now Undecided (0.91), where it belongs." },
+  { cell: "C1 · Independence · Nonlinear correlation", src: "red highlight",
+    col: "Confounding", o: 0.79, w: 0.04, st: "mixed",
+    why: "Label fixed the same way, but this test is still deciding 23% of the time in a condition where nothing is identifiable. Cause found and fixed in code — see note below." },
+  { cell: "C1 · Independence · HSIC", src: "comment: “This whole indep should have un…”",
+    col: "Undecided", o: 0.00, w: 0.97, st: "fixed",
+    why: "Exactly what you asked for. Undecided is now a real category and carries the mass." },
+  { cell: "C2 · Variable distributions · D'Agostino (skew)", src: "red highlight + comment: “Tar should be favoured”",
+    col: "Undecided", o: 1.00, w: 1.00, st: "same",
+    why: "Reproduced independently: both variables test as non-normal in 100 of 100 reps, so the rule can never fire. Structural, not a coding fault." },
+  { cell: "C2 · Variable distributions · Anscombe (kurt)", src: "red highlight + comment",
+    col: "Undecided", o: 0.92, w: 0.86, st: "same",
+    why: "Same cause. Target moved 0.08 → 0.14, within noise." },
+  { cell: "C3 · Resdist TRUE · D'Agostino (skew)", src: "red highlight",
+    col: "Undecided", o: 1.00, w: 1.00, st: "same",
+    why: "Both residual normality tests reject in 100 of 100 reps. The transform gives both variables the same marginal, so the two tests cannot disagree." },
+  { cell: "C3 · Resdist TRUE · Anscombe (kurt)", src: "red highlight",
+    col: "Undecided", o: 1.00, w: 1.00, st: "same",
+    why: "Same mechanism, also 100 of 100." },
+  { cell: "C3 · Resdist TRUE · Skewness difference", src: "red highlight",
+    col: "Undecided", o: 0.89, w: 1.00, st: "worse",
+    why: "Target 0.11 → 0.00. Reproduced: the transform shrinks the skewness difference from a mean of −2.64 to −0.34, and the interval never clears zero." },
+  { cell: "C3 · Resdist TRUE · Kurtosis difference", src: "red highlight",
+    col: "Undecided", o: 0.97, w: 1.00, st: "worse",
+    why: "Target 0.02 → 0.00, same cause." },
+  { cell: "C4 · Resdist TRUE · D'Agostino (skew)", src: "red highlight",
+    col: "Undecided", o: 1.00, w: 0.99, st: "same",
+    why: "Both residuals non-normal in 100 of 100 reps here too." },
+  { cell: "C4 · Resdist TRUE · Anscombe (kurt)", src: "red highlight",
+    col: "Undecided", o: 0.96, w: 0.87, st: "same",
+    why: "Slightly better — Target 0.00 → 0.13 — but still mostly undecided for the same reason." }
+];
+
+const NOTES = [
+  { h: "prob.trans flips skewness and kurtosis only — confirmed",
+    p: "Your instinct is right, and the package says so in its own words. <code>print.dda.resdist</code> prints: “Under prob.trans = TRUE, skewness and kurtosis differences &lt; 0 and co-skewness and co-kurtosis differences &gt; 0 suggest x → y.” The implemented logic flips D'Agostino, Anscombe, the skewness difference and the kurtosis difference, and leaves co-skewness, co-kurtosis, RHS3, RHS4 and RCC alone. No change needed." },
+  { h: "Nonlinear correlation was miscalibrated — fixed",
+    p: "The decision takes the smallest p-value across three transformations with no adjustment, which inflates decisiveness under C1 from a nominal 5–10% to 21%. Each single transform gives 6–10% on its own. <code>dda.decisions()</code> now takes <code>nlcor.adjust</code>, defaulting to <code>\"bonferroni\"</code>, which brings C1 back to 6%. Pass <code>\"none\"</code> to reproduce the old numbers." },
+  { h: "Co-Kurtosis and Hyvarinen-Smith Co-Kurtosis are one test, not two",
+    p: "They agree in sign in 100 of 100 reps in all four conditions and correlate 0.94–0.996, because with standardised residuals both carry the factor (A − B) and differ only by a near-constant multiple. Seven of the eight resdist cells are numerically identical. Worth a note in the documentation so readers do not count the evidence twice. Co-Skewness and its Hyvarinen-Smith counterpart are genuinely different, and the Hyvarinen-Smith version is uniformly the stronger of the two." },
+  { h: "The prob.trans = TRUE weakening is not in the decision logic",
+    p: "Every rule behind the C3 and C4 TRUE co-moment cells is unchanged from June, yet they halved. The tell is in the June document itself: back then the co-moment columns were nearly identical between FALSE and TRUE, meaning the transform barely reached the bootstrap statistics. Now it clearly does. Git cannot settle it — the repository starts on 4 Sep 2026 and <code>dda_resdist.r</code> has not been committed since — so the June source would have to come from the archived history bundle." },
+  { h: "One question for WW",
+    p: "Under prob.trans = TRUE the separate D'Agostino and Anscombe tests have no power in any of the four conditions, because the transform gives both variables the same marginal by construction. The package's own note mentions only the difference statistics for that branch. Worth confirming whether the separate tests are meant to be read as a direction rule under prob.trans = TRUE at all." }
+];
+
+const fmt = v => v.toFixed(2);
+
+function numCell(v, moved, flagged, sep) {
+  const cls = [];
+  if (sep) cls.push("sep");
+  if (flagged) cls.push("cell-flag");
+  else if (v === 0) cls.push("zero");
+  if (moved && !flagged) cls.push("moved");
+  return `<td class="${cls.join(" ")}">${fmt(v)}</td>`;
+}
+
+function buildBlock(b) {
+  const n = b.lv.length;
+  const head = `
+    <thead>
+      <tr>
+        <th class="lead" rowspan="2">Test</th>
+        <th class="grp sep" colspan="${n}">June 23</th>
+        <th class="grp sep" colspan="${n}">Sept 14</th>
+      </tr>
+      <tr>
+        ${b.lv.map((l, i) => `<th class="${i === 0 ? "sep" : ""}">${l.slice(0, 4)}</th>`).join("")}
+        ${b.lv.map((l, i) => `<th class="${i === 0 ? "sep" : ""}">${l.slice(0, 4)}</th>`).join("")}
+      </tr>
+    </thead>`;
+
+  const body = b.rows.map(row => {
+    const anyMoved = row.o.some((v, i) => Math.abs(v - row.w[i]) >= 0.10);
+    const cells = row.o.map((v, i) =>
+      numCell(v, false, row.f === i, i === 0)).join("")
+      + row.w.map((v, i) =>
+        numCell(v, Math.abs(v - row.o[i]) >= 0.10, false, i === 0)).join("");
+    return `<tr class="${row.f !== null ? "flagged" : ""}">
+        <td class="lead">${row.n}</td>${cells}
+      </tr>`;
+  }).join("");
+
+  return `
+    <div class="block">
+      <div class="block-head">
+        <p class="block-title">${b.t}</p>
+        ${b.note ? `<p class="block-note">${b.note}</p>` : ""}
+      </div>
+      <div class="scroller"><table>${head}<tbody>${body}</tbody></table></div>
+    </div>`;
+}
+
+document.getElementById("conditions").innerHTML = DATA.map(c => `
+  <div class="cond">
+    <div class="cond-head">
+      <span class="cond-id">${c.id}</span>
+      <h3 class="cond-label" style="font-family:var(--f-display);font-size:21px;letter-spacing:0;text-transform:none;color:var(--ink);margin:0">${c.label}</h3>
+      <span class="cond-truth">${c.truth}</span>
+    </div>
+    ${c.blocks.map(buildBlock).join("")}
+  </div>`).join("");
+
+document.getElementById("flagbody").innerHTML = FLAGS.map(f => `
+  <tr>
+    <td class="lead">${f.cell}<span class="src">${f.src}</span></td>
+    <td>${f.col}</td>
+    <td class="sep">${fmt(f.o)}</td>
+    <td class="arrow">→</td>
+    <td>${fmt(f.w)}</td>
+    <td class="sep"><span class="chip ${f.st}">${
+      { fixed: "fixed", same: "unchanged", worse: "worse", mixed: "part fixed" }[f.st]
+    }</span></td>
+    <td class="why">${f.why}</td>
+  </tr>`).join("");
+
+document.getElementById("notes").innerHTML = NOTES.map(n => `
+  <div class="note"><h4>${n.h}</h4><p>${n.p}</p></div>`).join("");
+</script>

@@ -18,3 +18,5 @@
 ^\.Rhistory$
 ^manuscript$
 ^.*\.bundle$
+^Claude outputs$
+^_archive$
