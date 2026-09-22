@@ -4,7 +4,7 @@
 \alias{dda.decisions}
 \title{Model Selection Decisions for a Fitted DDA Object}
 \usage{
-dda.decisions(dda_result, alpha = 0.05, nlcor.adjust = c("bonferroni", "none"))
+dda.decisions(dda_result, alpha = 0.05, nlcor.adjust = c("none", "bonferroni"))
 }
 \arguments{
 \item{dda_result}{An output object from \code{dda.indep},
@@ -15,10 +15,9 @@ dda.decisions(dda_result, alpha = 0.05, nlcor.adjust = c("bonferroni", "none"))
 
 \item{nlcor.adjust}{Character. Multiplicity adjustment applied to the
 smallest non-linear correlation p-value across the three transformations
-(\code{dda.indep} only). \code{"bonferroni"} (default) multiplies the
-smallest p-value by the number of transformations; \code{"none"} uses it
-unadjusted. The transformations are positively dependent, so the
-Bonferroni adjustment is conservative.}
+(\code{dda.indep} only). \code{"none"} (default) uses the smallest
+p-value directly. \code{"bonferroni"} multiplies it by the number of
+transformations.}
 }
 \value{
 A named character vector of decisions, one element per test
@@ -29,22 +28,16 @@ A named character vector of decisions, one element per test
 \description{
 \code{dda.decisions} translates the tests stored in a fitted DDA object
 (\code{dda.indep}, \code{dda.resdist}, or \code{dda.vardist}) into causal
-model selection decisions. Decisions based on significance tests compare
-p-values against \code{alpha}; decisions based on bootstrap confidence
-intervals check whether the interval excludes zero. The same rules are
-used inside \code{dda.bagging}, so simulation code can call
-\code{dda.decisions} directly instead of re-implementing decision logic.
+model selection decisions. Significance tests are compared against
+\code{alpha}; difference statistics are decided by whether their bootstrap
+confidence interval excludes zero. The same rules are used inside
+\code{dda.bagging}, so simulation code can call \code{dda.decisions}
+directly instead of re-implementing decision logic.
 }
 \details{
 Throughout, the target model is \code{x -> y} and the alternative model is
 \code{y -> x}; \code{p_yx} denotes a p-value obtained under the target
 model and \code{p_xy} a p-value obtained under the alternative model.
-
-The non-linear correlation decision combines three transformations by
-taking the smallest p-value in each direction. Without adjustment that
-inflates the rate of decisive outcomes roughly fourfold under a model
-where neither direction is identified, so \code{nlcor.adjust} defaults to
-a Bonferroni correction.
 
 Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
 Breusch-Pagan, non-linear correlation):
@@ -54,6 +47,12 @@ Breusch-Pagan, non-linear correlation):
   \item both \code{<= alpha}: \code{"Confounding"}
   \item both \code{> alpha}: \code{"Undecided"}
 }
+The non-linear correlation decision combines the three transformations by
+taking the smallest p-value in each direction, matching the reference
+implementation. That combination is not adjusted for multiplicity by
+default; \code{nlcor.adjust = "bonferroni"} applies a correction, which
+lowers the rate of decisive outcomes when neither direction is identified.
+
 Difference statistics (HSIC, dCor, MI) use their bootstrap confidence
 intervals: an interval above zero speaks for the target model, below zero
 for the alternative model, otherwise the decision is \code{"Undecided"}.
@@ -68,9 +67,16 @@ object. Under \code{prob.trans = FALSE}:
 }
 Under \code{prob.trans = TRUE} the roles are reversed
 (\code{p_yx <= alpha} and \code{p_xy > alpha} speaks for the target
-model). Skewness and kurtosis difference intervals are likewise reversed
-under \code{prob.trans = TRUE}; co-skewness and co-kurtosis intervals are
-never reversed.
+model). The skewness and kurtosis differences reverse in the same way, so
+that under \code{prob.trans = TRUE} a difference below zero speaks for the
+target model. Co-skewness, co-kurtosis and the likelihood-ratio
+approximations never reverse: a difference above zero speaks for the
+target model under both settings.
+
+When \code{dda.resdist} is called with \code{B = 0} no bootstrap interval
+is available for the skewness and kurtosis differences. The asymptotic
+difference test stored alongside them is used instead, combining its
+p-value with the sign of the difference.
 
 Separate normality tests on observed variables (\code{dda.vardist}):
 \itemize{
@@ -88,7 +94,7 @@ target model.
 set.seed(123)
 n <- 200
 x <- rchisq(n, df = 4) - 4
-e <- rchisq(n, df = 3) - 3
+e <- rnorm(n, sd = sqrt(6))
 y <- 0.5 * x + e
 d <- data.frame(x, y)
 

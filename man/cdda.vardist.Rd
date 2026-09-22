@@ -109,13 +109,13 @@ z2 <- z[z > 0]
 ## --- x -> y when z <= 0
 
 x1 <- rchisq(length(z1), df = 4) - 4
-e1 <- rchisq(length(z1), df = 3) - 3
+e1 <- rnorm(length(z1), sd = sqrt(6))
 y1 <- 0.5 * x1 + e1
 
 ## --- y -> x when m z > 0
 
 y2 <- rchisq(length(z2), df = 4) - 4
-e2 <- rchisq(length(z2), df = 3) - 3
+e2 <- rnorm(length(z2), sd = sqrt(6))
 x2 <- 0.25 * y2 + e2
 
 y <- c(y1, y2); x <- c(x1, x2)

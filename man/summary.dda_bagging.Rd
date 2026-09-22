@@ -31,6 +31,24 @@ shows default statistics based on the object type.}
 }
 \value{
 Invisibly returns the original object.
+
+set.seed(123)
+n <- 200
+x <- rchisq(n, df = 4) - 4
+e <- rnorm(n, sd = sqrt(6))
+y <- 0.5 * x + e
+d <- data.frame(x, y)
+
+base_model <- dda.vardist(y ~ x, pred = "x", data = d, B = 10)
+bagged <- dda.bagging(base_model, iter = 10, data = d, progress = FALSE)
+
+## proportion of model selection decisions across bootstrap samples
+summary(bagged)
+
+\donttest{
+## restrict the table to selected statistics and moments
+summary(bagged, show = c("skew", "coskew"), moment = 3)
+}
 }
 \description{
 \code{summary} returns the proportion of model selection

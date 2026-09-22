@@ -43,21 +43,21 @@ samples using the method specified in \code{dda.bagging()} or overridden
 via \code{agg.stat}.
 }
 \examples{
-\donttest{
 set.seed(123)
 n <- 200
 x <- rchisq(n, df = 4) - 4
-e <- rchisq(n, df = 3) - 3
+e <- rnorm(n, sd = sqrt(6))
 y <- 0.5 * x + e
 d <- data.frame(x, y)
 
 base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20)
-bagged <- dda.bagging(base_model, data = d, iter = 10, inner_B = 20,
+bagged <- dda.bagging(base_model, data = d, iter = 5, inner_B = 20,
                        progress = FALSE)
 
 # Print aggregated OLS coefficients for target and alternative models
 summary_ols(bagged)
 
+\donttest{
 # Override aggregation method
 summary_ols(bagged, agg_stat = "median")
 }

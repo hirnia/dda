@@ -158,13 +158,13 @@ z2 <- z[z > 0]
 ## --- x -> y when z <= 0
 
 x1 <- rchisq(length(z1), df = 4) - 4
-e1 <- rchisq(length(z1), df = 3) - 3
+e1 <- rnorm(length(z1), sd = sqrt(6))
 y1 <- 0.5 * x1 + e1
 
 ## --- y -> x when m z > 0
 
 y2 <- rchisq(length(z2), df = 4) - 4
-e2 <- rchisq(length(z2), df = 3) - 3
+e2 <- rnorm(length(z2), sd = sqrt(6))
 x2 <- 0.25 * y2 + e2
 
 y <- c(y1, y2); x <- c(x1, x2)
@@ -185,7 +185,9 @@ result <- cdda.indep(m,
                      cores = 2,
                      nlfun = 2,
                      B = 2)
-# Note: Only 2 bootstrap samples are created here to lower computation time
+# Note: Only 2 bootstrap samples are created here to lower computation time.
+# Permutation p-values cannot fall below 1 / (B + 1), so the dCor p-values
+# below are bounded at 0.33; raise B for inference.
 
 \dontrun{
 ## --- Realistic settings; run time is substantial

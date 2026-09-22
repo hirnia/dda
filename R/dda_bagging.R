@@ -86,7 +86,7 @@
 #' set.seed(123)
 #' n <- 200
 #' x <- rchisq(n, df = 4) - 4
-#' e <- rchisq(n, df = 3) - 3
+#' e <- rnorm(n, sd = sqrt(6))
 #' y <- 0.5 * x + e
 #' d <- data.frame(x, y)
 #'
@@ -350,20 +350,22 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #' set.seed(123)
 #' n <- 200
 #' x <- rchisq(n, df = 4) - 4
-#' e <- rchisq(n, df = 3) - 3
+#' e <- rnorm(n, sd = sqrt(6))
 #' y <- 0.5 * x + e
 #' d <- data.frame(x, y)
 #'
 #' ## --- Fit a base DDA independence model
 #'
-#' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 10, hetero = TRUE)
+#' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20, hetero = TRUE)
 #'
 #' ## --- Bootstrap aggregation of the base model
 #'
 #' bagged <- dda.bagging(base_model, data = d, iter = 5, agg_stat = "mean",
-#'   inner_B = 10, progress = FALSE)
+#'   inner_B = 20, progress = FALSE)
 #' # Note: n, B and iter are all kept small here to lower computation time.
-#' # inner_B caps the resampling budget of each outer iteration.
+#' # inner_B caps the resampling budget of each outer iteration. Permutation
+#' # p-values cannot fall below 1 / (B + 1), so B = 20 is the smallest value
+#' # at which the dCor test can reach the .05 level.
 #'
 #' print(bagged)
 #' summary(bagged, show = c("hsic", "dcor"))

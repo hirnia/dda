@@ -90,7 +90,7 @@ objects.
 set.seed(123)
 n <- 500
 x <- rchisq(n, df = 4) - 4
-e <- rchisq(n, df = 3) - 3
+e <- rnorm(n, sd = sqrt(6))
 y <- 0.5 * x + e
 d <- data.frame(x, y)
 

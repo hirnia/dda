@@ -38,20 +38,28 @@
 #' set.seed(123)
 #' n <- 500
 #' x <- rchisq(n, df = 4) - 4
-#' e <- rchisq(n, df = 3) - 3
+#' e <- rnorm(n, sd = sqrt(6))
 #' y <- 0.5 * x + e
 #' d <- data.frame(x, y)
 #'
 #' result <- dda.resdist(y ~ x, pred = "x", data = d,
-#'             B = 50, conf.level = 0.90, prob.trans = TRUE, robust = FALSE)
+#'             B = 50, conf.level = 0.90, prob.trans = FALSE, robust = FALSE)
 #'
 #' print(result)
+#'
+#' ## --- prob.trans = TRUE maps the predictor onto the marginal of the outcome,
+#' ## --- so it is informative when the outcome is itself non-normal.
+#'
+#' d.skew <- data.frame(x, y = 0.5 * x + (rchisq(n, df = 3) - 3))
+#'
+#' dda.resdist(y ~ x, pred = "x", data = d.skew,
+#'             B = 50, conf.level = 0.90, prob.trans = TRUE)
 #'
 #' \dontrun{
 #' ## --- Realistic settings; run time is substantial
 #'
 #' result <- dda.resdist(y ~ x, pred = "x", data = d, B = 500,
-#'   boot.type = "bca", conf.level = 0.95, prob.trans = TRUE)
+#'   boot.type = "bca", conf.level = 0.95, prob.trans = FALSE)
 #'
 #' print(result)
 #'

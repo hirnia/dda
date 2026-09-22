@@ -69,54 +69,54 @@ function supports independence properties (obtained from
 \code{dda.vardist}), and OLS summaries (\code{print_ols_summary}).
 }
 \examples{
-\donttest{
 set.seed(123)
 n <- 200
 x <- rchisq(n, df = 4) - 4
-e <- rchisq(n, df = 3) - 3
+e <- rnorm(n, sd = sqrt(6))
 y <- 0.5 * x + e
 d <- data.frame(x, y)
 
 base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20,
                          hetero = TRUE, nlfun = 2, diff = TRUE)
-bagged <- dda.bagging(base_model, data = d, iter = 10, inner_B = 20,
+bagged <- dda.bagging(base_model, data = d, iter = 5, inner_B = 20,
                        agg_stat = "mean", progress = FALSE)
 
 # Default print
 print(bagged)
 
+\donttest{
 # Override aggregation method at print time
 print(bagged, agg_stat = "trimmed", trim_prob = 0.05)
 
 # Print aggregated OLS summaries
 print_ols_summary(bagged)
 }
-\donttest{
 set.seed(123)
 n <- 200
 x <- rchisq(n, df = 4) - 4
-e <- rchisq(n, df = 3) - 3
+e <- rnorm(n, sd = sqrt(6))
 y <- 0.5 * x + e
 d <- data.frame(x, y)
 
 base_rd <- dda.resdist(y ~ x, pred = "x", data = d, B = 20)
-bagged_rd <- dda.bagging(base_rd, data = d, iter = 10, inner_B = 20,
+bagged_rd <- dda.bagging(base_rd, data = d, iter = 5, inner_B = 20,
                           progress = FALSE)
 print(bagged_rd)
+\donttest{
 print(bagged_rd, agg_stat = "median")
 }
-\donttest{
 set.seed(123)
 n <- 200
 x <- rchisq(n, df = 4) - 4
-e <- rchisq(n, df = 3) - 3
+e <- rnorm(n, sd = sqrt(6))
 y <- 0.5 * x + e
 d <- data.frame(x, y)
 
 base_vd <- dda.vardist(y ~ x, pred = "x", data = d, B = 20)
-bagged_vd <- dda.bagging(base_vd, data = d, iter = 10, inner_B = 20,
+bagged_vd <- dda.bagging(base_vd, data = d, iter = 5, inner_B = 20,
                           progress = FALSE)
 print(bagged_vd)
+\donttest{
 print(bagged_vd, agg_stat = "winsorized", win_prob = 0.10)
 }
 }

@@ -75,7 +75,7 @@ print_bagging_decisions <- function(object, show = NULL, moment = NULL, type = "
     "dec_RHS3"      = "Hyvarinen-Smith Co-Skewness Difference",
     "dec_RHS4"      = "Hyvarinen-Smith Co-Kurtosis Difference",
     "dec_RCC"       = "Chen-Chan Co-Kurtosis Difference",
-    "dec_Rtanh"     = "Hyvarinen-Smith Co-Kurtosis Difference"
+    "dec_Rtanh"     = "Hyvarinen-Smith tanh Difference"
   )
 
   all_keys <- names(decisions)
@@ -210,6 +210,24 @@ print_bagging_decisions <- function(object, show = NULL, moment = NULL, type = "
 #' @param ... Additional arguments passed to \code{summary}.
 #'
 #' @return Invisibly returns the original object.
+#'
+#' set.seed(123)
+#' n <- 200
+#' x <- rchisq(n, df = 4) - 4
+#' e <- rnorm(n, sd = sqrt(6))
+#' y <- 0.5 * x + e
+#' d <- data.frame(x, y)
+#'
+#' base_model <- dda.vardist(y ~ x, pred = "x", data = d, B = 10)
+#' bagged <- dda.bagging(base_model, iter = 10, data = d, progress = FALSE)
+#'
+#' ## proportion of model selection decisions across bootstrap samples
+#' summary(bagged)
+#'
+#' \donttest{
+#' ## restrict the table to selected statistics and moments
+#' summary(bagged, show = c("skew", "coskew"), moment = 3)
+#' }
 #'
 #' @export
 #' @rdname summary.dda_bagging
