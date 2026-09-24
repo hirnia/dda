@@ -211,6 +211,7 @@ print_bagging_decisions <- function(object, show = NULL, moment = NULL, type = "
 #'
 #' @return Invisibly returns the original object.
 #'
+#' @examples
 #' set.seed(123)
 #' n <- 200
 #' x <- rchisq(n, df = 4) - 4

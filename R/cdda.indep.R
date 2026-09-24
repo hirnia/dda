@@ -88,7 +88,6 @@
 #' # below are bounded at 0.33; raise B for inference.
 #'
 #' \dontrun{
-#' ## --- Realistic settings; run time is substantial
 #'
 #' result <- cdda.indep(m,
 #'                      pred = "x",

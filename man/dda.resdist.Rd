@@ -83,7 +83,6 @@ dda.resdist(y ~ x, pred = "x", data = d.skew,
             B = 50, conf.level = 0.90, prob.trans = TRUE)
 
 \dontrun{
-## --- Realistic settings; run time is substantial
 
 result <- dda.resdist(y ~ x, pred = "x", data = d, B = 500,
   boot.type = "bca", conf.level = 0.95, prob.trans = FALSE)

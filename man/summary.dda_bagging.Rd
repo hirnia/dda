@@ -31,7 +31,14 @@ shows default statistics based on the object type.}
 }
 \value{
 Invisibly returns the original object.
-
+}
+\description{
+\code{summary} returns the proportion of model selection
+decisions (i.e., target model, alternative model, or presence of hidden
+confounding) across the bootstrap samples for bootstrap aggregated
+Direction Dependence Analysis (DDA) objects.
+}
+\examples{
 set.seed(123)
 n <- 200
 x <- rchisq(n, df = 4) - 4
@@ -49,10 +56,5 @@ summary(bagged)
 ## restrict the table to selected statistics and moments
 summary(bagged, show = c("skew", "coskew"), moment = 3)
 }
-}
-\description{
-\code{summary} returns the proportion of model selection
-decisions (i.e., target model, alternative model, or presence of hidden
-confounding) across the bootstrap samples for bootstrap aggregated
-Direction Dependence Analysis (DDA) objects.
+
 }

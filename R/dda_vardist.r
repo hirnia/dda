@@ -40,7 +40,6 @@
 #' # Note: Only 50 bootstrap samples are used here to lower computation time
 #'
 #' \dontrun{
-#' ## --- Realistic settings; run time is substantial
 #'
 #' result <- dda.vardist(y ~ x, pred = "x", data = d, B = 500,
 #'   boot.type = "bca", conf.level = 0.95)

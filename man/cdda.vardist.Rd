@@ -129,7 +129,6 @@ result <- cdda.vardist(m, pred = "x", mod = "z", B = 50,
 # Note: Only 50 bootstrap samples are created here to lower computation time
 
 \dontrun{
-## --- Realistic settings; run time is substantial
 
 result <- cdda.vardist(m, pred = "x", mod = "z", B = 500,
                        modval = c(-1, 1), data = d)

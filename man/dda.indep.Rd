@@ -100,7 +100,6 @@ result <- dda.indep(y ~ x, pred = "x", data = d, parallelize = TRUE, cores = 2,
 print(result)
 
 \dontrun{
-## --- Realistic settings; run time is substantial
 
 result <- dda.indep(y ~ x, pred = "x", data = d, parallelize = TRUE,
   cores = 2, nlfun = 2, B = 500, hetero = TRUE, diff = TRUE)
