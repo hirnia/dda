@@ -51,7 +51,7 @@ y <- 0.5 * x + e
 d <- data.frame(x, y)
 
 base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20)
-bagged <- dda.bagging(base_model, data = d, iter = 5, inner_B = 20,
+bagged <- dda.bagging(base_model, data = d, iter = 5,
                        progress = FALSE)
 
 # Print aggregated OLS coefficients for target and alternative models

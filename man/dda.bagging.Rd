@@ -14,7 +14,6 @@ dda.bagging(
   agg_stat = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
   trim_prob = 0.1,
   win_prob = 0.1,
-  inner_B = NULL,
   nlcor.adjust = c("none", "bonferroni")
 )
 }
@@ -49,21 +48,9 @@ each side of the sampling distribution when \code{agg_stat = "trimmed"}
 each side of the sampling distribution when
 \code{agg_stat = "winsorized"} (default: 0.10).}
 
-\item{inner_B}{Optional positive integer. Caps the number of inner
-bootstrap resamples (\code{B}) passed to each per-iteration DDA call.
-\code{NULL} (default) keeps whatever \code{B} was used in the original
-DDA call. Every base DDA function runs its own resampling on each of the
-\code{iter} outer iterations, so total cost grows as
-\code{iter} \eqn{\times} \code{B}; capping \code{inner_B} is the main
-lever for reducing run time without changing how the outer bagging loop
-aggregates results. The effect is largest for \code{dda.indep} called
-with \code{diff = TRUE}, where each outer iteration runs a full
-difference-statistic bootstrap, and for \code{dda.resdist} and
-\code{dda.vardist}, which bootstrap their confidence intervals
-internally.}
 
 \item{nlcor.adjust}{Character. Multiplicity adjustment passed to
-\code{\link{dda.decisions}} for the non-linear correlation decision.
+\code{dda.decisions} for the non-linear correlation decision.
 One of \code{"none"} (default) or \code{"bonferroni"}.}
 }
 \value{
@@ -84,16 +71,20 @@ This function uses a fitted DDA output object (obtained from
 bootstrap aggregation of DDA test statistics. The function computes DDA
 statistics across \code{iter} bootstrap samples and aggregates the results
 to evaluate the stability and robustness of DDA model selection. p-values
-obtained from significance tests are aggregated using the harmonic mean
-p-value approach (Wilson, 2019). Model selection decisions within each
-bootstrap sample are obtained with \code{\link{dda.decisions}} (p-value
+obtained from significance tests are aggregated with the same
+\code{agg_stat} applied to the test statistics, so a reported statistic and
+its p-value are the same summary of the same bootstrap samples. An
+aggregated p-value describes the distribution of p-values across resamples;
+it is not a pooled test of a single null. Model selection decisions within
+each
+bootstrap sample are obtained with \code{dda.decisions} (p-value
 based rules for significance tests, interval-excludes-zero rules for
 bootstrap difference statistics) and reported as decision proportions
 across samples.
 
 Run time scales with \code{iter} multiplied by the resampling budget of the
 base DDA call, and the underlying independence statistics are quadratic in
-the number of observations. Use \code{inner_B} to cap the inner budget.
+the number of observations.
 Note also that if the original DDA call used \code{parallelize = TRUE},
 that setting is inherited by every outer iteration, so a new cluster is
 started \code{iter} times; for the small inner bootstraps typical of
@@ -114,11 +105,10 @@ base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20, hetero = TRUE)
 ## --- Bootstrap aggregation of the base model
 
 bagged <- dda.bagging(base_model, data = d, iter = 5, agg_stat = "mean",
-  inner_B = 20, progress = FALSE)
+  progress = FALSE)
 # Note: n, B and iter are all kept small here to lower computation time.
-# inner_B caps the resampling budget of each outer iteration. Permutation
-# p-values cannot fall below 1 / (B + 1), so B = 20 is the smallest value
-# at which the dCor test can reach the .05 level.
+# Permutation p-values cannot fall below 1 / (B + 1), so B = 20 is the
+# smallest value at which the dCor test can reach the .05 level.
 
 print(bagged)
 summary(bagged, show = c("hsic", "dcor"))
@@ -134,7 +124,7 @@ bagged <- dda.bagging(base_model, data = d, iter = 200,
 
 print(bagged)
 summary(bagged, show = c("hsic", "dcor", "bp"))
-print_ols_summary(bagged)
+summary_ols(bagged)
 }
 
 }
@@ -143,11 +133,8 @@ Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis:
 Foundations and Statistical Methods}. Cambridge, UK: Cambridge University
 Press.
 
-Wilson, D. J. (2019). The harmonic mean p-value for combining dependent
-tests. \emph{Proceedings of the National Academy of Sciences}, \emph{116}(4),
-1195--1200.
 }
 \seealso{
 \code{\link{dda.indep}}, \code{\link{dda.vardist}},
-  \code{\link{dda.resdist}}, \code{\link{dda.decisions}}
+  \code{\link{dda.resdist}}, \code{dda.decisions}
 }

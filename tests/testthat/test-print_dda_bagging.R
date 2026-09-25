@@ -1,6 +1,6 @@
 ## ============================================================================
 ## testthat file: test-print_dda_bagging.R
-## Tests for print.dda_bagging_*, print_ols_summary, and reaggregate_bagging()
+## Tests for print.dda_bagging_*, summary_ols, and reaggregate_bagging()
 ## ============================================================================
 
 # --- Shared setup -----------------------------------------------------------
@@ -181,38 +181,38 @@ test_that("print.dda_bagging_vardist returns object invisibly", {
 })
 
 ## ============================================================================
-## 5. print_ols_summary()
+## 5. summary_ols()
 ## ============================================================================
 
-test_that("print_ols_summary errors on non-dda_bagging object", {
-  expect_error(print_ols_summary(list(a = 1)), regexp = "must be a bagged DDA")
+test_that("summary_ols errors on non-dda_bagging object", {
+  expect_error(summary_ols(list(a = 1)), regexp = "must be a bagged DDA")
 })
 
-test_that("print_ols_summary produces output without error", {
-  expect_output(print_ols_summary(bag_indep), regexp = "OLS Summary")
+test_that("summary_ols produces output without error", {
+  expect_output(summary_ols(bag_indep), regexp = "OLS Summary")
 })
 
-test_that("print_ols_summary shows both target and alternative models", {
-  expect_output(print_ols_summary(bag_indep), regexp = "Target Model")
-  expect_output(print_ols_summary(bag_indep), regexp = "Alternative Model")
+test_that("summary_ols shows both target and alternative models", {
+  expect_output(summary_ols(bag_indep), regexp = "Target Model")
+  expect_output(summary_ols(bag_indep), regexp = "Alternative Model")
 })
 
-test_that("print_ols_summary shows R-squared values", {
-  expect_output(print_ols_summary(bag_indep), regexp = "R-squared")
+test_that("summary_ols shows R-squared values", {
+  expect_output(summary_ols(bag_indep), regexp = "R-squared")
 })
 
-test_that("print_ols_summary respects agg_stat override", {
+test_that("summary_ols respects agg_stat override", {
   new_method <- if (bag_indep$agg_stat_used == "mean") "median" else "mean"
   expect_output(
-    print_ols_summary(bag_indep, agg_stat = new_method),
+    summary_ols(bag_indep, agg_stat = new_method),
     regexp = new_method
   )
 })
 
-test_that("print_ols_summary works for resdist objects", {
-  expect_output(print_ols_summary(bag_resdist), regexp = "OLS Summary")
+test_that("summary_ols works for resdist objects", {
+  expect_output(summary_ols(bag_resdist), regexp = "OLS Summary")
 })
 
-test_that("print_ols_summary works for vardist objects", {
-  expect_output(print_ols_summary(bag_vardist), regexp = "OLS Summary")
+test_that("summary_ols works for vardist objects", {
+  expect_output(summary_ols(bag_vardist), regexp = "OLS Summary")
 })

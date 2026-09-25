@@ -6,32 +6,7 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
   agg_stat <- match.arg(agg_stat, c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"))
   if (agg_stat == object$agg_stat_used) return(object)
 
-  agg_helper <- function(x) {
-    x <- as.numeric(x)
-    x <- x[!is.na(x)]
-    if (length(x) == 0) return(NA_real_)
-
-    switch(agg_stat,
-           "mean" = mean(x),
-           "median" = median(x),
-           "trimmed" = mean(x, trim = trim_prob),
-           "winsorized" = {
-             q_low <- quantile(x, probs = win_prob, na.rm = TRUE, names = FALSE)
-             q_high <- quantile(x, probs = 1 - win_prob, na.rm = TRUE, names = FALSE)
-             x[x < q_low] <- q_low
-             x[x > q_high] <- q_high
-             mean(x)
-           },
-           "midhinge" = {
-             q <- quantile(x, probs = c(0.25, 0.75), names = FALSE)
-             mean(q)
-           },
-           "tukey" = {
-             q <- quantile(x, probs = c(0.25, 0.5, 0.75), names = FALSE)
-             (q[1] + 2*q[2] + q[3]) / 4
-           }
-    )
-  }
+  agg_helper <- function(x) dda_agg(x, agg_stat, trim_prob, win_prob)
 
   raw <- object$raw_stats
   agg <- object$aggregated_stats
@@ -41,7 +16,7 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
   if (!is.null(raw$ols_tar_coefs)) agg$ols_target[,"estimate"] <- apply(raw$ols_tar_coefs, 2, agg_helper)
   if (!is.null(raw$ols_alt_coefs)) agg$ols_alternative[,"estimate"] <- apply(raw$ols_alt_coefs, 2, agg_helper)
 
-  # Re-aggregate specific DDA statistics (p-values are deliberately ignored)
+  # Re-aggregate specific DDA statistics (p-values are not re-aggregated here)
   if (obj_type == "dda_bagging_indep") {
     agg$hsic_yx_stat <- agg_helper(raw$hsic_yx_stat)
     agg$hsic_xy_stat <- agg_helper(raw$hsic_xy_stat)
@@ -86,7 +61,7 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
     for(k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
       if (!is.null(raw[[k]])) {
         new_agg <- apply(raw[[k]], 2, agg_helper)
-        # keep the harmonic-mean p-value computed in dda.bagging (column 3
+        # keep the aggregated p-value computed in dda.bagging (column 3
         # of the 5-column skewness/kurtosis difference results)
         if (ncol(raw[[k]]) == 5 && length(agg[[k]]) >= 3) new_agg[3] <- agg[[k]][3]
         agg[[k]] <- new_agg
@@ -106,7 +81,7 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
     for(k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) {
       if (!is.null(raw[[k]])) {
         new_agg <- apply(raw[[k]], 2, agg_helper)
-        # keep the harmonic-mean p-value if a 5-column result is ever present
+        # keep the aggregated p-value if a 5-column result is ever present
         if (ncol(raw[[k]]) == 5 && length(agg[[k]]) >= 3) new_agg[3] <- agg[[k]][3]
         agg[[k]] <- new_agg
       }
@@ -125,11 +100,10 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
 #' function supports independence properties (obtained from
 #' \code{dda.indep}), residual distributions (obtained from
 #' \code{dda.resdist}), variable distributions (obtained from
-#' \code{dda.vardist}), and OLS summaries (\code{print_ols_summary}).
+#' \code{dda.vardist}).
 #'
 #' @param x An object of class \code{dda_bagging_indep},
 #'   \code{dda_bagging_resdist}, or \code{dda_bagging_vardist}.
-#' @param object Aggregated bagging output, used by \code{print_ols_summary}.
 #' @param agg_stat Character. Specifies the method used for aggregating test
 #'   statistics and coefficients across bootstrap samples. Must be one of the
 #'   following specifications \code{c("mean", "median", "trimmed",
@@ -158,7 +132,7 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
 #'
 #' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20,
 #'                          hetero = TRUE, nlfun = 2, diff = TRUE)
-#' bagged <- dda.bagging(base_model, data = d, iter = 5, inner_B = 20,
+#' bagged <- dda.bagging(base_model, data = d, iter = 5,
 #'                        agg_stat = "mean", progress = FALSE)
 #'
 #' # Default print
@@ -169,7 +143,7 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = 0.10, win_p
 #' print(bagged, agg_stat = "trimmed", trim_prob = 0.05)
 #'
 #' # Print aggregated OLS summaries
-#' print_ols_summary(bagged)
+#' summary_ols(bagged)
 #' }
 #' @export
 #' @rdname print.dda_bagging
@@ -214,11 +188,11 @@ print.dda_bagging_indep <- function(x,
     cat("Omnibus Independence Tests:\n")
     if (print_hsic) {
       cat(paste0("HSIC = ", signif(as.numeric(stats$hsic_yx_stat), digits),
-                 ", p-value = ", signif(as.numeric(stats$hsic_yx_pval), digits)), "\n")
+                 ", agg. p-value = ", signif(as.numeric(stats$hsic_yx_pval), digits)), "\n")
     }
     if (print_dcor) {
       cat(paste0("dCor = ", signif(as.numeric(stats$dcor_yx_stat), digits),
-                 ", p-value = ", signif(as.numeric(stats$dcor_yx_pval), digits)), "\n")
+                 ", agg. p-value = ", signif(as.numeric(stats$dcor_yx_pval), digits)), "\n")
     }
     cat("\n")
   }
@@ -228,10 +202,10 @@ print.dda_bagging_indep <- function(x,
     cat("Homoscedasticity Tests:\n")
     cat(paste0("Standard Breusch-Pagan test: BP = ", signif(as.numeric(stats$breusch_pagan[[1]]$statistic), digits),
                ", df = ", signif(as.numeric(stats$breusch_pagan[[1]]$parameter), digits),
-               ", p-value = ", signif(as.numeric(stats$breusch_pagan[[1]]$p.value), digits)), "\n")
+               ", agg. p-value = ", signif(as.numeric(stats$breusch_pagan[[1]]$p.value), digits)), "\n")
     cat(paste0("Robust Breusch-Pagan test:   BP = ", signif(as.numeric(stats$breusch_pagan[[2]]$statistic), digits),
                ", df = ", signif(as.numeric(stats$breusch_pagan[[2]]$parameter), digits),
-               ", p-value = ", signif(as.numeric(stats$breusch_pagan[[2]]$p.value), digits)), "\n")
+               ", agg. p-value = ", signif(as.numeric(stats$breusch_pagan[[2]]$p.value), digits)), "\n")
     cat("\n")
   }
 
@@ -274,11 +248,11 @@ print.dda_bagging_indep <- function(x,
     cat("Omnibus Independence Tests:\n")
     if (print_hsic_alt) {
       cat(paste0("HSIC = ", signif(as.numeric(stats$hsic_xy_stat), digits),
-                 ", p-value = ", signif(as.numeric(stats$hsic_xy_pval), digits)), "\n")
+                 ", agg. p-value = ", signif(as.numeric(stats$hsic_xy_pval), digits)), "\n")
     }
     if (print_dcor_alt) {
       cat(paste0("dCor = ", signif(as.numeric(stats$dcor_xy_stat), digits),
-                 ", p-value = ", signif(as.numeric(stats$dcor_xy_pval), digits)), "\n")
+                 ", agg. p-value = ", signif(as.numeric(stats$dcor_xy_pval), digits)), "\n")
     }
     cat("\n")
   }
@@ -288,10 +262,10 @@ print.dda_bagging_indep <- function(x,
     cat("Homoscedasticity Tests:\n")
     cat(paste0("Standard Breusch-Pagan test: BP = ", signif(as.numeric(stats$breusch_pagan[[3]]$statistic), digits),
                ", df = ", signif(as.numeric(stats$breusch_pagan[[3]]$parameter), digits),
-               ", p-value = ", signif(as.numeric(stats$breusch_pagan[[3]]$p.value), digits)), "\n")
+               ", agg. p-value = ", signif(as.numeric(stats$breusch_pagan[[3]]$p.value), digits)), "\n")
     cat(paste0("Robust Breusch-Pagan test:   BP = ", signif(as.numeric(stats$breusch_pagan[[4]]$statistic), digits),
                ", df = ", signif(as.numeric(stats$breusch_pagan[[4]]$parameter), digits),
-               ", p-value = ", signif(as.numeric(stats$breusch_pagan[[4]]$p.value), digits)), "\n")
+               ", agg. p-value = ", signif(as.numeric(stats$breusch_pagan[[4]]$p.value), digits)), "\n")
     cat("\n")
   }
 
@@ -367,7 +341,7 @@ print.dda_bagging_indep <- function(x,
 #' d <- data.frame(x, y)
 #'
 #' base_rd <- dda.resdist(y ~ x, pred = "x", data = d, B = 20)
-#' bagged_rd <- dda.bagging(base_rd, data = d, iter = 5, inner_B = 20,
+#' bagged_rd <- dda.bagging(base_rd, data = d, iter = 5,
 #'                           progress = FALSE)
 #' print(bagged_rd)
 #' \donttest{
@@ -392,7 +366,7 @@ print.dda_bagging_resdist <- function(x, agg_stat = NULL, trim_prob = 0.10, win_
 
   sigtests <- rbind(skew_row, kurt_row)
   rownames(sigtests) <- c("Skewness", "Kurtosis")
-  colnames(sigtests) <- c(varnames[1], " z-value", " Pr(>|z|)", varnames[2], " z-value", " Pr(>|z|)")
+  colnames(sigtests) <- c("target", " z-value", " Pr(>|z|)", "alternative", " z-value", " Pr(>|z|)")
   print.default(format(sigtests, digits = digits, scientific = NA, scipen = 999), print.gap = 2L, quote = FALSE)
 
   cat("\n")
@@ -449,7 +423,7 @@ print.dda_bagging_resdist <- function(x, agg_stat = NULL, trim_prob = 0.10, win_
 #' d <- data.frame(x, y)
 #'
 #' base_vd <- dda.vardist(y ~ x, pred = "x", data = d, B = 20)
-#' bagged_vd <- dda.bagging(base_vd, data = d, iter = 5, inner_B = 20,
+#' bagged_vd <- dda.bagging(base_vd, data = d, iter = 5,
 #'                           progress = FALSE)
 #' print(bagged_vd)
 #' \donttest{
@@ -512,76 +486,6 @@ print.dda_bagging_vardist <- function(x, agg_stat = NULL, trim_prob = 0.10, win_
 
   cat("\n---\n")
   cat(paste("Note: (Cor^2[i,j] - Cor^2[j,i]) > 0 suggests the model", varnames[2], "->", varnames[1], "\n"))
-
-  invisible(object)
-}
-
-#' @export
-#' @rdname print.dda_bagging
-print_ols_summary <- function(object, agg_stat = NULL, trim_prob = 0.10, win_prob = 0.10, digits = 4, ...) {
-
-  if (!inherits(object, "dda_bagging")) {
-    stop("Object must be a bagged DDA result.")
-  }
-
-  object <- reaggregate_bagging(object, agg_stat, trim_prob, win_prob)
-  stats <- object$aggregated_stats
-  raw <- object$raw_stats
-
-  if (is.null(stats$ols_target)) {
-    cat("No OLS summary available in this object.\n")
-    return(invisible(NULL))
-  }
-
-  # Local helper for R-squared aggregation
-  current_agg <- if (!is.null(agg_stat)) agg_stat else object$agg_stat_used
-  agg_helper <- function(x) {
-    x <- as.numeric(x)
-    x <- x[!is.na(x)]
-    if (length(x) == 0) return(NA_real_)
-    switch(current_agg,
-           "mean" = mean(x),
-           "median" = median(x),
-           "trimmed" = mean(x, trim = trim_prob),
-           "winsorized" = {
-             q_low <- quantile(x, probs = win_prob, na.rm = TRUE, names = FALSE)
-             q_high <- quantile(x, probs = 1 - win_prob, na.rm = TRUE, names = FALSE)
-             x[x < q_low] <- q_low
-             x[x > q_high] <- q_high
-             mean(x)
-           },
-           "midhinge" = {
-             q <- quantile(x, probs = c(0.25, 0.75), names = FALSE)
-             mean(q)
-           },
-           "tukey" = {
-             q <- quantile(x, probs = c(0.25, 0.5, 0.75), names = FALSE)
-             (q[1] + 2*q[2] + q[3]) / 4
-           }
-    )
-  }
-
-  cat("\nAggregation method:", current_agg, "\n\n")
-
-  cat("OLS Summary: Target Model\n")
-  print.default(format(stats$ols_target, digits = digits), print.gap = 2L, quote = FALSE)
-
-  if (!is.null(raw$ols_tar_rsq)) {
-    r2 <- agg_helper(raw$ols_tar_rsq[, 1])
-    adj_r2 <- agg_helper(raw$ols_tar_rsq[, 2])
-    cat(sprintf("\nR-squared: %.*f, Adjusted R-squared: %.*f\n", digits, r2, digits, adj_r2))
-  }
-
-  cat("\n---\n\n")
-
-  cat("OLS Summary: Alternative Model\n")
-  print.default(format(stats$ols_alternative, digits = digits), print.gap = 2L, quote = FALSE)
-
-  if (!is.null(raw$ols_alt_rsq)) {
-    r2_alt <- agg_helper(raw$ols_alt_rsq[, 1])
-    adj_r2_alt <- agg_helper(raw$ols_alt_rsq[, 2])
-    cat(sprintf("\nR-squared: %.*f, Adjusted R-squared: %.*f\n", digits, r2_alt, digits, adj_r2_alt))
-  }
 
   invisible(object)
 }
