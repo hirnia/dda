@@ -125,8 +125,14 @@ dda.resdist <- function(formula,
     if (anyNA(x) || anyNA(y) || length(unique(x)) < 3 || length(unique(y)) < 3) return(rep(NA_real_, 7))
 
     # differences in marginal moments
-    skew.diff <- (moments::skewness(x)^2) - (moments::skewness(y)^2)
-    kurt.diff <- (moments::kurtosis(x) - 3)^2 - (moments::kurtosis(y) - 3)^2
+    if (prob.trans == TRUE){ #logic from prob.trans change 0.2.0
+      skew.diff <- (moments::skewness(y)^2) - (moments::skewness(x)^2)
+      kurt.diff <- (moments::kurtosis(y) - 3)^2 - (moments::kurtosis(x) - 3)^2
+    }
+    else{
+      skew.diff <- (moments::skewness(x)^2) - (moments::skewness(y)^2)
+      kurt.diff <- (moments::kurtosis(x) - 3)^2 - (moments::kurtosis(y) - 3)^2
+    }
 
     # joint statistics (mirroring original calculations)
     cor12.diff <- (cor.ij(y, x, 2, 1)^2) - (cor.ij(y, x, 1, 2)^2)
@@ -264,8 +270,10 @@ dda.resdist <- function(formula,
     trans <- prob.int(rx, ry)
     rx.trans <- trans$x
     ry.trans <- trans$y
-    tar.trans <- tryCatch(if (robust) RobustLinearReg::siegel_regression(ry.trans ~ rx.trans, data = data.frame(ry.trans = ry.trans, rx.trans = rx.trans)) else lm(ry.trans ~ rx.trans), error = function(e) NULL)
-    alt.trans <- tryCatch(if (robust) RobustLinearReg::siegel_regression(rx.trans ~ ry.trans, data = data.frame(rx.trans = rx.trans, ry.trans = ry.trans)) else lm(rx.trans ~ ry.trans), error = function(e) NULL)
+    tar.trans <- tryCatch(if (robust) RobustLinearReg::siegel_regression(ry.trans ~ rx.trans, data = data.frame(ry.trans = ry.trans, rx.trans = rx.trans))
+                          else lm(ry.trans ~ rx.trans), error = function(e) NULL)
+    alt.trans <- tryCatch(if (robust) RobustLinearReg::siegel_regression(rx.trans ~ ry.trans, data = data.frame(rx.trans = rx.trans, ry.trans = ry.trans))
+                          else lm(rx.trans ~ ry.trans), error = function(e) NULL)
     dat$alternative.trans <- if (!is.null(alt.trans)) as.vector(scale(resid(alt.trans))) else rep(NA_real_, nrow(dat))
     dat$target.trans      <- if (!is.null(tar.trans)) as.vector(scale(resid(tar.trans))) else rep(NA_real_, nrow(dat))
   }
@@ -300,11 +308,11 @@ dda.resdist <- function(formula,
   # --- Run asymptotic difference tests ---
   if (isTRUE(prob.trans)) {
     output <- c(output,
-                list(skewdiff = unlist(skew.diff.test(dat$alternative.trans, dat$target.trans))),
-                list(kurtdiff = unlist(kurt.diff.test(dat$alternative.trans, dat$target.trans)))
+                list(skewdiff = unlist(skew.diff.test(dat$target.trans, dat$alternative.trans))),
+                list(kurtdiff = unlist(kurt.diff.test(dat$target.trans, dat$alternative.trans)))
     )
-    output$skewdiff <- c(moments::skewness(dat$alternative.trans)^2 - moments::skewness(dat$target.trans)^2, output$skewdiff)
-    output$kurtdiff <- c((moments::kurtosis(dat$alternative.trans)-3)^2 - (moments::kurtosis(dat$target.trans)-3)^2, output$kurtdiff)
+    output$skewdiff <- c(moments::skewness(dat$target.trans)^2 - moments::skewness(dat$alternative.trans)^2 , output$skewdiff)
+    output$kurtdiff <- c((moments::kurtosis(dat$target.trans)-3)^2 - (moments::kurtosis(dat$alternative.trans)-3)^2, output$kurtdiff)
   } else {
     output <- c(output,
                 list(skewdiff = unlist(skew.diff.test(dat$alternative, dat$target))),
@@ -402,7 +410,7 @@ dda.resdist <- function(formula,
   response.name <- all.vars(formula(formula))[1]
   output <- c(output, list(var.names = c(response.name, pred), probtrans = prob.trans))
 
-  # --- CRITICAL FIX: Add call_info so dda_bagging can find data ---
+  # v0.2.0 Added call_info so dda_bagging can find data
   call_info <- list(
     "function_call" = match.call(),
     "function_name" = "dda.resdist",
@@ -517,7 +525,7 @@ print.dda.resdist <- function(x, ...){
   if(isFALSE(object$probtrans)){
     cat(paste("      Difference statistics > 0 suggest the model", varnames[2], "->", varnames[1], sep = " "))
   } else {
-    cat(paste("      Under prob.trans = TRUE, skewness and kurtosis differences < 0 and", "\n", "     co-skewness and co-kurtosis differences > 0 suggest", varnames[2], "->", varnames[1], sep = " "))
+    cat(paste("      As of package version 0.2.0, difference statistics > 0 the Target model when using prob.trans = TRUE.", varnames[2], "->", varnames[1], sep = " "))
   }
   cat("\n")
   if(object$boot.warning) { cat("Warning: Excess-kurtosis values of residuals have unequal signs", "\n", "        Also compute Co-Kurtosis and Hyvarinen-Smith Co-Kurtosis for", varnames[1], "->", varnames[2], "\n") }

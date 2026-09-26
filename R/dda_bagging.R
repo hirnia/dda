@@ -6,8 +6,7 @@
 #' model selection decisions. Significance tests are compared against
 #' \code{alpha}; difference statistics are decided by whether their bootstrap
 #' confidence interval excludes zero. The same rules are used inside
-#' \code{dda.bagging}, so simulation code can call \code{dda.decisions}
-#' directly instead of re-implementing decision logic.
+#' \code{dda.bagging}.
 #'
 #' @param dda_result An output object from \code{dda.indep},
 #'   \code{dda.resdist}, or \code{dda.vardist}.
@@ -82,18 +81,8 @@
 #'
 #' @seealso \code{\link{dda.bagging}}
 #'
-#' @examples
-#' set.seed(123)
-#' n <- 200
-#' x <- rchisq(n, df = 4) - 4
-#' e <- rnorm(n, sd = sqrt(6))
-#' y <- 0.5 * x + e
-#' d <- data.frame(x, y)
-#'
-#' fit <- dda.vardist(y ~ x, pred = "x", data = d, B = 50)
-#' dda.decisions(fit, alpha = 0.05)
-#'
-#' @export
+#' @keywords internal
+#' @noRd
 dda.decisions <- function(dda_result, alpha = 0.05,
                           nlcor.adjust = c("none", "bonferroni")) {
 
@@ -291,20 +280,14 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #' @param win_prob Numeric. Proportion of observations to be winsorized from
 #'   each side of the sampling distribution when
 #'   \code{agg_stat = "winsorized"} (default: 0.10).
-#' @param inner_B Optional positive integer. Caps the number of inner
-#'   bootstrap resamples (\code{B}) passed to each per-iteration DDA call.
-#'   \code{NULL} (default) keeps whatever \code{B} was used in the original
-#'   DDA call. Every base DDA function runs its own resampling on each of the
-#'   \code{iter} outer iterations, so total cost grows as
-#'   \code{iter} \eqn{\times} \code{B}; capping \code{inner_B} is the main
-#'   lever for reducing run time without changing how the outer bagging loop
-#'   aggregates results. The effect is largest for \code{dda.indep} called
-#'   with \code{diff = TRUE}, where each outer iteration runs a full
-#'   difference-statistic bootstrap, and for \code{dda.resdist} and
-#'   \code{dda.vardist}, which bootstrap their confidence intervals
-#'   internally.
+# inner_B is disabled for now. To restore it, uncomment this block, the
+# argument in the signature, its validation, and its use in the iteration loop.
+# #' @param inner_B Optional positive integer. Caps the number of inner
+# #'   bootstrap resamples (\code{B}) passed to each per-iteration DDA call.
+# #'   \code{NULL} (default) keeps whatever \code{B} was used in the original
+# #'   DDA call.
 #' @param nlcor.adjust Character. Multiplicity adjustment passed to
-#'   \code{\link{dda.decisions}} for the non-linear correlation decision.
+#'   \code{dda.decisions} for the non-linear correlation decision.
 #'   One of \code{"none"} (default) or \code{"bonferroni"}.
 #'
 #' @details
@@ -313,16 +296,20 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #' bootstrap aggregation of DDA test statistics. The function computes DDA
 #' statistics across \code{iter} bootstrap samples and aggregates the results
 #' to evaluate the stability and robustness of DDA model selection. p-values
-#' obtained from significance tests are aggregated using the harmonic mean
-#' p-value approach (Wilson, 2019). Model selection decisions within each
-#' bootstrap sample are obtained with \code{\link{dda.decisions}} (p-value
+#' obtained from significance tests are aggregated with the same
+#' \code{agg_stat} applied to the test statistics, so a reported statistic and
+#' its p-value are the same summary of the same bootstrap samples. An
+#' aggregated p-value describes the distribution of p-values across resamples;
+#' it is not a pooled test of a single null. Model selection decisions within
+#' each
+#' bootstrap sample are obtained with \code{dda.decisions} (p-value
 #' based rules for significance tests, interval-excludes-zero rules for
 #' bootstrap difference statistics) and reported as decision proportions
 #' across samples.
 #'
 #' Run time scales with \code{iter} multiplied by the resampling budget of the
 #' base DDA call, and the underlying independence statistics are quadratic in
-#' the number of observations. Use \code{inner_B} to cap the inner budget.
+#' the number of observations.
 #' Note also that if the original DDA call used \code{parallelize = TRUE},
 #' that setting is inherited by every outer iteration, so a new cluster is
 #' started \code{iter} times; for the small inner bootstraps typical of
@@ -333,10 +320,6 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #' Foundations and Statistical Methods}. Cambridge, UK: Cambridge University
 #' Press.
 #'
-#' Wilson, D. J. (2019). The harmonic mean p-value for combining dependent
-#' tests. \emph{Proceedings of the National Academy of Sciences}, \emph{116}(4),
-#' 1195--1200.
-#'
 #' @return An object of class \code{dda_bagging} (with subclasses
 #'   \code{dda_bagging_indep}, \code{dda_bagging_vardist}, or
 #'   \code{dda_bagging_resdist}), which contains aggregated and raw results
@@ -344,7 +327,7 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #'   \code{dda.vardist}, or \code{dda.resdist}).
 #'
 #' @seealso \code{\link{dda.indep}}, \code{\link{dda.vardist}},
-#'   \code{\link{dda.resdist}}, \code{\link{dda.decisions}}
+#'   \code{\link{dda.resdist}}, \code{dda.decisions}
 #'
 #' @examples
 #' set.seed(123)
@@ -361,11 +344,10 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #' ## --- Bootstrap aggregation of the base model
 #'
 #' bagged <- dda.bagging(base_model, data = d, iter = 5, agg_stat = "mean",
-#'   inner_B = 20, progress = FALSE)
+#'   progress = FALSE)
 #' # Note: n, B and iter are all kept small here to lower computation time.
-#' # inner_B caps the resampling budget of each outer iteration. Permutation
-#' # p-values cannot fall below 1 / (B + 1), so B = 20 is the smallest value
-#' # at which the dCor test can reach the .05 level.
+#' # Permutation p-values cannot fall below 1 / (B + 1), so B = 20 is the
+#' # smallest value at which the dCor test can reach the .05 level.
 #'
 #' print(bagged)
 #' summary(bagged, show = c("hsic", "dcor"))
@@ -381,7 +363,7 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #'
 #' print(bagged)
 #' summary(bagged, show = c("hsic", "dcor", "bp"))
-#' print_ols_summary(bagged)
+#' summary_ols(bagged)
 #' }
 #'
 #' @export
@@ -395,7 +377,7 @@ dda.bagging <- function(
     agg_stat     = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
     trim_prob    = 0.10,
     win_prob     = 0.10,
-    inner_B      = NULL,
+    # inner_B      = NULL,
     nlcor.adjust = c("none", "bonferroni")
 ) {
 
@@ -419,38 +401,13 @@ dda.bagging <- function(
     is.numeric(trim_prob) && trim_prob >= 0 && trim_prob < 0.5,
     is.numeric(win_prob)  && win_prob  >= 0 && win_prob  < 0.5
   )
-  if (!is.null(inner_B)) {
-    stopifnot(is.numeric(inner_B) && length(inner_B) == 1 && inner_B > 0)
-    inner_B <- as.integer(inner_B)
-  }
+  # if (!is.null(inner_B)) {
+  #   stopifnot(is.numeric(inner_B) && length(inner_B) == 1 && inner_B > 0)
+  #   inner_B <- as.integer(inner_B)
+  # }
 
   # --- Helper: Robust & Finite Aggregation ---
-  agg_helper <- function(x) {
-    x <- as.numeric(x)
-    x <- x[!is.na(x) & !is.nan(x) & is.finite(x)]
-    if (length(x) == 0) return(NA_real_)
-
-    switch(agg_stat,
-           "mean"       = mean(x),
-           "median"     = median(x),
-           "trimmed"    = mean(x, trim = trim_prob),
-           "winsorized" = {
-             q_low  <- quantile(x, probs = win_prob,     na.rm = TRUE, names = FALSE)
-             q_high <- quantile(x, probs = 1 - win_prob, na.rm = TRUE, names = FALSE)
-             x[x < q_low]  <- q_low
-             x[x > q_high] <- q_high
-             mean(x)
-           },
-           "midhinge" = {
-             q <- quantile(x, probs = c(0.25, 0.75), names = FALSE, na.rm = TRUE)
-             mean(q)
-           },
-           "tukey" = {
-             q <- quantile(x, probs = c(0.25, 0.5, 0.75), names = FALSE, na.rm = TRUE)
-             (q[1] + 2*q[2] + q[3]) / 4
-           }
-    )
-  }
+  agg_helper <- function(x) dda_agg(x, agg_stat, trim_prob, win_prob)
 
   # --- Helper: Safe Numeric Extraction ---
   get_numeric <- function(x) {
@@ -460,28 +417,24 @@ dda.bagging <- function(
     return(NA_real_)
   }
 
-  # --- Helper: Harmonic Mean P-values ---
-  harmonic_p <- function(pvec) {
+  # --- Helper: P-value Aggregation ---
+  # Bootstrap resamples of one data set are not independent tests, so p-values
+  # are summarised with the same agg_stat used for the test statistics rather
+  # than combined into a pooled p-value.
+  agg_p <- function(pvec) {
     pvec <- as.numeric(pvec)
     pvec <- pvec[!is.na(pvec) & !is.nan(pvec)]
     if (length(pvec) == 0) return(NA_real_)
-    pvec[pvec <= 0] <- 1e-300
-
-    if (!requireNamespace("harmonicmeanp", quietly = TRUE)) {
-      warning("Package 'harmonicmeanp' not found. Falling back to arithmetic mean.")
-      return(mean(pvec))
-    }
-    harmonicmeanp::p.hmp(pvec, L = length(pvec))
+    agg_helper(pvec)
   }
 
-  # --- Helper: Matrix Aggregation that Keeps P-Value Columns Harmonic ---
+  # --- Helper: Matrix Aggregation ---
   # 5-column results (resdist skewness/kurtosis differences) are
-  # c(diff, z, p, lower, upper); column 3 is a p-value and is combined with
-  # the harmonic mean instead of agg_stat
+  # c(diff, z, p, lower, upper); column 3 is a p-value
   agg_mat <- function(mat) {
     if (is.null(mat)) return(NULL)
     res <- apply(mat, 2, agg_helper)
-    if (ncol(mat) == 5) res[3] <- harmonic_p(mat[, 3])
+    if (ncol(mat) == 5) res[3] <- agg_p(mat[, 3])
     res
   }
 
@@ -623,12 +576,8 @@ dda.bagging <- function(
     names(boot_processed) <- c(x_name, y_name)
     boot_args$data        <- boot_processed
 
-    # If inner_B is specified, override the inner bootstrap B passed to the
-    # DDA function on this iteration. This caps the number of resamples used
-    # inside dda.resdist / dda.vardist on each outer iteration, which can
-    # dramatically reduce total run time without changing how the outer
-    # bagging loop aggregates across iter samples.
-    if (!is.null(inner_B)) boot_args$B <- inner_B
+    # Overrides the inner bootstrap B for this iteration.
+    # if (!is.null(inner_B)) boot_args$B <- inner_B
 
     bagged_results[[i]] <- tryCatch(
       do.call(dda_func, boot_args),
@@ -696,8 +645,8 @@ dda.bagging <- function(
 
     agg$hsic_yx_stat <- agg_helper(raw_stats$hsic_yx_stat)
     agg$hsic_xy_stat <- agg_helper(raw_stats$hsic_xy_stat)
-    agg$hsic_yx_pval <- harmonic_p(raw_stats$hsic_yx_pval)
-    agg$hsic_xy_pval <- harmonic_p(raw_stats$hsic_xy_pval)
+    agg$hsic_yx_pval <- agg_p(raw_stats$hsic_yx_pval)
+    agg$hsic_xy_pval <- agg_p(raw_stats$hsic_xy_pval)
 
     if (!is.null(valid_res[[1]]$distance_cor.dcor_yx) || !is.null(valid_res[[1]]$dcor.yx)) {
       dcor_name_yx <- if (!is.null(valid_res[[1]]$distance_cor.dcor_yx)) "distance_cor.dcor_yx" else "dcor.yx"
@@ -710,8 +659,8 @@ dda.bagging <- function(
 
       agg$dcor_yx_stat <- agg_helper(raw_stats$dcor_yx_stat)
       agg$dcor_xy_stat <- agg_helper(raw_stats$dcor_xy_stat)
-      agg$dcor_yx_pval <- harmonic_p(raw_stats$dcor_yx_pval)
-      agg$dcor_xy_pval <- harmonic_p(raw_stats$dcor_xy_pval)
+      agg$dcor_yx_pval <- agg_p(raw_stats$dcor_yx_pval)
+      agg$dcor_xy_pval <- agg_p(raw_stats$dcor_xy_pval)
     }
 
     if (!is.null(valid_res[[1]]$breusch_pagan)) {
@@ -729,10 +678,10 @@ dda.bagging <- function(
       raw_stats$rbp_xy_p    <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[4]]$p.value))
 
       agg$breusch_pagan <- list(
-        list(statistic = agg_helper(raw_stats$bp_yx_stat),  parameter = agg_helper(raw_stats$bp_yx_df),  p.value = harmonic_p(raw_stats$bp_yx_p)),
-        list(statistic = agg_helper(raw_stats$rbp_yx_stat), parameter = agg_helper(raw_stats$rbp_yx_df), p.value = harmonic_p(raw_stats$rbp_yx_p)),
-        list(statistic = agg_helper(raw_stats$bp_xy_stat),  parameter = agg_helper(raw_stats$bp_xy_df),  p.value = harmonic_p(raw_stats$bp_xy_p)),
-        list(statistic = agg_helper(raw_stats$rbp_xy_stat), parameter = agg_helper(raw_stats$rbp_xy_df), p.value = harmonic_p(raw_stats$rbp_xy_p))
+        list(statistic = agg_helper(raw_stats$bp_yx_stat),  parameter = agg_helper(raw_stats$bp_yx_df),  p.value = agg_p(raw_stats$bp_yx_p)),
+        list(statistic = agg_helper(raw_stats$rbp_yx_stat), parameter = agg_helper(raw_stats$rbp_yx_df), p.value = agg_p(raw_stats$rbp_yx_p)),
+        list(statistic = agg_helper(raw_stats$bp_xy_stat),  parameter = agg_helper(raw_stats$bp_xy_df),  p.value = agg_p(raw_stats$bp_xy_p)),
+        list(statistic = agg_helper(raw_stats$rbp_xy_stat), parameter = agg_helper(raw_stats$rbp_xy_df), p.value = agg_p(raw_stats$rbp_xy_p))
       )
     }
 
@@ -745,15 +694,15 @@ dda.bagging <- function(
       raw_stats$nlcor_xy_t3 <- do.call(rbind, lapply(valid_res, function(x) as.numeric(x$nlcor.xy$t3)))
 
       agg$nlcor.yx <- list(
-        t1   = c(agg_helper(raw_stats$nlcor_yx_t1[,1]), agg_helper(raw_stats$nlcor_yx_t1[,2]), agg_helper(raw_stats$nlcor_yx_t1[,3]), harmonic_p(raw_stats$nlcor_yx_t1[,4])),
-        t2   = c(agg_helper(raw_stats$nlcor_yx_t2[,1]), agg_helper(raw_stats$nlcor_yx_t2[,2]), agg_helper(raw_stats$nlcor_yx_t2[,3]), harmonic_p(raw_stats$nlcor_yx_t2[,4])),
-        t3   = c(agg_helper(raw_stats$nlcor_yx_t3[,1]), agg_helper(raw_stats$nlcor_yx_t3[,2]), agg_helper(raw_stats$nlcor_yx_t3[,3]), harmonic_p(raw_stats$nlcor_yx_t3[,4])),
+        t1   = c(agg_helper(raw_stats$nlcor_yx_t1[,1]), agg_helper(raw_stats$nlcor_yx_t1[,2]), agg_helper(raw_stats$nlcor_yx_t1[,3]), agg_p(raw_stats$nlcor_yx_t1[,4])),
+        t2   = c(agg_helper(raw_stats$nlcor_yx_t2[,1]), agg_helper(raw_stats$nlcor_yx_t2[,2]), agg_helper(raw_stats$nlcor_yx_t2[,3]), agg_p(raw_stats$nlcor_yx_t2[,4])),
+        t3   = c(agg_helper(raw_stats$nlcor_yx_t3[,1]), agg_helper(raw_stats$nlcor_yx_t3[,2]), agg_helper(raw_stats$nlcor_yx_t3[,3]), agg_p(raw_stats$nlcor_yx_t3[,4])),
         func = valid_res[[1]]$nlcor.yx$func
       )
       agg$nlcor.xy <- list(
-        t1   = c(agg_helper(raw_stats$nlcor_xy_t1[,1]), agg_helper(raw_stats$nlcor_xy_t1[,2]), agg_helper(raw_stats$nlcor_xy_t1[,3]), harmonic_p(raw_stats$nlcor_xy_t1[,4])),
-        t2   = c(agg_helper(raw_stats$nlcor_xy_t2[,1]), agg_helper(raw_stats$nlcor_xy_t2[,2]), agg_helper(raw_stats$nlcor_xy_t2[,3]), harmonic_p(raw_stats$nlcor_xy_t2[,4])),
-        t3   = c(agg_helper(raw_stats$nlcor_xy_t3[,1]), agg_helper(raw_stats$nlcor_xy_t3[,2]), agg_helper(raw_stats$nlcor_xy_t3[,3]), harmonic_p(raw_stats$nlcor_xy_t3[,4])),
+        t1   = c(agg_helper(raw_stats$nlcor_xy_t1[,1]), agg_helper(raw_stats$nlcor_xy_t1[,2]), agg_helper(raw_stats$nlcor_xy_t1[,3]), agg_p(raw_stats$nlcor_xy_t1[,4])),
+        t2   = c(agg_helper(raw_stats$nlcor_xy_t2[,1]), agg_helper(raw_stats$nlcor_xy_t2[,2]), agg_helper(raw_stats$nlcor_xy_t2[,3]), agg_p(raw_stats$nlcor_xy_t2[,4])),
+        t3   = c(agg_helper(raw_stats$nlcor_xy_t3[,1]), agg_helper(raw_stats$nlcor_xy_t3[,2]), agg_helper(raw_stats$nlcor_xy_t3[,3]), agg_p(raw_stats$nlcor_xy_t3[,4])),
         func = valid_res[[1]]$nlcor.xy$func
       )
 
@@ -791,17 +740,17 @@ dda.bagging <- function(
 
     agg$agostino.target.statistic      <- agg_helper(raw_stats$agost_tar_stat)
     agg$agostino.target.z              <- agg_helper(raw_stats$agost_tar_z)
-    agg$agostino.target.p.value        <- harmonic_p(raw_stats$agost_tar_pval)
+    agg$agostino.target.p.value        <- agg_p(raw_stats$agost_tar_pval)
     agg$agostino.alternative.statistic <- agg_helper(raw_stats$agost_alt_stat)
     agg$agostino.alternative.z         <- agg_helper(raw_stats$agost_alt_z)
-    agg$agostino.alternative.p.value   <- harmonic_p(raw_stats$agost_alt_pval)
+    agg$agostino.alternative.p.value   <- agg_p(raw_stats$agost_alt_pval)
 
     agg$anscombe.target.statistic      <- agg_helper(raw_stats$anscom_tar_stat)
     agg$anscombe.target.z              <- agg_helper(raw_stats$anscom_tar_z)
-    agg$anscombe.target.p.value        <- harmonic_p(raw_stats$anscom_tar_pval)
+    agg$anscombe.target.p.value        <- agg_p(raw_stats$anscom_tar_pval)
     agg$anscombe.alternative.statistic <- agg_helper(raw_stats$anscom_alt_stat)
     agg$anscombe.alternative.z         <- agg_helper(raw_stats$anscom_alt_z)
-    agg$anscombe.alternative.p.value   <- harmonic_p(raw_stats$anscom_alt_pval)
+    agg$anscombe.alternative.p.value   <- agg_p(raw_stats$anscom_alt_pval)
 
     for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
       if (!is.null(valid_res[[1]][[k]])) {
@@ -836,17 +785,17 @@ dda.bagging <- function(
 
     agg$agostino.predictor.statistic.skew <- agg_helper(raw_stats$agost_pre_stat)
     agg$agostino.predictor.statistic.z    <- agg_helper(raw_stats$agost_pre_z)
-    agg$agostino.predictor.p.value        <- harmonic_p(raw_stats$agost_pre_pval)
+    agg$agostino.predictor.p.value        <- agg_p(raw_stats$agost_pre_pval)
     agg$agostino.outcome.statistic.skew   <- agg_helper(raw_stats$agost_out_stat)
     agg$agostino.outcome.statistic.z      <- agg_helper(raw_stats$agost_out_z)
-    agg$agostino.outcome.p.value          <- harmonic_p(raw_stats$agost_out_pval)
+    agg$agostino.outcome.p.value          <- agg_p(raw_stats$agost_out_pval)
 
     agg$anscombe.predictor.statistic.kurt <- agg_helper(raw_stats$anscom_pre_stat)
     agg$anscombe.predictor.statistic.z    <- agg_helper(raw_stats$anscom_pre_z)
-    agg$anscombe.predictor.p.value        <- harmonic_p(raw_stats$anscom_pre_pval)
+    agg$anscombe.predictor.p.value        <- agg_p(raw_stats$anscom_pre_pval)
     agg$anscombe.outcome.statistic.kurt   <- agg_helper(raw_stats$anscom_out_stat)
     agg$anscombe.outcome.statistic.z      <- agg_helper(raw_stats$anscom_out_z)
-    agg$anscombe.outcome.p.value          <- harmonic_p(raw_stats$anscom_out_pval)
+    agg$anscombe.outcome.p.value          <- agg_p(raw_stats$anscom_out_pval)
 
     for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) {
       if (!is.null(valid_res[[1]][[k]])) {
