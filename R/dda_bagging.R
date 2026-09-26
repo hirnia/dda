@@ -55,6 +55,9 @@
 #'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
 #'   \item otherwise: undecided
 #' }
+#' For \code{dda.resdist} with \code{prob.trans = TRUE} the target and
+#' alternative residual p-values swap roles in these rules
+#' (\code{p_yx <= alpha} and \code{p_xy > alpha}: target model).
 #'
 #' Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
 #' Breusch-Pagan, and non-linear correlation using the smallest of the three
@@ -70,7 +73,8 @@
 #' interval above zero speaks for the target model, an interval below zero
 #' speaks for the alternative model, and an interval containing zero is
 #' undecided. As of version 0.2.0 this holds for \code{dda.resdist} under
-#' both \code{prob.trans = FALSE} and \code{prob.trans = TRUE}.
+#' both \code{prob.trans = FALSE} and \code{prob.trans = TRUE}. Difference
+#' statistics without a bootstrap interval (\code{B = 0}) are not decided.
 #'
 #' Run time grows with \code{iter} times the resampling budget (\code{B}) of
 #' the original DDA call.
@@ -170,8 +174,8 @@ dda.bagging <- function(dda_result,
   boot.call$data <- quote(boot.data)
   # if (!is.null(inner_B)) boot.call$B <- inner_B
 
-  # boot.data is stored here; all other arguments of the original call are
-  # found where dda.bagging was called
+  # boot.data is stored here, and all other arguments of the original call are
+  # found where dda.bagging is init called
   boot.env <- new.env(parent = parent.frame())
 
   ### --- bootstrap loop
@@ -273,22 +277,39 @@ dda.bagging <- function(dda_result,
 #' @method print dda_bagging
 print.dda_bagging <- function(x, agg_stat = NULL, trim_prob = x$trim_prob, win_prob = x$win_prob, ...){
 
-  agg <- x$aggregated_stats
-  if (is.null(agg_stat)) {
-    agg_stat <- x$agg_stat
-  } else {
-    agg <- bag.aggregate(x$bagged_results, agg_stat, trim_prob, win_prob)
-  }
+  object <- reaggregate_bagging(x, agg_stat, trim_prob, win_prob)
 
   cat("\n")
   cat("BOOTSTRAP AGGREGATED DDA", "\n")
-  cat(paste("Number of bootstrap samples:", x$n_valid_iterations), "\n")
-  cat(paste("Aggregation method:", agg_stat), "\n")
+  cat(paste("Number of bootstrap samples:", object$n_valid_iterations), "\n")
+  cat(paste("Aggregation method:", object$agg_stat), "\n")
   cat("Test statistics and p-values are aggregated across bootstrap samples.", "\n")
 
-  print(agg)
+  print(object$aggregated_stats)
 
   invisible(x)
+}
+
+
+#' @title Re-aggregate a Bootstrap Aggregated DDA Object
+#'
+#' @description Recomputes the aggregated test statistics of a
+#'   \code{dda_bagging} object with a different aggregation method. The
+#'   bootstrap results are reused; no resampling is done. With
+#'   \code{agg_stat = NULL} the object is returned unchanged.
+#'
+#' @keywords internal
+#' @noRd
+reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = object$trim_prob, win_prob = object$win_prob){
+
+  if (is.null(agg_stat)) return(object)
+  agg_stat <- match.arg(agg_stat, c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"))
+
+  object$aggregated_stats <- bag.aggregate(object$bagged_results, agg_stat, trim_prob, win_prob)
+  object$agg_stat  <- agg_stat
+  object$trim_prob <- trim_prob
+  object$win_prob  <- win_prob
+  object
 }
 
 
@@ -485,11 +506,17 @@ dda.decisions <- function(dda_result, alpha = 0.05){
 
   } else if (inherits(obj, "dda.resdist")) {
 
-    dec["agostino"] <- decide.p(obj$agostino$target$p.value, obj$agostino$alternative$p.value)
-    dec["anscombe"] <- decide.p(obj$anscombe$target$p.value, obj$anscombe$alternative$p.value)
+    # under prob.trans = TRUE the target and alternative p-values swap roles
+    if (isFALSE(obj$probtrans)) {
+      dec["agostino"] <- decide.p(obj$agostino$target$p.value, obj$agostino$alternative$p.value)
+      dec["anscombe"] <- decide.p(obj$anscombe$target$p.value, obj$anscombe$alternative$p.value)
+    } else if (isTRUE(obj$probtrans)) {
+      dec["agostino"] <- decide.p(obj$agostino$alternative$p.value, obj$agostino$target$p.value)
+      dec["anscombe"] <- decide.p(obj$anscombe$alternative$p.value, obj$anscombe$target$p.value)
+    } else stop("The prob.trans setting of the dda.resdist object is missing.")
 
     for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
-      if (!is.null(obj[[s]])) dec[s] <- decide.ci(obj[[s]])
+      if ("lower" %in% names(obj[[s]])) dec[s] <- decide.ci(obj[[s]])
     }
 
   } else if (inherits(obj, "dda.indep")) {

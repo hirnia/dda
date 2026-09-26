@@ -3,7 +3,7 @@
 ---
 
 ### New features
-
+- NOTE HERE (?) on new prob.trans logic
 -	`dda.bagging` performs bootstrap aggregation (bagging) of `dda.indep`, `dda.resdist`, and `dda.vardist` objects to evaluate the stability of direction dependence decisions, with accompanying `print` and `summary` methods.
 -	`dda.indep`, `cdda.indep`, and `dda.resdist` now include a `robust` argument applying Siegel's (1982) repeated median estimation to the causally competing models.
 

@@ -87,7 +87,8 @@ summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
 
   if (nrow(props) == 0) stop("None of the requested statistics are available in this object.")
 
-  out <- round(props, digits)
+  out <- props
+  for (r in 1:nrow(out)) out[r, ] <- round_preserve_sum(props[r, ], digits)
   rownames(out) <- labels[rownames(props)]
 
   if (inherits(object, "dda_bagging_indep"))   type <- "Independence Properties"
@@ -109,4 +110,27 @@ summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
   cat("\n")
 
   invisible(props)
+}
+
+
+#' @title Round Proportions so They Sum to One
+#'
+#' @description Rounds a vector of proportions down to \code{digits}
+#'   decimals and adds the missing units to the entries with the largest
+#'   remainders (largest remainder method).
+#'
+#' @keywords internal
+#' @noRd
+round_preserve_sum <- function(x, digits = 2){
+
+  if (any(is.na(x))) return(round(x, digits))
+
+  scaled  <- x * 10^digits
+  rounded <- floor(scaled)
+  missing <- round(sum(scaled) - sum(rounded))
+
+  add <- order(scaled - rounded, decreasing = TRUE)[seq_len(missing)]
+  rounded[add] <- rounded[add] + 1
+
+  rounded / 10^digits
 }

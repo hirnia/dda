@@ -2,93 +2,121 @@
 % Please edit documentation in R/dda_bagging.R
 \name{dda.bagging}
 \alias{dda.bagging}
+\alias{print.dda_bagging}
 \title{Bootstrap Aggregated Direction Dependence Analysis (DDA)}
 \usage{
 dda.bagging(
   dda_result,
+  data,
   iter = 100,
-  progress = TRUE,
-  save_file = NULL,
   alpha = 0.05,
-  data = NULL,
   agg_stat = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
   trim_prob = 0.1,
   win_prob = 0.1,
-  nlcor.adjust = c("none", "bonferroni")
+  progress = TRUE,
+  save_file = NULL
 )
+
+\method{print}{dda_bagging}(x, agg_stat = NULL, trim_prob = x$trim_prob, win_prob = x$win_prob, ...)
 }
 \arguments{
-\item{dda_result}{An output object from any base DDA function (e.g.,
-\code{dda.indep}, \code{dda.vardist}, or \code{dda.resdist}).}
+\item{dda_result}{An output object from \code{dda.indep},
+\code{dda.resdist}, or \code{dda.vardist}.}
+
+\item{data}{A \code{data.frame} containing all variables used in the
+original DDA model (outcome, predictor, and any covariates).}
 
 \item{iter}{Number of bootstrap samples (default: 100).}
-
-\item{progress}{Logical. Whether to display a progress bar during
-resampling (default: \code{TRUE}).}
-
-\item{save_file}{Character. Optional file path used to save the resulting
-object as an R serialized data file (e.g., \code{"results.rds"}).}
 
 \item{alpha}{Numeric. Significance level used for causal model selection
 (default: 0.05).}
 
-\item{data}{A \code{data.frame} containing ALL raw variables used in the
-original DDA model (outcome, predictor, and any covariates).}
+\item{agg_stat}{Character. Method used to aggregate test statistics,
+p-values, and coefficients across bootstrap samples. Must be one of
+\code{c("mean", "median", "trimmed", "winsorized", "midhinge",
+"tukey")}. In \code{print}, \code{NULL} (default) keeps the method
+used in \code{dda.bagging}.}
 
-\item{agg_stat}{Character. Specifies the method used for aggregating test
-statistics and coefficients across bootstrap samples. Must be one of the
-following specifications \code{c("mean", "median", "trimmed",
-"winsorized", "midhinge", "tukey")}.}
-
-\item{trim_prob}{Numeric. Proportion of observations to be trimmed from
-each side of the sampling distribution when \code{agg_stat = "trimmed"}
+\item{trim_prob}{Numeric. Proportion of observations trimmed from each
+side of the sampling distribution when \code{agg_stat = "trimmed"}
 (default: 0.10).}
 
-\item{win_prob}{Numeric. Proportion of observations to be winsorized from
-each side of the sampling distribution when
-\code{agg_stat = "winsorized"} (default: 0.10).}
+\item{win_prob}{Numeric. Proportion of observations winsorized on each
+side of the sampling distribution when \code{agg_stat = "winsorized"}
+(default: 0.10).}
 
+\item{progress}{Logical. Whether to display a progress bar (default:
+\code{TRUE}).}
 
-\item{nlcor.adjust}{Character. Multiplicity adjustment passed to
-\code{dda.decisions} for the non-linear correlation decision.
-One of \code{"none"} (default) or \code{"bonferroni"}.}
+\item{save_file}{Character. Optional file path used to save the result as
+an R data file (e.g., \code{"results.rds"}).}
+
+\item{x}{An object of class \code{dda_bagging} when using \code{print}.}
+
+\item{...}{Additional arguments to be passed to the function.}
 }
 \value{
-An object of class \code{dda_bagging} (with subclasses
-  \code{dda_bagging_indep}, \code{dda_bagging_vardist}, or
-  \code{dda_bagging_resdist}), which contains aggregated and raw results
-  from tests matching the initial DDA function (\code{dda.indep},
-  \code{dda.vardist}, or \code{dda.resdist}).
+An object of class \code{dda_bagging} (with subclass
+  \code{dda_bagging_indep}, \code{dda_bagging_resdist}, or
+  \code{dda_bagging_vardist}) containing
+  \item{bagged_results}{The DDA results of the bootstrap samples.}
+  \item{aggregated_stats}{A DDA object of the original class holding the
+    aggregated test statistics and p-values.}
+  \item{decisions}{A matrix of model selection decisions with one row per
+    bootstrap sample and one column per test.}
+  \item{decision_proportions}{A matrix of decision proportions with one
+    row per test.}
+  \item{ols}{Coefficients, p-values, and R-squared values of the target
+    and alternative OLS models in each bootstrap sample.}
+  \item{n_valid_iterations}{Number of bootstrap samples with a DDA
+    result.}
 }
 \description{
 \code{dda.bagging} performs bootstrap aggregation (bagging) on an existing
-Direction Dependence Analysis (DDA) object to test the stability and
-robustness of direction dependence decisions.
+Direction Dependence Analysis (DDA) object to evaluate the stability of
+direction dependence decisions. \code{print} returns the aggregated DDA
+test statistics.
 }
 \details{
-This function uses a fitted DDA output object (obtained from
-\code{dda.indep}, \code{dda.vardist}, or \code{dda.resdist}) and performs
-bootstrap aggregation of DDA test statistics. The function computes DDA
-statistics across \code{iter} bootstrap samples and aggregates the results
-to evaluate the stability and robustness of DDA model selection. p-values
-obtained from significance tests are aggregated with the same
-\code{agg_stat} applied to the test statistics, so a reported statistic and
-its p-value are the same summary of the same bootstrap samples. An
-aggregated p-value describes the distribution of p-values across resamples;
-it is not a pooled test of a single null. Model selection decisions within
-each
-bootstrap sample are obtained with \code{dda.decisions} (p-value
-based rules for significance tests, interval-excludes-zero rules for
-bootstrap difference statistics) and reported as decision proportions
-across samples.
+In each of the \code{iter} bootstrap samples, \code{n} observations are
+drawn with replacement from \code{data}, the original DDA function is
+called again with its original arguments, and the causally competing OLS
+models are fitted. Test statistics and p-values are aggregated across
+bootstrap samples with \code{agg_stat}. An aggregated p-value summarizes
+the distribution of p-values across bootstrap samples; it is not a pooled
+test of a single null hypothesis.
 
-Run time scales with \code{iter} multiplied by the resampling budget of the
-base DDA call, and the underlying independence statistics are quadratic in
-the number of observations.
-Note also that if the original DDA call used \code{parallelize = TRUE},
-that setting is inherited by every outer iteration, so a new cluster is
-started \code{iter} times; for the small inner bootstraps typical of
-bagging this is usually slower than running the inner calls serially.
+Within each bootstrap sample every DDA test leads to a model selection
+decision. The target model is \code{x -> y} and the alternative model is
+\code{y -> x}; \code{p_yx} is the p-value obtained under the target model
+and \code{p_xy} the p-value obtained under the alternative model.
+
+Separate normality tests (\code{dda.vardist}: outcome and predictor;
+\code{dda.resdist}: target and alternative residuals):
+\itemize{
+  \item \code{p_yx > alpha} and \code{p_xy <= alpha}: target model
+  \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
+  \item otherwise: undecided
+}
+
+Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
+Breusch-Pagan, and non-linear correlation using the smallest of the three
+p-values):
+\itemize{
+  \item \code{p_yx > alpha} and \code{p_xy <= alpha}: target model
+  \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
+  \item \code{p_yx <= alpha} and \code{p_xy <= alpha}: confounding
+  \item \code{p_yx > alpha} and \code{p_xy > alpha}: undecided
+}
+
+Difference statistics use their bootstrap confidence intervals. An
+interval above zero speaks for the target model, an interval below zero
+speaks for the alternative model, and an interval containing zero is
+undecided. As of version 0.2.0 this holds for \code{dda.resdist} under
+both \code{prob.trans = FALSE} and \code{prob.trans = TRUE}.
+
+Run time grows with \code{iter} times the resampling budget (\code{B}) of
+the original DDA call.
 }
 \examples{
 set.seed(123)
@@ -104,11 +132,8 @@ base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20, hetero = TRUE)
 
 ## --- Bootstrap aggregation of the base model
 
-bagged <- dda.bagging(base_model, data = d, iter = 5, agg_stat = "mean",
-  progress = FALSE)
-# Note: n, B and iter are all kept small here to lower computation time.
-# Permutation p-values cannot fall below 1 / (B + 1), so B = 20 is the
-# smallest value at which the dCor test can reach the .05 level.
+bagged <- dda.bagging(base_model, data = d, iter = 5, progress = FALSE)
+# Note: n, B and iter are kept small here to lower computation time.
 
 print(bagged)
 summary(bagged, show = c("hsic", "dcor"))
@@ -120,21 +145,24 @@ base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 500,
   hetero = TRUE, nlfun = 2, diff = TRUE)
 
 bagged <- dda.bagging(base_model, data = d, iter = 200,
-  agg_stat = "trimmed", trim_prob = 0.05, progress = TRUE)
+  agg_stat = "trimmed", trim_prob = 0.05)
 
 print(bagged)
+print(bagged, agg_stat = "median")
 summary(bagged, show = c("hsic", "dcor", "bp"))
 summary_ols(bagged)
 }
+
+print(bagged)
 
 }
 \references{
 Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis:
 Foundations and Statistical Methods}. Cambridge, UK: Cambridge University
 Press.
-
 }
 \seealso{
 \code{\link{dda.indep}}, \code{\link{dda.vardist}},
-  \code{\link{dda.resdist}}, \code{dda.decisions}
+  \code{\link{dda.resdist}}, \code{\link{summary.dda_bagging}},
+  \code{\link{summary_ols}}
 }

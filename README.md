@@ -1,9 +1,5 @@
 ## Overview
 
-<!-- badges: start -->
-[![Codecov test coverage](https://codecov.io/gh/wwiedermann/dda/graph/badge.svg)](https://app.codecov.io/gh/wwiedermann/dda)
-<!-- badges: end -->
-
 Direction Dependence Analysis (Package: \code{dda}) provides framework for analyzing competing linear models. A target model \code{y ~ x} is compared to an alternate (causally reversed) model \code{x ~ y} through a series of diagnostic tests. DDA framework supports causal model exploration and potential confounding detection through diagnostics with higher-order moments.
 
 * `cdda.indep()` conditional (moderation) independence property tests, including non‐linear correlation tests, Breusch–Pagan homoscedasticity tests, and the HSIC test 

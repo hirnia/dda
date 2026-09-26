@@ -522,7 +522,11 @@ print.dda.resdist <- function(x, ...){
   cat("\n")
   cat(paste("      Alternative is", varnames[1], "->", varnames[2], sep = " "))
   cat("\n")
-  cat(paste("      Difference statistics > 0 suggest the model", varnames[2], "->", varnames[1], sep = " "))
+  if(isFALSE(object$probtrans)){
+    cat(paste("      Difference statistics > 0 suggest the model", varnames[2], "->", varnames[1], sep = " "))
+  } else {
+    cat(paste("      As of package version 0.2.0, difference statistics > 0 the Target model when using prob.trans = TRUE.", varnames[2], "->", varnames[1], sep = " "))
+  }
   cat("\n")
   if(isTRUE(object$boot.warning)) { cat("Warning: Excess-kurtosis values of residuals have unequal signs", "\n", "        Also compute Co-Kurtosis and Hyvarinen-Smith Co-Kurtosis for", varnames[1], "->", varnames[2], "\n") }
 	cat("\n")
