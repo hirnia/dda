@@ -1,333 +1,103 @@
-#' @title Model Selection Decisions for a Fitted DDA Object
-#'
-#' @description
-#' \code{dda.decisions} translates the tests stored in a fitted DDA object
-#' (\code{dda.indep}, \code{dda.resdist}, or \code{dda.vardist}) into causal
-#' model selection decisions. Significance tests are compared against
-#' \code{alpha}; difference statistics are decided by whether their bootstrap
-#' confidence interval excludes zero. The same rules are used inside
-#' \code{dda.bagging}.
-#'
-#' @param dda_result An output object from \code{dda.indep},
-#'   \code{dda.resdist}, or \code{dda.vardist}.
-#' @param alpha Numeric. Significance level used for causal model selection
-#'   (default: 0.05).
-#' @param nlcor.adjust Character. Multiplicity adjustment applied to the
-#'   smallest non-linear correlation p-value across the three transformations
-#'   (\code{dda.indep} only). \code{"none"} (default) uses the smallest
-#'   p-value directly. \code{"bonferroni"} multiplies it by the number of
-#'   transformations.
-#'
-#' @details
-#' Throughout, the target model is \code{x -> y} and the alternative model is
-#' \code{y -> x}; \code{p_yx} denotes a p-value obtained under the target
-#' model and \code{p_xy} a p-value obtained under the alternative model.
-#'
-#' Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
-#' Breusch-Pagan, non-linear correlation):
-#' \itemize{
-#'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: \code{"Target"}
-#'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: \code{"Alternative"}
-#'   \item both \code{<= alpha}: \code{"Confounding"}
-#'   \item both \code{> alpha}: \code{"Undecided"}
-#' }
-#' The non-linear correlation decision combines the three transformations by
-#' taking the smallest p-value in each direction, matching the reference
-#' implementation. That combination is not adjusted for multiplicity by
-#' default; \code{nlcor.adjust = "bonferroni"} applies a correction, which
-#' lowers the rate of decisive outcomes when neither direction is identified.
-#'
-#' Difference statistics (HSIC, dCor, MI) use their bootstrap confidence
-#' intervals: an interval above zero speaks for the target model, below zero
-#' for the alternative model, otherwise the decision is \code{"Undecided"}.
-#'
-#' Separate normality tests on residuals (\code{dda.resdist}, D'Agostino and
-#' Anscombe-Glynn) depend on the \code{prob.trans} setting of the fitted
-#' object. Under \code{prob.trans = FALSE}:
-#' \itemize{
-#'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: \code{"Target"}
-#'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: \code{"Alternative"}
-#'   \item otherwise: \code{"Undecided"}
-#' }
-#' Under \code{prob.trans = TRUE} the roles are reversed
-#' (\code{p_yx <= alpha} and \code{p_xy > alpha} speaks for the target
-#' model). The skewness and kurtosis differences reverse in the same way, so
-#' that under \code{prob.trans = TRUE} a difference below zero speaks for the
-#' target model. Co-skewness, co-kurtosis and the likelihood-ratio
-#' approximations never reverse: a difference above zero speaks for the
-#' target model under both settings.
-#'
-#' When \code{dda.resdist} is called with \code{B = 0} no bootstrap interval
-#' is available for the skewness and kurtosis differences. The asymptotic
-#' difference test stored alongside them is used instead, combining its
-#' p-value with the sign of the difference.
-#'
-#' Separate normality tests on observed variables (\code{dda.vardist}):
-#' \itemize{
-#'   \item outcome p \code{> alpha} and predictor p \code{<= alpha}:
-#'     \code{"Target"}
-#'   \item outcome p \code{<= alpha} and predictor p \code{> alpha}:
-#'     \code{"Alternative"}
-#'   \item otherwise: \code{"Undecided"}
-#' }
-#' All higher-moment difference intervals in \code{dda.vardist} use the
-#' interval-excludes-zero rule with values above zero speaking for the
-#' target model.
-#'
-#' @return A named character vector of decisions, one element per test
-#'   available in the object. Values are \code{"Target"},
-#'   \code{"Alternative"}, \code{"Undecided"}, \code{"Confounding"} (separate
-#'   independence tests only), or \code{NA} when a test result is missing.
-#'
-#' @seealso \code{\link{dda.bagging}}
-#'
-#' @keywords internal
-#' @noRd
-dda.decisions <- function(dda_result, alpha = 0.05,
-                          nlcor.adjust = c("none", "bonferroni")) {
-
-  if (!inherits(dda_result, c("dda.indep", "dda.resdist", "dda.vardist"))) {
-    stop("Unsupported DDA object. Must be dda.indep, dda.resdist, or dda.vardist.")
-  }
-  stopifnot(is.numeric(alpha), length(alpha) == 1, alpha > 0, alpha < 1)
-  nlcor.adjust <- match.arg(nlcor.adjust)
-
-  obj <- dda_result
-
-  # list element by exact name, NULL when absent
-  el <- function(x, name) if (is.list(x) && name %in% names(x)) x[[name]] else NULL
-
-  # first value of a stored result as a number, NA when unavailable
-  num1 <- function(x) {
-    x <- suppressWarnings(as.numeric(unlist(x)))
-    if (length(x) == 0) NA_real_ else x[1]
-  }
-
-  # decision from a target-model and an alternative-model p-value;
-  # confounding = TRUE adds the both-significant category used by the
-  # separate independence tests
-  dec_p <- function(p_tar, p_alt, confounding = FALSE) {
-    if (is.na(p_tar) || is.na(p_alt)) return(NA_character_)
-    if (p_tar >  alpha && p_alt <= alpha) return("Target")
-    if (p_tar <= alpha && p_alt >  alpha) return("Alternative")
-    if (confounding && p_tar <= alpha && p_alt <= alpha) return("Confounding")
-    "Undecided"
-  }
-
-  # decision from a bootstrap confidence interval; reverse = TRUE swaps the
-  # two directions
-  dec_ci <- function(lower, upper, reverse = FALSE) {
-    if (is.na(lower) || is.na(upper)) return(NA_character_)
-    above <- lower > 0 && upper > 0
-    below <- lower < 0 && upper < 0
-    if (!above && !below) return("Undecided")
-    if (xor(above, reverse)) "Target" else "Alternative"
-  }
-
-  # difference statistic stored as c(estimate, lower, upper)
-  dec_interval <- function(v, reverse = FALSE) {
-    v <- suppressWarnings(as.numeric(v))
-    if (length(v) < 3) return(NA_character_)
-    dec_ci(v[length(v) - 1], v[length(v)], reverse)
-  }
-
-  # dda.resdist skewness and kurtosis differences: c(diff, z, p) without a
-  # bootstrap, c(diff, z, p, lower, upper) with one
-  dec_skewkurt <- function(v, reverse = FALSE) {
-    v <- suppressWarnings(as.numeric(v))
-    if (length(v) >= 5) return(dec_ci(v[4], v[5], reverse))
-    if (length(v) >= 3 && !is.na(v[1]) && !is.na(v[3])) {
-      if (v[3] > alpha || v[1] == 0) return("Undecided")
-      return(if (xor(v[1] > 0, reverse)) "Target" else "Alternative")
-    }
-    NA_character_
-  }
-
-  out <- character(0)
-
-  if (inherits(obj, "dda.indep")) {
-
-    if (!is.null(el(obj, "hsic.yx")) && !is.null(el(obj, "hsic.xy"))) {
-      out["hsic"] <- dec_p(num1(el(obj, "hsic.yx")$p.value),
-                           num1(el(obj, "hsic.xy")$p.value), confounding = TRUE)
-    }
-
-    dcor_yx <- el(obj, "distance_cor.dcor_yx")
-    dcor_xy <- el(obj, "distance_cor.dcor_xy")
-    if (!is.null(dcor_yx) && !is.null(dcor_xy)) {
-      out["dcor"] <- dec_p(num1(dcor_yx$p.value), num1(dcor_xy$p.value),
-                           confounding = TRUE)
-    }
-
-    bp <- el(obj, "breusch_pagan")
-    if (!is.null(bp) && length(bp) >= 4) {
-      # elements 2 and 4 hold the robust Breusch-Pagan tests
-      out["dec_bp"] <- dec_p(num1(bp[[2]]$p.value), num1(bp[[4]]$p.value),
-                             confounding = TRUE)
-    }
-
-    nl_yx <- el(obj, "nlcor.yx")
-    nl_xy <- el(obj, "nlcor.xy")
-    if (!is.null(nl_yx) && !is.null(nl_xy)) {
-      # smallest p-value across the transformations, optionally Bonferroni
-      # adjusted by the number of transformations available
-      min_p <- function(o) {
-        p <- c(num1(el(o, "t1")[4]), num1(el(o, "t2")[4]), num1(el(o, "t3")[4]))
-        p <- p[!is.na(p)]
-        if (length(p) == 0) return(NA_real_)
-        if (identical(nlcor.adjust, "bonferroni")) min(min(p) * length(p), 1)
-        else min(p)
-      }
-      out["dec_nl.min"] <- dec_p(min_p(nl_yx), min_p(nl_xy), confounding = TRUE)
-    }
-
-    dm <- el(obj, "out.diff")
-    if (!is.null(dm)) {
-      dm <- as.matrix(dm)
-      nc <- ncol(dm)
-      nm <- c("diff_hsic", "diff_dcor", "diff_mi")
-      if (nc >= 2) {
-        for (i in seq_len(min(nrow(dm), length(nm)))) {
-          out[nm[i]] <- dec_ci(dm[i, nc - 1], dm[i, nc])
-        }
-      }
-    }
-  }
-
-  if (inherits(obj, "dda.resdist")) {
-
-    prob_trans <- el(obj, "probtrans")
-    if (!isTRUE(prob_trans) && !isFALSE(prob_trans)) {
-      stop("'prob.trans' status of the dda.resdist object could not be determined.")
-    }
-    reverse <- isTRUE(prob_trans)
-
-    ago <- el(obj, "agostino")
-    ans <- el(obj, "anscombe")
-    p_skew_tar <- num1(el(ago, "target")$p.value)
-    p_skew_alt <- num1(el(ago, "alternative")$p.value)
-    p_kurt_tar <- num1(el(ans, "target")$p.value)
-    p_kurt_alt <- num1(el(ans, "alternative")$p.value)
-
-    # Under prob.trans = FALSE a normal-looking target-model residual paired
-    # with a non-normal alternative-model residual speaks for the target
-    # model; under prob.trans = TRUE the two roles are reversed.
-    if (reverse) {
-      out["dec_agost"]  <- dec_p(p_skew_alt, p_skew_tar)
-      out["dec_anscom"] <- dec_p(p_kurt_alt, p_kurt_tar)
-    } else {
-      out["dec_agost"]  <- dec_p(p_skew_tar, p_skew_alt)
-      out["dec_anscom"] <- dec_p(p_kurt_tar, p_kurt_alt)
-    }
-
-    # skewness and kurtosis differences reverse with prob.trans
-    if (!is.null(el(obj, "skewdiff")))
-      out["dec_skewdiff"] <- dec_skewkurt(el(obj, "skewdiff"), reverse)
-    if (!is.null(el(obj, "kurtdiff")))
-      out["dec_kurtdiff"] <- dec_skewkurt(el(obj, "kurtdiff"), reverse)
-
-    # co-moments and likelihood-ratio approximations never reverse
-    for (k in c("cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
-      if (!is.null(el(obj, k))) out[paste0("dec_", k)] <- dec_interval(el(obj, k))
-    }
-  }
-
-  if (inherits(obj, "dda.vardist")) {
-
-    ago <- el(obj, "agostino")
-    ans <- el(obj, "anscombe")
-
-    # a normal-looking outcome together with a non-normal predictor speaks
-    # for the target model
-    out["dec_agost"]  <- dec_p(num1(el(ago, "outcome")$p.value),
-                               num1(el(ago, "predictor")$p.value))
-    out["dec_anscom"] <- dec_p(num1(el(ans, "outcome")$p.value),
-                               num1(el(ans, "predictor")$p.value))
-
-    for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) {
-      if (!is.null(el(obj, k))) out[paste0("dec_", k)] <- dec_interval(el(obj, k))
-    }
-  }
-
-  out
-}
-
 #' @title Bootstrap Aggregated Direction Dependence Analysis (DDA)
 #'
 #' @description
 #' \code{dda.bagging} performs bootstrap aggregation (bagging) on an existing
-#' Direction Dependence Analysis (DDA) object to test the stability and
-#' robustness of direction dependence decisions.
+#' Direction Dependence Analysis (DDA) object to evaluate the stability of
+#' direction dependence decisions. \code{print} returns the aggregated DDA
+#' test statistics.
 #'
-#' @param dda_result An output object from any base DDA function (e.g.,
-#'   \code{dda.indep}, \code{dda.vardist}, or \code{dda.resdist}).
+#' @param dda_result An output object from \code{dda.indep},
+#'   \code{dda.resdist}, or \code{dda.vardist}.
+#' @param data A \code{data.frame} containing all variables used in the
+#'   original DDA model (outcome, predictor, and any covariates).
 #' @param iter Number of bootstrap samples (default: 100).
-#' @param progress Logical. Whether to display a progress bar during
-#'   resampling (default: \code{TRUE}).
-#' @param save_file Character. Optional file path used to save the resulting
-#'   object as an R serialized data file (e.g., \code{"results.rds"}).
 #' @param alpha Numeric. Significance level used for causal model selection
 #'   (default: 0.05).
-#' @param data A \code{data.frame} containing ALL raw variables used in the
-#'   original DDA model (outcome, predictor, and any covariates).
-#' @param agg_stat Character. Specifies the method used for aggregating test
-#'   statistics and coefficients across bootstrap samples. Must be one of the
-#'   following specifications \code{c("mean", "median", "trimmed",
-#'   "winsorized", "midhinge", "tukey")}.
-#' @param trim_prob Numeric. Proportion of observations to be trimmed from
-#'   each side of the sampling distribution when \code{agg_stat = "trimmed"}
+#' @param agg_stat Character. Method used to aggregate test statistics,
+#'   p-values, and coefficients across bootstrap samples. Must be one of
+#'   \code{c("mean", "median", "trimmed", "winsorized", "midhinge",
+#'   "tukey")}. In \code{print}, \code{NULL} (default) keeps the method
+#'   used in \code{dda.bagging}.
+#' @param trim_prob Numeric. Proportion of observations trimmed from each
+#'   side of the sampling distribution when \code{agg_stat = "trimmed"}
 #'   (default: 0.10).
-#' @param win_prob Numeric. Proportion of observations to be winsorized from
-#'   each side of the sampling distribution when
-#'   \code{agg_stat = "winsorized"} (default: 0.10).
+#' @param win_prob Numeric. Proportion of observations winsorized on each
+#'   side of the sampling distribution when \code{agg_stat = "winsorized"}
+#'   (default: 0.10).
 # inner_B is disabled for now. To restore it, uncomment this block, the
-# argument in the signature, its validation, and its use in the iteration loop.
-# #' @param inner_B Optional positive integer. Caps the number of inner
-# #'   bootstrap resamples (\code{B}) passed to each per-iteration DDA call.
-# #'   \code{NULL} (default) keeps whatever \code{B} was used in the original
-# #'   DDA call.
-#' @param nlcor.adjust Character. Multiplicity adjustment passed to
-#'   \code{dda.decisions} for the non-linear correlation decision.
-#'   One of \code{"none"} (default) or \code{"bonferroni"}.
+# argument in the signature and its use before the bootstrap loop.
+# #' @param inner_B Optional positive integer. Number of inner bootstrap
+# #'   resamples (\code{B}) passed to each DDA call. \code{NULL} (default)
+# #'   keeps the \code{B} used in the original DDA call.
+#' @param progress Logical. Whether to display a progress bar (default:
+#'   \code{TRUE}).
+#' @param save_file Character. Optional file path used to save the result as
+#'   an R data file (e.g., \code{"results.rds"}).
 #'
 #' @details
-#' This function uses a fitted DDA output object (obtained from
-#' \code{dda.indep}, \code{dda.vardist}, or \code{dda.resdist}) and performs
-#' bootstrap aggregation of DDA test statistics. The function computes DDA
-#' statistics across \code{iter} bootstrap samples and aggregates the results
-#' to evaluate the stability and robustness of DDA model selection. p-values
-#' obtained from significance tests are aggregated with the same
-#' \code{agg_stat} applied to the test statistics, so a reported statistic and
-#' its p-value are the same summary of the same bootstrap samples. An
-#' aggregated p-value describes the distribution of p-values across resamples;
-#' it is not a pooled test of a single null. Model selection decisions within
-#' each
-#' bootstrap sample are obtained with \code{dda.decisions} (p-value
-#' based rules for significance tests, interval-excludes-zero rules for
-#' bootstrap difference statistics) and reported as decision proportions
-#' across samples.
+#' In each of the \code{iter} bootstrap samples, \code{n} observations are
+#' drawn with replacement from \code{data}, the original DDA function is
+#' called again with its original arguments, and the causally competing OLS
+#' models are fitted. Test statistics and p-values are aggregated across
+#' bootstrap samples with \code{agg_stat}. An aggregated p-value summarizes
+#' the distribution of p-values across bootstrap samples; it is not a pooled
+#' test of a single null hypothesis.
 #'
-#' Run time scales with \code{iter} multiplied by the resampling budget of the
-#' base DDA call, and the underlying independence statistics are quadratic in
-#' the number of observations.
-#' Note also that if the original DDA call used \code{parallelize = TRUE},
-#' that setting is inherited by every outer iteration, so a new cluster is
-#' started \code{iter} times; for the small inner bootstraps typical of
-#' bagging this is usually slower than running the inner calls serially.
+#' Within each bootstrap sample every DDA test leads to a model selection
+#' decision. The target model is \code{x -> y} and the alternative model is
+#' \code{y -> x}; \code{p_yx} is the p-value obtained under the target model
+#' and \code{p_xy} the p-value obtained under the alternative model.
+#'
+#' Separate normality tests (\code{dda.vardist}: outcome and predictor;
+#' \code{dda.resdist}: target and alternative residuals):
+#' \itemize{
+#'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: target model
+#'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
+#'   \item otherwise: undecided
+#' }
+#'
+#' Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
+#' Breusch-Pagan, and non-linear correlation using the smallest of the three
+#' p-values):
+#' \itemize{
+#'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: target model
+#'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
+#'   \item \code{p_yx <= alpha} and \code{p_xy <= alpha}: confounding
+#'   \item \code{p_yx > alpha} and \code{p_xy > alpha}: undecided
+#' }
+#'
+#' Difference statistics use their bootstrap confidence intervals. An
+#' interval above zero speaks for the target model, an interval below zero
+#' speaks for the alternative model, and an interval containing zero is
+#' undecided. As of version 0.2.0 this holds for \code{dda.resdist} under
+#' both \code{prob.trans = FALSE} and \code{prob.trans = TRUE}.
+#'
+#' Run time grows with \code{iter} times the resampling budget (\code{B}) of
+#' the original DDA call.
+#'
+#' @return An object of class \code{dda_bagging} (with subclass
+#'   \code{dda_bagging_indep}, \code{dda_bagging_resdist}, or
+#'   \code{dda_bagging_vardist}) containing
+#'   \item{bagged_results}{The DDA results of the bootstrap samples.}
+#'   \item{aggregated_stats}{A DDA object of the original class holding the
+#'     aggregated test statistics and p-values.}
+#'   \item{decisions}{A matrix of model selection decisions with one row per
+#'     bootstrap sample and one column per test.}
+#'   \item{decision_proportions}{A matrix of decision proportions with one
+#'     row per test.}
+#'   \item{ols}{Coefficients, p-values, and R-squared values of the target
+#'     and alternative OLS models in each bootstrap sample.}
+#'   \item{n_valid_iterations}{Number of bootstrap samples with a DDA
+#'     result.}
 #'
 #' @references
 #' Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis:
 #' Foundations and Statistical Methods}. Cambridge, UK: Cambridge University
 #' Press.
 #'
-#' @return An object of class \code{dda_bagging} (with subclasses
-#'   \code{dda_bagging_indep}, \code{dda_bagging_vardist}, or
-#'   \code{dda_bagging_resdist}), which contains aggregated and raw results
-#'   from tests matching the initial DDA function (\code{dda.indep},
-#'   \code{dda.vardist}, or \code{dda.resdist}).
-#'
 #' @seealso \code{\link{dda.indep}}, \code{\link{dda.vardist}},
-#'   \code{\link{dda.resdist}}, \code{dda.decisions}
+#'   \code{\link{dda.resdist}}, \code{\link{summary.dda_bagging}},
+#'   \code{\link{summary_ols}}
 #'
 #' @examples
 #' set.seed(123)
@@ -343,11 +113,8 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #'
 #' ## --- Bootstrap aggregation of the base model
 #'
-#' bagged <- dda.bagging(base_model, data = d, iter = 5, agg_stat = "mean",
-#'   progress = FALSE)
-#' # Note: n, B and iter are all kept small here to lower computation time.
-#' # Permutation p-values cannot fall below 1 / (B + 1), so B = 20 is the
-#' # smallest value at which the dCor test can reach the .05 level.
+#' bagged <- dda.bagging(base_model, data = d, iter = 5, progress = FALSE)
+#' # Note: n, B and iter are kept small here to lower computation time.
 #'
 #' print(bagged)
 #' summary(bagged, show = c("hsic", "dcor"))
@@ -359,499 +126,396 @@ dda.decisions <- function(dda_result, alpha = 0.05,
 #'   hetero = TRUE, nlfun = 2, diff = TRUE)
 #'
 #' bagged <- dda.bagging(base_model, data = d, iter = 200,
-#'   agg_stat = "trimmed", trim_prob = 0.05, progress = TRUE)
+#'   agg_stat = "trimmed", trim_prob = 0.05)
 #'
 #' print(bagged)
+#' print(bagged, agg_stat = "median")
 #' summary(bagged, show = c("hsic", "dcor", "bp"))
 #' summary_ols(bagged)
 #' }
 #'
 #' @export
-dda.bagging <- function(
-    dda_result,
-    iter         = 100,
-    progress     = TRUE,
-    save_file    = NULL,
-    alpha        = 0.05,
-    data         = NULL,
-    agg_stat     = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
-    trim_prob    = 0.10,
-    win_prob     = 0.10,
-    # inner_B      = NULL,
-    nlcor.adjust = c("none", "bonferroni")
-) {
+#' @rdname dda.bagging
+dda.bagging <- function(dda_result,
+                        data,
+                        iter = 100,
+                        alpha = 0.05,
+                        agg_stat = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
+                        trim_prob = 0.10,
+                        win_prob = 0.10,
+                        # inner_B = NULL,
+                        progress = TRUE,
+                        save_file = NULL
+                        ){
 
-  # Capture caller environment immediately. Symbols stored in call_info$all_args
-  # (e.g. data = dat, B = my_b) are resolved here, not inside the loop.
-  caller_env <- parent.frame()
+  ### --- check input
 
-  agg_stat     <- match.arg(agg_stat)
-  nlcor.adjust <- match.arg(nlcor.adjust)
+  if (!inherits(dda_result, c("dda.indep", "dda.resdist", "dda.vardist")))
+    stop("dda_result must be a dda.indep, dda.resdist, or dda.vardist object.")
+  if (missing(data) || !is.data.frame(data)) stop("Please provide the data.frame used to fit dda_result.")
+  agg_stat <- match.arg(agg_stat)
 
-  # --- Input Validation ---
-  if (!inherits(dda_result, c("dda.indep", "dda.resdist", "dda.vardist"))) {
-    stop("Unsupported DDA object. Must be dda.indep, dda.resdist, or dda.vardist.")
-  }
-  if (!is.data.frame(data) || nrow(data) == 0) {
-    stop("Please provide a valid 'data' data.frame.")
-  }
-  stopifnot(
-    is.numeric(iter)     && iter > 0,
-    is.numeric(alpha)    && alpha > 0 && alpha < 1,
-    is.numeric(trim_prob) && trim_prob >= 0 && trim_prob < 0.5,
-    is.numeric(win_prob)  && win_prob  >= 0 && win_prob  < 0.5
-  )
-  # if (!is.null(inner_B)) {
-  #   stopifnot(is.numeric(inner_B) && length(inner_B) == 1 && inner_B > 0)
-  #   inner_B <- as.integer(inner_B)
-  # }
+  ### --- target and alternative model formulas
 
-  # --- Helper: Robust & Finite Aggregation ---
-  agg_helper <- function(x) dda_agg(x, agg_stat, trim_prob, win_prob)
+  y.name <- dda_result$var.names[1]  # tentative outcome
+  x.name <- dda_result$var.names[2]  # tentative predictor
 
-  # --- Helper: Safe Numeric Extraction ---
-  get_numeric <- function(x) {
-    if (is.null(x))    return(NA_real_)
-    if (is.numeric(x)) return(as.numeric(x[1]))
-    if (is.list(x))    return(get_numeric(x[[1]]))
-    return(NA_real_)
-  }
+  formula.tar <- formula(dda_result$call_info$formula)
+  formula.alt <- stats::update(formula.tar, paste(x.name, "~ . -", x.name, "+", y.name))
 
-  # --- Helper: P-value Aggregation ---
-  # Bootstrap resamples of one data set are not independent tests, so p-values
-  # are summarised with the same agg_stat used for the test statistics rather
-  # than combined into a pooled p-value.
-  agg_p <- function(pvec) {
-    pvec <- as.numeric(pvec)
-    pvec <- pvec[!is.na(pvec) & !is.nan(pvec)]
-    if (length(pvec) == 0) return(NA_real_)
-    agg_helper(pvec)
-  }
+  ### --- original DDA call, evaluated again in every bootstrap sample
 
-  # --- Helper: Matrix Aggregation ---
-  # 5-column results (resdist skewness/kurtosis differences) are
-  # c(diff, z, p, lower, upper); column 3 is a p-value
-  agg_mat <- function(mat) {
-    if (is.null(mat)) return(NULL)
-    res <- apply(mat, 2, agg_helper)
-    if (ncol(mat) == 5) res[3] <- agg_p(mat[, 3])
-    res
-  }
+  boot.call <- dda_result$call_info$function_call
+  boot.call$formula <- formula.tar
+  boot.call$data <- quote(boot.data)
+  # if (!is.null(inner_B)) boot.call$B <- inner_B
 
-  # --- Helper: Decision Proportions ---
-  calc_props <- function(dec_vec, levs = c("Target", "Alternative", "Undecided")) {
-    dec_vec <- dec_vec[!is.na(dec_vec)]
-    tab     <- table(factor(dec_vec, levels = levs))
-    sm      <- sum(tab)
-    if (sm == 0) {
-      empty <- rep(0, length(levs))
-      names(empty) <- levs
-      return(empty)
-    }
-    return(tab / sm)
-  }
+  # boot.data is stored here; all other arguments of the original call are
+  # found where dda.bagging was called
+  boot.env <- new.env(parent = parent.frame())
 
-  # --- Extract Core DDA Information ---
-  call_info     <- dda_result$call_info
-  original_data <- data
-  nobs          <- nrow(original_data)
-  dda_func      <- get(call_info$function_name)
-  obj_type      <- class(dda_result)[1]
+  ### --- bootstrap loop
 
-  var_names <- dda_result$var.names
-  if (is.null(var_names) || length(var_names) != 2) {
-    stop("Variable names not found in DDA result.")
-  }
-  y_name <- var_names[1]
-  x_name <- var_names[2]
-
-  # --- Formula Extraction ---
-  original_formula <- NULL
-  if (!is.null(call_info$formula)) {
-    if (inherits(call_info$formula, "formula")) {
-      original_formula <- call_info$formula
-    } else if (inherits(call_info$formula, "lm")) {
-      original_formula <- formula(call_info$formula)
-    } else if (!is.null(call_info$all_args$formula)) {
-      if (inherits(call_info$all_args$formula, "formula")) {
-        original_formula <- call_info$all_args$formula
-      } else if (inherits(call_info$all_args$formula, "lm")) {
-        original_formula <- formula(call_info$all_args$formula)
-      } else {
-        original_formula <- tryCatch(as.formula(call_info$all_args$formula), error = function(e) NULL)
-      }
-    }
-  }
-  if (is.null(original_formula)) stop("Could not extract formula from DDA result.")
-
-  all_vars       <- all.vars(original_formula)
-  cov_names      <- setdiff(all_vars, c(y_name, x_name))
-  has_covariates <- length(cov_names) > 0
-
-  if (has_covariates) {
-    cov_str          <- paste(cov_names, collapse = " + ")
-    full_formula_tar <- as.formula(paste(y_name, "~", x_name, "+", cov_str))
-    full_formula_alt <- as.formula(paste(x_name, "~", y_name, "+", cov_str))
-  } else {
-    full_formula_tar <- as.formula(paste(y_name, "~", x_name))
-    full_formula_alt <- as.formula(paste(x_name, "~", y_name))
-  }
-
-  # Pre-evaluate all call_info$all_args once in the caller's frame.
-  #
-  # match.call() stores arguments as unevaluated language objects, so
-  # passing them raw via do.call() inside dda.bagging resolves symbols in
-  # the wrong environment and silently returns NULL for every iteration.
-  # eval(..., envir = caller_env) turns each element into its actual R value.
-  # tryCatch keeps the original object if evaluation fails (e.g. a literal
-  # formula or a function object that doesn't need eval).
-  boot_args_pre <- lapply(call_info$all_args, function(a) {
-    tryCatch(eval(a, envir = caller_env), error = function(e) a)
-  })
-  # Guard: drop first element if it has no name (positional formula arg).
-  if (length(boot_args_pre) > 0 && names(boot_args_pre)[1] == "")
-    boot_args_pre[[1]] <- NULL
-
-  # Formulas are constant across iterations; build them once. as.formula()
-  # parses and evaluates, so rebuilding them inside the loop costs 3 parses
-  # per iteration for no benefit.
-  inner_formula <- as.formula(paste(y_name, "~", x_name))
-  if (has_covariates) {
-    cov_formula_y <- as.formula(paste(y_name, "~", paste(cov_names, collapse = " + ")))
-    cov_formula_x <- as.formula(paste(x_name, "~", paste(cov_names, collapse = " + ")))
-  }
-
-  # --- Bootstrap Execution ---
-  bagged_results <- vector("list", iter)
-  ols_tar_coefs  <- vector("list", iter)
-  ols_alt_coefs  <- vector("list", iter)
-  ols_tar_rsq    <- vector("list", iter)
-  ols_alt_rsq    <- vector("list", iter)
-  ols_tar_pvals  <- vector("list", iter)
-  ols_alt_pvals  <- vector("list", iter)
+  nobs <- nrow(data)
+  results <- vector("list", iter)
+  ols.tar.coef <- ols.tar.p <- ols.tar.r2 <- NULL
+  ols.alt.coef <- ols.alt.p <- ols.alt.r2 <- NULL
 
   if (progress) pb <- txtProgressBar(min = 0, max = iter, style = 3)
 
   for (i in 1:iter) {
 
-    # Draw n observations with replacement from the original data.
-    boot_indices <- sample(1:nobs, nobs, replace = TRUE)
-    datboot      <- original_data[boot_indices, ]
+    boot.env$boot.data <- data[sample(1:nobs, nobs, replace = TRUE), ]
 
-    # Fit OLS target and alternative models on the bootstrap sample.
-    lm_tar <- tryCatch(lm(full_formula_tar, data = datboot), error = function(e) NULL)
-    lm_alt <- tryCatch(lm(full_formula_alt, data = datboot), error = function(e) NULL)
-
-    if (!is.null(lm_tar)) {
-      s <- summary(lm_tar)
-      ols_tar_coefs[[i]] <- coef(lm_tar)
-      ols_tar_rsq[[i]]   <- c(s$r.squared, s$adj.r.squared)
-      ols_tar_pvals[[i]] <- s$coefficients[, 4]
-    }
-    if (!is.null(lm_alt)) {
-      s <- summary(lm_alt)
-      ols_alt_coefs[[i]] <- coef(lm_alt)
-      ols_alt_rsq[[i]]   <- c(s$r.squared, s$adj.r.squared)
-      ols_alt_pvals[[i]] <- s$coefficients[, 4]
-    }
-
-    # Residualize covariates if present, then scale the working variables.
-    if (has_covariates) {
-      tryCatch({
-        ry <- as.vector(scale(resid(lm(cov_formula_y, data = datboot))))
-        rx <- as.vector(scale(resid(lm(cov_formula_x, data = datboot))))
-      }, error = function(e) stop(paste("Covariate residualization failed:", e$message)))
-    } else {
-      ry <- as.vector(scale(datboot[[y_name]]))
-      rx <- as.vector(scale(datboot[[x_name]]))
-    }
-
-    # Build the argument list for this iteration's DDA call, starting from
-    # the pre-evaluated original arguments.
-    boot_args         <- boot_args_pre
-    boot_args$formula <- inner_formula
-    boot_args$pred    <- x_name
-
-    boot_processed        <- data.frame(rx, ry)
-    names(boot_processed) <- c(x_name, y_name)
-    boot_args$data        <- boot_processed
-
-    # Overrides the inner bootstrap B for this iteration.
-    # if (!is.null(inner_B)) boot_args$B <- inner_B
-
-    bagged_results[[i]] <- tryCatch(
-      do.call(dda_func, boot_args),
-      error = function(e) NULL
-    )
-
+    fit <- try(eval(boot.call, boot.env), silent = TRUE)
     if (progress) setTxtProgressBar(pb, i)
+    if (inherits(fit, "try-error")) next
+
+    fit$call_info <- NULL
+    results[[i]] <- fit
+
+    s.tar <- summary(lm(formula.tar, data = boot.env$boot.data))
+    s.alt <- summary(lm(formula.alt, data = boot.env$boot.data))
+
+    ols.tar.coef <- rbind(ols.tar.coef, s.tar$coefficients[, 1])
+    ols.tar.p    <- rbind(ols.tar.p,    s.tar$coefficients[, 4])
+    ols.tar.r2   <- rbind(ols.tar.r2,   c(r.squared = s.tar$r.squared, adj.r.squared = s.tar$adj.r.squared))
+    ols.alt.coef <- rbind(ols.alt.coef, s.alt$coefficients[, 1])
+    ols.alt.p    <- rbind(ols.alt.p,    s.alt$coefficients[, 4])
+    ols.alt.r2   <- rbind(ols.alt.r2,   c(r.squared = s.alt$r.squared, adj.r.squared = s.alt$adj.r.squared))
   }
+
   if (progress) close(pb)
 
-  # --- Filter Valid Results ---
-  is_valid  <- vapply(bagged_results, function(x) !is.null(x) && !all(is.na(x)), logical(1))
-  valid_res <- bagged_results[is_valid]
-  n_valid   <- length(valid_res)
+  results <- results[!sapply(results, is.null)]
+  n.valid <- length(results)
+  if (n.valid == 0) stop("The DDA call failed in every bootstrap sample.")
 
-  if (n_valid == 0) stop("No valid bootstrap iterations succeeded. Check data variance.")
+  ### --- aggregated test statistics
 
-  raw_stats <- list()
-  agg       <- list()
-  decs      <- list()
+  agg <- bag.aggregate(results, agg_stat, trim_prob, win_prob)
 
-  # --- Aggregate OLS Results ---
-  raw_stats$ols_tar_coefs <- tryCatch(do.call(rbind, ols_tar_coefs[is_valid]), error = function(e) NULL)
-  raw_stats$ols_alt_coefs <- tryCatch(do.call(rbind, ols_alt_coefs[is_valid]), error = function(e) NULL)
-  raw_stats$ols_tar_rsq   <- tryCatch(do.call(rbind, ols_tar_rsq[is_valid]),   error = function(e) NULL)
-  raw_stats$ols_alt_rsq   <- tryCatch(do.call(rbind, ols_alt_rsq[is_valid]),   error = function(e) NULL)
-  raw_stats$ols_tar_pvals <- tryCatch(do.call(rbind, ols_tar_pvals[is_valid]), error = function(e) NULL)
-  raw_stats$ols_alt_pvals <- tryCatch(do.call(rbind, ols_alt_pvals[is_valid]), error = function(e) NULL)
+  ### --- model selection decisions and their proportions
 
-  lb <- alpha / 2
-  ub <- 1 - alpha / 2
+  tests <- names(dda.decisions(results[[1]], alpha))
+  decisions <- matrix(NA, nrow = n.valid, ncol = length(tests), dimnames = list(NULL, tests))
+  for (i in 1:n.valid) decisions[i, ] <- dda.decisions(results[[i]], alpha)[tests]
 
-  if (!is.null(raw_stats$ols_tar_coefs) && is.matrix(raw_stats$ols_tar_coefs)) {
-    prop_sig_tar   <- apply(raw_stats$ols_tar_pvals, 2, function(x) mean(x < alpha, na.rm = TRUE))
-    agg$ols_target <- cbind(
-      estimate = apply(raw_stats$ols_tar_coefs, 2, agg_helper),
-      apply(raw_stats$ols_tar_coefs, 2, quantile, probs = lb, na.rm = TRUE),
-      apply(raw_stats$ols_tar_coefs, 2, quantile, probs = ub, na.rm = TRUE),
-      prop_sig_tar
-    )
-    colnames(agg$ols_target) <- c("estimate", paste0(lb*100, " %"), paste0(ub*100, " %"), paste0("Prop (p<", alpha, ")"))
-  }
-
-  if (!is.null(raw_stats$ols_alt_coefs) && is.matrix(raw_stats$ols_alt_coefs)) {
-    prop_sig_alt        <- apply(raw_stats$ols_alt_pvals, 2, function(x) mean(x < alpha, na.rm = TRUE))
-    agg$ols_alternative <- cbind(
-      estimate = apply(raw_stats$ols_alt_coefs, 2, agg_helper),
-      apply(raw_stats$ols_alt_coefs, 2, quantile, probs = lb, na.rm = TRUE),
-      apply(raw_stats$ols_alt_coefs, 2, quantile, probs = ub, na.rm = TRUE),
-      prop_sig_alt
-    )
-    colnames(agg$ols_alternative) <- c("estimate", paste0(lb*100, " %"), paste0(ub*100, " %"), paste0("Prop(p<", alpha, ")"))
-  }
-
-  # ============================================================================
-  # indep block
-  # ============================================================================
-  if (obj_type == "dda.indep") {
-    agg$var.names <- var_names
-
-    raw_stats$hsic_yx_stat <- sapply(valid_res, function(x) get_numeric(x$hsic.yx$statistic))
-    raw_stats$hsic_xy_stat <- sapply(valid_res, function(x) get_numeric(x$hsic.xy$statistic))
-    raw_stats$hsic_yx_pval <- sapply(valid_res, function(x) get_numeric(x$hsic.yx$p.value))
-    raw_stats$hsic_xy_pval <- sapply(valid_res, function(x) get_numeric(x$hsic.xy$p.value))
-
-    agg$hsic_yx_stat <- agg_helper(raw_stats$hsic_yx_stat)
-    agg$hsic_xy_stat <- agg_helper(raw_stats$hsic_xy_stat)
-    agg$hsic_yx_pval <- agg_p(raw_stats$hsic_yx_pval)
-    agg$hsic_xy_pval <- agg_p(raw_stats$hsic_xy_pval)
-
-    if (!is.null(valid_res[[1]]$distance_cor.dcor_yx) || !is.null(valid_res[[1]]$dcor.yx)) {
-      dcor_name_yx <- if (!is.null(valid_res[[1]]$distance_cor.dcor_yx)) "distance_cor.dcor_yx" else "dcor.yx"
-      dcor_name_xy <- if (!is.null(valid_res[[1]]$distance_cor.dcor_xy)) "distance_cor.dcor_xy" else "dcor.xy"
-
-      raw_stats$dcor_yx_stat <- sapply(valid_res, function(x) get_numeric(x[[dcor_name_yx]]$statistic))
-      raw_stats$dcor_xy_stat <- sapply(valid_res, function(x) get_numeric(x[[dcor_name_xy]]$statistic))
-      raw_stats$dcor_yx_pval <- sapply(valid_res, function(x) get_numeric(x[[dcor_name_yx]]$p.value))
-      raw_stats$dcor_xy_pval <- sapply(valid_res, function(x) get_numeric(x[[dcor_name_xy]]$p.value))
-
-      agg$dcor_yx_stat <- agg_helper(raw_stats$dcor_yx_stat)
-      agg$dcor_xy_stat <- agg_helper(raw_stats$dcor_xy_stat)
-      agg$dcor_yx_pval <- agg_p(raw_stats$dcor_yx_pval)
-      agg$dcor_xy_pval <- agg_p(raw_stats$dcor_xy_pval)
-    }
-
-    if (!is.null(valid_res[[1]]$breusch_pagan)) {
-      raw_stats$bp_yx_stat  <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[1]]$statistic))
-      raw_stats$bp_yx_df    <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[1]]$parameter))
-      raw_stats$bp_yx_p     <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[1]]$p.value))
-      raw_stats$rbp_yx_stat <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[2]]$statistic))
-      raw_stats$rbp_yx_df   <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[2]]$parameter))
-      raw_stats$rbp_yx_p    <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[2]]$p.value))
-      raw_stats$bp_xy_stat  <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[3]]$statistic))
-      raw_stats$bp_xy_df    <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[3]]$parameter))
-      raw_stats$bp_xy_p     <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[3]]$p.value))
-      raw_stats$rbp_xy_stat <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[4]]$statistic))
-      raw_stats$rbp_xy_df   <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[4]]$parameter))
-      raw_stats$rbp_xy_p    <- sapply(valid_res, function(x) get_numeric(x$breusch_pagan[[4]]$p.value))
-
-      agg$breusch_pagan <- list(
-        list(statistic = agg_helper(raw_stats$bp_yx_stat),  parameter = agg_helper(raw_stats$bp_yx_df),  p.value = agg_p(raw_stats$bp_yx_p)),
-        list(statistic = agg_helper(raw_stats$rbp_yx_stat), parameter = agg_helper(raw_stats$rbp_yx_df), p.value = agg_p(raw_stats$rbp_yx_p)),
-        list(statistic = agg_helper(raw_stats$bp_xy_stat),  parameter = agg_helper(raw_stats$bp_xy_df),  p.value = agg_p(raw_stats$bp_xy_p)),
-        list(statistic = agg_helper(raw_stats$rbp_xy_stat), parameter = agg_helper(raw_stats$rbp_xy_df), p.value = agg_p(raw_stats$rbp_xy_p))
-      )
-    }
-
-    if (!is.null(valid_res[[1]]$nlcor.yx)) {
-      raw_stats$nlcor_yx_t1 <- do.call(rbind, lapply(valid_res, function(x) as.numeric(x$nlcor.yx$t1)))
-      raw_stats$nlcor_yx_t2 <- do.call(rbind, lapply(valid_res, function(x) as.numeric(x$nlcor.yx$t2)))
-      raw_stats$nlcor_yx_t3 <- do.call(rbind, lapply(valid_res, function(x) as.numeric(x$nlcor.yx$t3)))
-      raw_stats$nlcor_xy_t1 <- do.call(rbind, lapply(valid_res, function(x) as.numeric(x$nlcor.xy$t1)))
-      raw_stats$nlcor_xy_t2 <- do.call(rbind, lapply(valid_res, function(x) as.numeric(x$nlcor.xy$t2)))
-      raw_stats$nlcor_xy_t3 <- do.call(rbind, lapply(valid_res, function(x) as.numeric(x$nlcor.xy$t3)))
-
-      agg$nlcor.yx <- list(
-        t1   = c(agg_helper(raw_stats$nlcor_yx_t1[,1]), agg_helper(raw_stats$nlcor_yx_t1[,2]), agg_helper(raw_stats$nlcor_yx_t1[,3]), agg_p(raw_stats$nlcor_yx_t1[,4])),
-        t2   = c(agg_helper(raw_stats$nlcor_yx_t2[,1]), agg_helper(raw_stats$nlcor_yx_t2[,2]), agg_helper(raw_stats$nlcor_yx_t2[,3]), agg_p(raw_stats$nlcor_yx_t2[,4])),
-        t3   = c(agg_helper(raw_stats$nlcor_yx_t3[,1]), agg_helper(raw_stats$nlcor_yx_t3[,2]), agg_helper(raw_stats$nlcor_yx_t3[,3]), agg_p(raw_stats$nlcor_yx_t3[,4])),
-        func = valid_res[[1]]$nlcor.yx$func
-      )
-      agg$nlcor.xy <- list(
-        t1   = c(agg_helper(raw_stats$nlcor_xy_t1[,1]), agg_helper(raw_stats$nlcor_xy_t1[,2]), agg_helper(raw_stats$nlcor_xy_t1[,3]), agg_p(raw_stats$nlcor_xy_t1[,4])),
-        t2   = c(agg_helper(raw_stats$nlcor_xy_t2[,1]), agg_helper(raw_stats$nlcor_xy_t2[,2]), agg_helper(raw_stats$nlcor_xy_t2[,3]), agg_p(raw_stats$nlcor_xy_t2[,4])),
-        t3   = c(agg_helper(raw_stats$nlcor_xy_t3[,1]), agg_helper(raw_stats$nlcor_xy_t3[,2]), agg_helper(raw_stats$nlcor_xy_t3[,3]), agg_p(raw_stats$nlcor_xy_t3[,4])),
-        func = valid_res[[1]]$nlcor.xy$func
-      )
-
-    }
-
-    if (!is.null(valid_res[[1]]$out.diff)) {
-      raw_stats$diff_arr <- simplify2array(lapply(valid_res, function(x) as.matrix(x$out.diff)))
-      agg$diff_matrix    <- apply(raw_stats$diff_arr, c(1, 2), agg_helper)
-    }
-  }
-
-  # ============================================================================
-  # resdist block
-  # ============================================================================
-  if (obj_type == "dda.resdist") {
-    agg$var.names <- var_names
-
-    # Store the prob.trans flag so print methods can retrieve it for footnotes.
-    prob_trans_flag <- isTRUE(if (!is.null(dda_result$probtrans)) dda_result$probtrans else FALSE)
-    agg$probtrans   <- prob_trans_flag
-
-    raw_stats$agost_tar_stat  <- sapply(valid_res, function(x) get_numeric(x$agostino$target$statistic[1]))
-    raw_stats$agost_tar_z     <- sapply(valid_res, function(x) get_numeric(x$agostino$target$statistic[2]))
-    raw_stats$agost_tar_pval  <- sapply(valid_res, function(x) get_numeric(x$agostino$target$p.value))
-    raw_stats$agost_alt_stat  <- sapply(valid_res, function(x) get_numeric(x$agostino$alternative$statistic[1]))
-    raw_stats$agost_alt_z     <- sapply(valid_res, function(x) get_numeric(x$agostino$alternative$statistic[2]))
-    raw_stats$agost_alt_pval  <- sapply(valid_res, function(x) get_numeric(x$agostino$alternative$p.value))
-
-    raw_stats$anscom_tar_stat <- sapply(valid_res, function(x) get_numeric(x$anscombe$target$statistic[1]))
-    raw_stats$anscom_tar_z    <- sapply(valid_res, function(x) get_numeric(x$anscombe$target$statistic[2]))
-    raw_stats$anscom_tar_pval <- sapply(valid_res, function(x) get_numeric(x$anscombe$target$p.value))
-    raw_stats$anscom_alt_stat <- sapply(valid_res, function(x) get_numeric(x$anscombe$alternative$statistic[1]))
-    raw_stats$anscom_alt_z    <- sapply(valid_res, function(x) get_numeric(x$anscombe$alternative$statistic[2]))
-    raw_stats$anscom_alt_pval <- sapply(valid_res, function(x) get_numeric(x$anscombe$alternative$p.value))
-
-    agg$agostino.target.statistic      <- agg_helper(raw_stats$agost_tar_stat)
-    agg$agostino.target.z              <- agg_helper(raw_stats$agost_tar_z)
-    agg$agostino.target.p.value        <- agg_p(raw_stats$agost_tar_pval)
-    agg$agostino.alternative.statistic <- agg_helper(raw_stats$agost_alt_stat)
-    agg$agostino.alternative.z         <- agg_helper(raw_stats$agost_alt_z)
-    agg$agostino.alternative.p.value   <- agg_p(raw_stats$agost_alt_pval)
-
-    agg$anscombe.target.statistic      <- agg_helper(raw_stats$anscom_tar_stat)
-    agg$anscombe.target.z              <- agg_helper(raw_stats$anscom_tar_z)
-    agg$anscombe.target.p.value        <- agg_p(raw_stats$anscom_tar_pval)
-    agg$anscombe.alternative.statistic <- agg_helper(raw_stats$anscom_alt_stat)
-    agg$anscombe.alternative.z         <- agg_helper(raw_stats$anscom_alt_z)
-    agg$anscombe.alternative.p.value   <- agg_p(raw_stats$anscom_alt_pval)
-
-    for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
-      if (!is.null(valid_res[[1]][[k]])) {
-        mat_k <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x[[k]]))), error = function(e) NULL)
-        if (!is.null(mat_k) && ncol(mat_k) >= 2) {
-          raw_stats[[k]] <- mat_k
-          agg[[k]]       <- agg_mat(mat_k)
-        }
-      }
-    }
-  }
-
-  # ============================================================================
-  # vardist block
-  # ============================================================================
-  if (obj_type == "dda.vardist") {
-    agg$var.names <- var_names
-
-    raw_stats$agost_pre_stat  <- sapply(valid_res, function(x) get_numeric(x$agostino$predictor$statistic[1]))
-    raw_stats$agost_pre_z     <- sapply(valid_res, function(x) get_numeric(x$agostino$predictor$statistic[2]))
-    raw_stats$agost_pre_pval  <- sapply(valid_res, function(x) get_numeric(x$agostino$predictor$p.value))
-    raw_stats$agost_out_stat  <- sapply(valid_res, function(x) get_numeric(x$agostino$outcome$statistic[1]))
-    raw_stats$agost_out_z     <- sapply(valid_res, function(x) get_numeric(x$agostino$outcome$statistic[2]))
-    raw_stats$agost_out_pval  <- sapply(valid_res, function(x) get_numeric(x$agostino$outcome$p.value))
-
-    raw_stats$anscom_pre_stat <- sapply(valid_res, function(x) get_numeric(x$anscombe$predictor$statistic[1]))
-    raw_stats$anscom_pre_z    <- sapply(valid_res, function(x) get_numeric(x$anscombe$predictor$statistic[2]))
-    raw_stats$anscom_pre_pval <- sapply(valid_res, function(x) get_numeric(x$anscombe$predictor$p.value))
-    raw_stats$anscom_out_stat <- sapply(valid_res, function(x) get_numeric(x$anscombe$outcome$statistic[1]))
-    raw_stats$anscom_out_z    <- sapply(valid_res, function(x) get_numeric(x$anscombe$outcome$statistic[2]))
-    raw_stats$anscom_out_pval <- sapply(valid_res, function(x) get_numeric(x$anscombe$outcome$p.value))
-
-    agg$agostino.predictor.statistic.skew <- agg_helper(raw_stats$agost_pre_stat)
-    agg$agostino.predictor.statistic.z    <- agg_helper(raw_stats$agost_pre_z)
-    agg$agostino.predictor.p.value        <- agg_p(raw_stats$agost_pre_pval)
-    agg$agostino.outcome.statistic.skew   <- agg_helper(raw_stats$agost_out_stat)
-    agg$agostino.outcome.statistic.z      <- agg_helper(raw_stats$agost_out_z)
-    agg$agostino.outcome.p.value          <- agg_p(raw_stats$agost_out_pval)
-
-    agg$anscombe.predictor.statistic.kurt <- agg_helper(raw_stats$anscom_pre_stat)
-    agg$anscombe.predictor.statistic.z    <- agg_helper(raw_stats$anscom_pre_z)
-    agg$anscombe.predictor.p.value        <- agg_p(raw_stats$anscom_pre_pval)
-    agg$anscombe.outcome.statistic.kurt   <- agg_helper(raw_stats$anscom_out_stat)
-    agg$anscombe.outcome.statistic.z      <- agg_helper(raw_stats$anscom_out_z)
-    agg$anscombe.outcome.p.value          <- agg_p(raw_stats$anscom_out_pval)
-
-    for (k in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) {
-      if (!is.null(valid_res[[1]][[k]])) {
-        mat_k <- tryCatch(do.call(rbind, lapply(valid_res, function(x) as.numeric(x[[k]]))), error = function(e) NULL)
-        if (!is.null(mat_k) && ncol(mat_k) >= 2) {
-          raw_stats[[k]] <- mat_k
-          agg[[k]]       <- agg_mat(mat_k)
-        }
-      }
-    }
-  }
-
-  # ============================================================================
-  # model selection decisions
-  # ============================================================================
-  # One decision per test per bootstrap sample, computed by dda.decisions()
-  # so that dda.bagging and simulation code share the same rules; decs holds
-  # the proportion of each decision across the valid samples.
-  dec_list <- lapply(valid_res, function(x) {
-    tryCatch(dda.decisions(x, alpha = alpha, nlcor.adjust = nlcor.adjust),
-             error = function(e) NULL)
-  })
-  dec_keys <- unique(unlist(lapply(dec_list, names)))
-  dec_levs <- if (obj_type == "dda.indep") {
-    c("Target", "Alternative", "Confounding", "Undecided")
+  if (inherits(dda_result, "dda.indep")) {
+    levs <- c("Target", "Alternative", "Confounding", "Undecided")
   } else {
-    c("Target", "Alternative", "Undecided")
-  }
-  for (k in dec_keys) {
-    dvec <- vapply(dec_list, function(d) {
-      if (!is.null(d) && k %in% names(d)) d[[k]] else NA_character_
-    }, character(1))
-    decs[[k]] <- calc_props(dvec, levs = dec_levs)
+    levs <- c("Target", "Alternative", "Undecided")
   }
 
-  # --- Compile & Return ---
-  if (!is.null(save_file)) {
-    saveRDS(
-      list(bagged_results       = bagged_results,
-           raw_stats            = raw_stats,
-           aggregated_stats     = agg,
-           decision_percentages = decs,
-           n_valid_iterations   = n_valid,
-           agg_stat_used        = agg_stat),
-      file = save_file
-    )
+  props <- matrix(NA, nrow = ncol(decisions), ncol = length(levs),
+                  dimnames = list(colnames(decisions), levs))
+  for (test in colnames(decisions)) {
+    dec <- decisions[, test]
+    dec <- dec[!is.na(dec)]
+    for (lev in levs) props[test, lev] <- mean(dec == lev)
   }
 
-  out <- list(
-    bagged_results       = bagged_results,
-    raw_stats            = raw_stats,
-    aggregated_stats     = agg,
-    decision_percentages = decs,
-    n_valid_iterations   = n_valid,
-    agg_stat_used        = agg_stat
-  )
-  class(out) <- c(paste0("dda_bagging_", gsub("dda.", "", obj_type)), "dda_bagging")
-  return(out)
+  ### --- output
+
+  output <- list(bagged_results = results,
+                 aggregated_stats = agg,
+                 decisions = decisions,
+                 decision_proportions = props,
+                 ols = list(target = list(formula = formula.tar, coef = ols.tar.coef,
+                                          p.value = ols.tar.p, r.squared = ols.tar.r2),
+                            alternative = list(formula = formula.alt, coef = ols.alt.coef,
+                                               p.value = ols.alt.p, r.squared = ols.alt.r2)),
+                 n_valid_iterations = n.valid,
+                 alpha = alpha,
+                 agg_stat = agg_stat,
+                 trim_prob = trim_prob,
+                 win_prob = win_prob)
+
+  type <- sub("dda.", "", class(dda_result)[1], fixed = TRUE)
+  class(output) <- c(paste0("dda_bagging_", type), "dda_bagging")
+
+  if (!is.null(save_file)) saveRDS(output, file = save_file)
+
+  return(output)
+}
+
+
+#' @title Print Method for \code{dda_bagging} Objects
+#'
+#' @param x An object of class \code{dda_bagging} when using \code{print}.
+#' @param ... Additional arguments to be passed to the function.
+#'
+#' @examples
+#' print(bagged)
+#'
+#' @export
+#' @rdname dda.bagging
+#' @method print dda_bagging
+print.dda_bagging <- function(x, agg_stat = NULL, trim_prob = x$trim_prob, win_prob = x$win_prob, ...){
+
+  agg <- x$aggregated_stats
+  if (is.null(agg_stat)) {
+    agg_stat <- x$agg_stat
+  } else {
+    agg <- bag.aggregate(x$bagged_results, agg_stat, trim_prob, win_prob)
+  }
+
+  cat("\n")
+  cat("BOOTSTRAP AGGREGATED DDA", "\n")
+  cat(paste("Number of bootstrap samples:", x$n_valid_iterations), "\n")
+  cat(paste("Aggregation method:", agg_stat), "\n")
+  cat("Test statistics and p-values are aggregated across bootstrap samples.", "\n")
+
+  print(agg)
+
+  invisible(x)
+}
+
+
+#' @title Aggregate DDA Results Across Bootstrap Samples
+#'
+#' @description Returns a DDA object of the same class as the bootstrap
+#'   results in which every test statistic and p-value is the aggregate of
+#'   that value across bootstrap samples. The object prints with the print
+#'   method of the original DDA function.
+#'
+#' @keywords internal
+#' @noRd
+bag.aggregate <- function(results, agg_stat, trim_prob = 0.10, win_prob = 0.10){
+
+  first <- results[[1]]
+
+  # aggregate of one stored value; index is its position in a DDA object,
+  # e.g. c("hsic.yx", "p.value") or list("breusch_pagan", 2, "p.value")
+  bag <- function(index){
+    out <- first
+    for (k in index) out <- out[[k]]
+    values <- matrix(NA, nrow = length(results), ncol = length(out))
+    for (i in 1:length(results)) {
+      value <- results[[i]]
+      for (k in index) value <- value[[k]]
+      if (!is.null(value)) values[i, ] <- as.numeric(value)
+    }
+    for (j in 1:length(out)) out[j] <- agg.value(values[, j], agg_stat, trim_prob, win_prob)
+    out
+  }
+
+  agg <- list()
+
+  if (inherits(first, "dda.vardist")) {
+
+    for (test in c("agostino", "anscombe")) {
+      for (m in c("predictor", "outcome")) {
+        agg[[test]][[m]] <- list(statistic = bag(c(test, m, "statistic")),
+                                 p.value = bag(c(test, m, "p.value")))
+      }
+    }
+
+    for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) agg[[s]] <- bag(s)
+
+    agg$boot.args <- first$boot.args
+    agg$boot.warning <- sign(agg$anscombe$predictor$statistic[1]) != sign(agg$anscombe$outcome$statistic[1])
+  }
+
+  if (inherits(first, "dda.resdist")) {
+
+    for (test in c("agostino", "anscombe")) {
+      for (m in c("target", "alternative")) {
+        agg[[test]][[m]] <- list(statistic = bag(c(test, m, "statistic")),
+                                 p.value = bag(c(test, m, "p.value")))
+      }
+    }
+
+    agg$skewdiff <- bag("skewdiff")
+    agg$kurtdiff <- bag("kurtdiff")
+
+    if (!is.null(first$cor12diff)) {
+      for (s in c("cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) agg[[s]] <- bag(s)
+      agg$boot.args <- first$boot.args
+      agg$boot.warning <- FALSE
+    }
+
+    agg$probtrans <- first$probtrans
+  }
+
+  if (inherits(first, "dda.indep")) {
+
+    for (m in c("hsic.yx", "hsic.xy")) {
+      agg[[m]] <- list(statistic = bag(c(m, "statistic")),
+                       p.value = bag(c(m, "p.value")))
+    }
+    agg$hsic.method <- first$hsic.method
+
+    for (m in c("distance_cor.dcor_yx", "distance_cor.dcor_xy")) {
+      agg[[m]] <- list(statistic = bag(c(m, "statistic")),
+                       p.value = bag(c(m, "p.value")))
+    }
+
+    if (!is.null(first$breusch_pagan)) {
+      agg$breusch_pagan <- list()
+      for (k in 1:4) {
+        agg$breusch_pagan[[k]] <- list(statistic = bag(list("breusch_pagan", k, "statistic")),
+                                       parameter = bag(list("breusch_pagan", k, "parameter")),
+                                       p.value = bag(list("breusch_pagan", k, "p.value")))
+      }
+    }
+
+    if (!is.null(first$nlfun)) {
+      for (m in c("nlcor.yx", "nlcor.xy")) {
+        agg[[m]] <- list(t1 = bag(c(m, "t1")),
+                         t2 = bag(c(m, "t2")),
+                         t3 = bag(c(m, "t3")),
+                         func = first[[m]]$func)
+      }
+      agg$nlfun <- first$nlfun
+    }
+
+    if (!is.null(first$out.diff)) {
+      agg$out.diff <- bag("out.diff")
+      agg$boot.args <- first$boot.args
+      agg$boot.warning <- FALSE
+    }
+  }
+
+  agg$var.names <- first$var.names
+  class(agg) <- class(first)
+  agg
+}
+
+
+#' @title Aggregate a Numeric Vector
+#'
+#' @description Summarizes the values of one statistic across bootstrap
+#'   samples. Non-finite values are dropped.
+#'
+#' @keywords internal
+#' @noRd
+agg.value <- function(x, agg_stat = "mean", trim_prob = 0.10, win_prob = 0.10){
+
+  x <- x[is.finite(x)]
+  if (length(x) == 0) return(NA)
+
+  if (agg_stat == "mean")     return(mean(x))
+  if (agg_stat == "median")   return(median(x))
+  if (agg_stat == "trimmed")  return(mean(x, trim = trim_prob))
+  if (agg_stat == "midhinge") return(mean(quantile(x, probs = c(0.25, 0.75), names = FALSE)))
+
+  if (agg_stat == "winsorized") {
+    q <- quantile(x, probs = c(win_prob, 1 - win_prob), names = FALSE)
+    x[x < q[1]] <- q[1]
+    x[x > q[2]] <- q[2]
+    return(mean(x))
+  }
+
+  if (agg_stat == "tukey") {
+    q <- quantile(x, probs = c(0.25, 0.50, 0.75), names = FALSE)
+    return((q[1] + 2 * q[2] + q[3]) / 4)
+  }
+
+  stop("Unknown agg_stat. Choose 'mean', 'median', 'trimmed', 'winsorized', 'midhinge', or 'tukey'.")
+}
+
+
+#' @title Model Selection Decisions for a DDA Object
+#'
+#' @description Translates the tests stored in a \code{dda.indep},
+#'   \code{dda.resdist}, or \code{dda.vardist} object into model selection
+#'   decisions (\code{"Target"}, \code{"Alternative"}, \code{"Confounding"},
+#'   or \code{"Undecided"}). The rules are listed in the details of
+#'   \code{dda.bagging}.
+#'
+#' @param dda_result An output object from \code{dda.indep},
+#'   \code{dda.resdist}, or \code{dda.vardist}.
+#' @param alpha Numeric. Significance level (default: 0.05).
+#'
+#' @return A named character vector with one decision per test.
+#'
+#' @keywords internal
+#' @noRd
+dda.decisions <- function(dda_result, alpha = 0.05){
+
+  # separate tests: p.yx from the target model, p.xy from the alternative model
+  decide.p <- function(p.yx, p.xy, both.significant = "Undecided"){
+    if (is.na(p.yx) || is.na(p.xy)) return(NA)
+    if (p.yx >  alpha & p.xy <= alpha) return("Target")
+    if (p.yx <= alpha & p.xy >  alpha) return("Alternative")
+    if (p.yx <= alpha & p.xy <= alpha) return(both.significant)
+    return("Undecided")
+  }
+
+  # difference statistics: bootstrap CI with elements named lower and upper
+  decide.ci <- function(ci){
+    lower <- ci["lower"]
+    upper <- ci["upper"]
+    if (is.na(lower) || is.na(upper)) return(NA)
+    if (lower > 0 & upper > 0) return("Target")
+    if (lower < 0 & upper < 0) return("Alternative")
+    return("Undecided")
+  }
+
+  obj <- dda_result
+  dec <- c()
+
+  if (inherits(obj, "dda.vardist")) {
+
+    dec["agostino"] <- decide.p(obj$agostino$outcome$p.value, obj$agostino$predictor$p.value)
+    dec["anscombe"] <- decide.p(obj$anscombe$outcome$p.value, obj$anscombe$predictor$p.value)
+
+    for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) dec[s] <- decide.ci(obj[[s]])
+
+  } else if (inherits(obj, "dda.resdist")) {
+
+    dec["agostino"] <- decide.p(obj$agostino$target$p.value, obj$agostino$alternative$p.value)
+    dec["anscombe"] <- decide.p(obj$anscombe$target$p.value, obj$anscombe$alternative$p.value)
+
+    for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
+      if (!is.null(obj[[s]])) dec[s] <- decide.ci(obj[[s]])
+    }
+
+  } else if (inherits(obj, "dda.indep")) {
+
+    dec["hsic"] <- decide.p(obj$hsic.yx$p.value, obj$hsic.xy$p.value, "Confounding")
+    dec["dcor"] <- decide.p(obj$distance_cor.dcor_yx$p.value, obj$distance_cor.dcor_xy$p.value, "Confounding")
+
+    # robust Breusch-Pagan tests are elements 2 (target) and 4 (alternative)
+    if (!is.null(obj$breusch_pagan)) {
+      dec["bp"] <- decide.p(obj$breusch_pagan[[2]]$p.value, obj$breusch_pagan[[4]]$p.value, "Confounding")
+    }
+
+    # smallest p-value of the three non-linear correlation tests
+    if (!is.null(obj$nlcor.yx)) {
+      p.yx <- min(obj$nlcor.yx$t1[4], obj$nlcor.yx$t2[4], obj$nlcor.yx$t3[4])
+      p.xy <- min(obj$nlcor.xy$t1[4], obj$nlcor.xy$t2[4], obj$nlcor.xy$t3[4])
+      dec["nlcor"] <- decide.p(p.yx, p.xy, "Confounding")
+    }
+
+    if (!is.null(obj$out.diff)) {
+      dec["hsic.diff"] <- decide.ci(obj$out.diff["HSIC", ])
+      dec["dcor.diff"] <- decide.ci(obj$out.diff["dCor", ])
+      dec["mi.diff"]   <- decide.ci(obj$out.diff["MI", ])
+    }
+
+  } else stop("dda_result must be a dda.indep, dda.resdist, or dda.vardist object.")
+
+  dec
 }
