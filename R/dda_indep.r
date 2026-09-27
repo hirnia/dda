@@ -96,7 +96,7 @@ dda.indep <- function(
              parallelize = FALSE,
              cores = 1,
              robust = FALSE)
-  {
+{
 
    ### --- helper functions for independence difference statistics
 
@@ -106,42 +106,39 @@ dda.indep <- function(
            k1 <- 79.047
            k2 <- 7.412889
            g  <- 0.37457
-           GaussE <- log(2 * pi) / 2 + 1 / 2
-           NegE <- k1 * (mean(log(cosh(x))) - g) ^ 2 + k2 * mean(x * exp(-x ^ 2 / 2)) ^ 2
+           GaussE <- log(2*pi)/2+1/2
+           NegE <- k1 * (mean(log(cosh(x))) - g)^2 + k2 * mean(x * exp(-x^2/2))^2
            entropy <- GaussE - NegE + log(sdx)
            return(entropy)
     }
+
 
     boot.diff <- function(dat, g){
 
       dat <- dat[g, ]
 
-  	  ry     <- dat[,1] # purified outcome
+	  ry     <- dat[,1] # purified outcome
       err.xy <- dat[,2] # errors of alternative model
       rx     <- dat[,3] # purified predictor
       err.yx <- dat[,4] # errors of target model
 
-      diff.hsic <- dHSIC::dhsic.test(err.xy, ry, method = "gamma", kernel = "gaussian")$statistic -
-                   dHSIC::dhsic.test(err.yx, rx, method = "gamma", kernel = "gaussian")$statistic
-      diff.dcor <- dccpp::dcor(err.xy, ry) - dccpp::dcor(err.yx, rx)
+      diff.hsic <- dHSIC::dhsic.test(err.xy, ry, method = "gamma")$statistic - dHSIC::dhsic.test(err.yx, rx, method = "gamma")$statistic
+      diff.dcor <- dccpp::dcor(err.xy, ry) - dccpp::dcor(err.yx, rx) # 0.2.0 dccpp for the dCor difference
       diff.mi <- (max.entropy(ry) + max.entropy(err.xy)) - (max.entropy(rx) + max.entropy(err.yx))
       c(diff.hsic, diff.dcor, diff.mi)
     }
 
 
-   ### --- non-linear correlation tests use the package-level nlcor.test()
-   ### --- (defined in nlcor_test.r); no local redefinition needed.
-
-
    ### --- start checking validity of input
+
 
 	if(is.null(pred)) stop( "Tentative predictor is missing." )
 	if(B <= 0) stop( "Number of resamples 'B' must be positive." )
 	if(conf.level < 0 || conf.level > 1) stop("'conf.level' must be between 0 and 1")
 	if( !boot.type %in% c("bca", "perc") ) stop( "Unknown argument in boot.type." )
 
-	if( is.null(hsic.method) || !hsic.method %in% c("gamma", "bootstrap", "permutation", "eigenvalue") )
-	    stop( "Unknown argument in hsic.method." )
+	# 0.1.1 hsic.method = "bootstrap" replaces "boot"
+	if( is.null(hsic.method) || !hsic.method %in% c("gamma", "bootstrap", "permutation", "eigenvalue") ) stop( "Unknown argument in hsic.method." )
 
 	### --- prepare outcome, predictor, and model matrix for covariates
 
@@ -171,25 +168,16 @@ dda.indep <- function(
 		   if (!is.matrix(X)) X <- as.matrix(X)
 	}
 
-  ry <- lm.fit(X, y)$residuals
+    ry <- lm.fit(X, y)$residuals
 	rx <- lm.fit(X, x)$residuals
 
-	resid_df <- data.frame(ry, rx) # create data frame with residuals
-
-	if (robust == TRUE){ #use lm::bptest and edit the resi line, no wts necessary
-	  # m.yx <- mblm::mblm(ry ~ rx, repeated = TRUE)
-	   m.yx <- RobustLinearReg::siegel_regression(ry ~ rx)
-
-	  # m.xy <- mblm::mblm(rx ~ ry, repeated = TRUE)
-	   m.xy <- RobustLinearReg::siegel_regression(rx ~ ry)
-	}
-
-	else if (robust == FALSE) {
+	if( isTRUE(robust) ){ # 0.2.0 robust estimation
+	  m.yx <- RobustLinearReg::siegel_regression(ry ~ rx)
+	  m.xy <- RobustLinearReg::siegel_regression(rx ~ ry)
+	} else {
 	  m.yx <- lm(ry ~ rx)
 	  m.xy <- lm(rx ~ ry)
 	}
-
-	else stop("Invalid specification for robust argument. Please use TRUE or FALSE.")
 
 	err.yx <- resid(m.yx)
 	err.xy <- resid(m.xy)
@@ -199,67 +187,63 @@ dda.indep <- function(
 
 	if(hsic.method %in% c("gamma", "eigenvalue")){
 
-	  hsic.yx <- dHSIC::dhsic.test(rx, err.yx, method = hsic.method, kernel = "gaussian")
-	  hsic.xy <- dHSIC::dhsic.test(ry, err.xy, method = hsic.method, kernel = "gaussian")
+	   hsic.yx <- dHSIC::dhsic.test(rx, err.yx, method = hsic.method, kernel = "gaussian")
+	   hsic.xy <- dHSIC::dhsic.test(ry, err.xy, method = hsic.method, kernel = "gaussian")
 
 	   output <- list(hsic.yx = hsic.yx, hsic.xy = hsic.xy, hsic.method = hsic.method)
 
 	}
 
-
-	# bootstrap and permutation use B resamples
 	if(hsic.method %in% c("bootstrap", "permutation")){
 
-	  hsic.yx <- dHSIC::dhsic.test(rx, err.yx, method = hsic.method, kernel = "gaussian", B = B)
-	  hsic.xy <- dHSIC::dhsic.test(ry, err.xy, method = hsic.method, kernel = "gaussian", B = B)
+	   hsic.yx <- dHSIC::dhsic.test(rx, err.yx, method = hsic.method, kernel = "gaussian", B = B)
+	   hsic.xy <- dHSIC::dhsic.test(ry, err.xy, method = hsic.method, kernel = "gaussian", B = B)
 
-	  output <- list(hsic.yx = hsic.yx, hsic.xy = hsic.xy, hsic.method = c(hsic.method, as.character(B)) )
+	   output <- list(hsic.yx = hsic.yx, hsic.xy = hsic.xy, hsic.method = c(hsic.method, as.character(B)) )
 
 	}
 
 	### --- separate dCor Tests
 
-	dcor_yx <- energy::dcor.test(as.vector(rx), as.vector(err.yx), R = B) #rx & ry have an SPSS attribute?
+	dcor_yx <- energy::dcor.test(as.vector(rx), as.vector(err.yx), R = B)
 	dcor_xy <- energy::dcor.test(as.vector(ry), as.vector(err.xy), R = B)
 
-     output <- c(output,
- 	            distance_cor = list(dcor_yx = dcor_yx, dcor_xy = dcor_xy, dcor.method = as.character(B))
- 			        	)
+    output <- c(output,
+	            distance_cor = list(dcor_yx = dcor_yx, dcor_xy = dcor_xy, dcor.method = as.character(B))
+				)
 
 	### --- Homoscedasticity tests
 
     if(hetero){
 
-      if(robust){
-        bp_yx <- bptestrobust(ry ~ rx, studentize = FALSE)
-        bp_xy <- bptestrobust(rx ~ ry, studentize = FALSE)
+	  if( isTRUE(robust) ){ # 0.2.0 Breusch-Pagan tests for robust estimation
+	    bp_yx <- bptestrobust(ry ~ rx, studentize = FALSE)
+	    bp_xy <- bptestrobust(rx ~ ry, studentize = FALSE)
 
-        rbp_yx <- bptestrobust(m.yx, studentize = TRUE)
-        rbp_xy <- bptestrobust(m.xy, studentize = TRUE)
+	    rbp_yx <- bptestrobust(m.yx, studentize = TRUE)
+	    rbp_xy <- bptestrobust(m.xy, studentize = TRUE)
+	  } else {
+	    bp_yx <- lmtest::bptest(m.yx, studentize = FALSE)
+	    bp_xy <- lmtest::bptest(m.xy, studentize = FALSE)
 
-      } else{
-
-        bp_yx <- lmtest::bptest(ry ~ rx, studentize = FALSE)
-        bp_xy <- lmtest::bptest(rx ~ ry, studentize = FALSE)
-
-        rbp_yx <- lmtest::bptest(m.yx, studentize = TRUE)
-        rbp_xy <- lmtest::bptest(m.xy, studentize = TRUE)
-      }
-
+	    rbp_yx <- lmtest::bptest(m.yx, studentize = TRUE)
+	    rbp_xy <- lmtest::bptest(m.xy, studentize = TRUE)
+	  }
 
 	  output <- c(output,
 	              list(breusch_pagan = list( bp_yx, rbp_yx, bp_xy, rbp_xy ) )
 	              )
+
 	}
 
 
-	### --- Non-linear correlation tests
+	### --- Non-linear correlation tests (nlcor.test in nlcor_test.r)
 
 	if(!is.null(nlfun)){
 
     fname = deparse(substitute(nlfun))
 
-    nlout_yx <- unclass( nlcor.test( err.yx, rx, fun = nlfun, fname=fname ) )
+      nlout_yx <- unclass( nlcor.test( err.yx, rx, fun = nlfun, fname=fname ) )
 	  nlout_xy <- unclass( nlcor.test( err.xy, ry, fun = nlfun, fname=fname ) )
 
 	  output <- c(output,
@@ -287,6 +271,7 @@ dda.indep <- function(
 
 	    }
 
+      # 0.2.0 percentile fallback when the acceleration constant cannot be calculated
       if( boot.type == "bca" && any( is.na( boot::empinf( boot.res ) ) ) ) {
         warning("Acceleration constant cannot be calculated. Falling back to percentile bootstrap method. Consider increasing the number of resamples (B) for more stable results.", call. = FALSE)
         boot.type <- "perc"
@@ -315,18 +300,7 @@ dda.indep <- function(
   response.name <- all.vars(formula(formula))[1]  # get name of response variable
   output <- c(output, list(var.names = c(response.name, pred)))
 
-  call_info <- list( #new for bagging
-    "function_call" = match.call(),
-    "function_name" = "dda.indep",  # or deparse(substitute(sys.function()))
-    "all_args" = as.list(match.call())[-1],
-    "formula" = formula,
-    "data_name" = deparse(substitute(data)),
-    "original_data" = if(missing(data) || is.null(data)) NULL else data
-  )
-
-  output <- c(output,
-              list(call_info = call_info)
-              )
+  output$call_info <- list(function_call = match.call(), formula = formula) # 0.2.0 call information for dda.bagging
 
   class(output) <- "dda.indep"
   return(output)

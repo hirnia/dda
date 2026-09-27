@@ -77,352 +77,360 @@ dda.resdist <- function(formula,
                         prob.trans = FALSE,
                         conf.level = 0.95,
                         robust = FALSE
-) {
-  # --- Helper functions ---
-  mysd <- function(x) sqrt(sum((x - mean(x))^2) / length(x))
+){
 
-  cor.ij <- function(x, y, i = 1, j = 1) {
-    n <- length(x)
-    mx <- mean(x)
-    my <- mean(y)
-    Cov <- sum((x - mx)^i * (y - my)^j) / n
-    denom <- (mysd(x)^i * mysd(y)^j)
-    if (denom == 0) return(NA_real_)
-    Cov / denom
-  }
+   ### --- helper function for bootstrap CIs
 
-  # Safe probability integral transform used in original code
-  prob.int <- function(x, y) {
-    x <- as.numeric(x)
-    y <- as.numeric(y)
-    fval <- ecdf(y)(y)
-    # create monotone mapping of fval -> y by averaging y for same fval
-    df <- data.frame(f = fval, y = y)
-    df2 <- aggregate(y ~ f, data = df, FUN = mean)
-    quant_y <- approxfun(df2$f, df2$y, rule = 2)
-    cum_x <- ecdf(x)
-    x_trans <- quant_y(cum_x(x))
-    # if outside range -> use min/max
-    x_trans[is.na(x_trans) & cum_x(x) <= min(df2$f, na.rm=TRUE)] <- min(df2$y, na.rm = TRUE)
-    x_trans[is.na(x_trans) & cum_x(x) >= max(df2$f, na.rm=TRUE)] <- max(df2$y, na.rm = TRUE)
-    list(x = x_trans, y = y)
-  }
-
-  # --- Bootstrap statistic function (resamples the residual pairs) ---
-  boot.diff <- function(dat, indices, prob.trans) {
-    d <- dat[indices, , drop = FALSE]
-    # choose whether to use transformed residuals (if present) or the raw residuals
-    if (isTRUE(prob.trans) &&
-        all(c("alternative.trans", "target.trans") %in% names(d)) &&
-        !all(is.na(d$alternative.trans)) && !all(is.na(d$target.trans))) {
-      x <- as.vector(scale(d$alternative.trans))
-      y <- as.vector(scale(d$target.trans))
-    } else {
-      x <- as.vector(scale(d$alternative))
-      y <- as.vector(scale(d$target))
-    }
-    # Degenerate checks
-    if (anyNA(x) || anyNA(y) || length(unique(x)) < 3 || length(unique(y)) < 3) return(rep(NA_real_, 7))
-
-    # differences in marginal moments
-    if (prob.trans == TRUE){ #logic from prob.trans change 0.2.0
-      skew.diff <- (moments::skewness(y)^2) - (moments::skewness(x)^2)
-      kurt.diff <- (moments::kurtosis(y) - 3)^2 - (moments::kurtosis(x) - 3)^2
-    }
-    else{
-      skew.diff <- (moments::skewness(x)^2) - (moments::skewness(y)^2)
-      kurt.diff <- (moments::kurtosis(x) - 3)^2 - (moments::kurtosis(y) - 3)^2
+   mysd <- function(x){sqrt(sum((x-mean(x))^2)/length(x))}
+   cor.ij <- function(x,y, i=1, j=1){
+       n <- length(x)
+       mx <- mean(x)
+       my <- mean(y)
+       Cov <- sum((x - mx)^i * (y - my)^j)/n
+       Cov/(mysd(x)^i * mysd(y)^j)
     }
 
-    # joint statistics (mirroring original calculations)
-    cor12.diff <- (cor.ij(y, x, 2, 1)^2) - (cor.ij(y, x, 1, 2)^2)
-    cor13.diff <- ((cor.ij(y, x, 3, 1)^2) - (cor.ij(y, x, 1, 3)^2)) * sign(moments::kurtosis(y) - 3)
 
-    xx <- sign(moments::skewness(x)) * x
-    yy <- sign(moments::skewness(y)) * y
+	prob.int <- function(x, y) {
 
-    safe_cor_xx_yy <- tryCatch(cor(xx, yy), error = function(e) NA_real_)
-    safe_cor_x_y <- tryCatch(cor(x, y), error = function(e) NA_real_)
+		fval <- ecdf(y)(y)
+		xval <- y
+		quant_y <- approxfun(fval, xval, ties = mean) # 0.2.0 ties = mean for tied values in resampled data
+		cum_x <- ecdf(x)
+		transform <- function(x) quant_y(cum_x(x))
+		x <- transform(x)
+		x[is.na(x)] <- min(y)
+		list(x = x, y = y)
+	}
 
-    RHS3 <- NA_real_
-    if (!is.na(safe_cor_xx_yy)) {
-      RHS3 <- safe_cor_xx_yy * mean((yy^2 * xx) - (yy * xx^2))
-    }
-    RHS4 <- NA_real_
-    if (!is.na(safe_cor_x_y)) {
-      RHS4 <- safe_cor_x_y * mean((y^3 * x) - (y * x^3)) * sign(moments::kurtosis(y) - 3)
-    }
-    C1 <- mean(y^3 * x) - 3 * safe_cor_x_y * var(y)
-    C2 <- mean(y * x^3) - 3 * safe_cor_x_y * var(x)
-    RCC <- (C1 + C2) * (C1 - C2)
 
-    c(skew.diff, kurt.diff, cor12.diff, cor13.diff, RHS3, RCC, RHS4)
-  }
+    boot.diff <- function(dat, g, prob.trans, robust){
+              dat <- dat[g, ]
 
-  # --- Normality test helpers ---
-  skew.diff.test <- function(x, y){
-    agostino.zvalue <- function(x){
-      n  <- length(x)
-      s3 <- (sum((x - mean(x))^3)/n)/(sum((x - mean(x))^2)/n)^(3/2)
-      y <- s3 * sqrt((n + 1) * (n + 3)/(6 * (n - 2)))
-      b2 <- 3 * (n^2 + 27*n - 70) * (n + 1) * (n + 3) / ((n - 2) * (n + 5) * (n + 7) * (n + 9))
-      w <- -1 + sqrt(2 * (b2 - 1))
-      d <- 1/sqrt(log(sqrt(w)))
-      a <- sqrt(2/(w - 1))
-      z <- d * log(y/a + sqrt((y/a)^2 + 1))
-      return(z)
-    }
-    zval <- (agostino.zvalue(x) - agostino.zvalue(y))/sqrt(2 - 2*cor(x,y)^3)
-    pval <- (1 - pnorm(abs(zval))) * 2
-    return(list(z.value = zval, p.value = pval))
-  }
+			  x <- dat[, 1]  # "purified" alternative error
+              y <- dat[, 2]  # "purified" target error
 
-  kurt.diff.test <- function(x, y){
-    anscombe.zvalue <- function(x){
-      n   <- length(x)
-      b   <- n * sum((x - mean(x))^4)/(sum((x - mean(x))^2)^2)
-      eb2 <- 3 * (n - 1)/(n + 1)
-      vb2 <- 24 * n * (n - 2) * (n - 3)/((n + 1)^2 * (n + 3) * (n + 5))
-      m3  <- (6 * (n^2 - 5*n + 2)/((n + 7) * (n + 9))) * sqrt((6 * (n + 3) * (n + 5))/(n * (n - 2) * (n - 3)))
-      a   <- 6 + (8/m3) * (2/m3 + sqrt(1 + 4/m3^2))
-      xx  <- (b - eb2)/sqrt(vb2)
-      cr <- sign((1 - 2/a)/(1 + xx * sqrt(2/(a - 4)))) * abs((1 - 2/a)/(1 + xx * sqrt(2/(a - 4))))^(1/3)
-      z   <- (1 - 2/(9 * a) - cr ) / sqrt(2/(9 * a))
-      return(z)
-    }
-    zval <- (anscombe.zvalue(x) - anscombe.zvalue(y))/sqrt(2 - 2*cor(x,y)^4)
-    pval <- (1 - pnorm(abs(zval))) * 2
-    return(list(z.value = zval, p.value = pval))
-  }
+              x <- as.vector(scale(x))
+			  y <- as.vector(scale(y))
 
-  myanscombe.test <- function(x, alternative = c("two.sided", "less", "greater")){
-    n   <- length(x)
-    DNAME <- deparse(substitute(x))
-    x <- sort(x[complete.cases(x)])
-    n <- length(x)
-    s <- match.arg(alternative)
-    alter <- switch(s, two.sided = 0, less = 1, greater = 2)
-    b   <- n * sum((x - mean(x))^4)/(sum((x - mean(x))^2)^2)
-    eb2 <- 3 * (n - 1)/(n + 1)
-    vb2 <- 24 * n * (n - 2) * (n - 3)/((n + 1)^2 * (n + 3) * (n + 5))
-    m3  <- (6 * (n^2 - 5*n + 2)/((n + 7) * (n + 9))) * sqrt((6 * (n + 3) * (n + 5))/(n * (n - 2) * (n - 3)))
-    a   <- 6 + (8/m3) * (2/m3 + sqrt(1 + 4/m3^2))
-    xx  <- (b - eb2)/sqrt(vb2)
-    cr <- sign((1 - 2/a)/(1 + xx * sqrt(2/(a - 4)))) * abs((1 - 2/a)/(1 + xx * sqrt(2/(a - 4))))^(1/3)
-    z   <- (1 - 2/(9 * a) - cr ) / sqrt(2/(9 * a))
-    pval <- pnorm(z, lower.tail = FALSE)
-    if (alter == 0) { pval <- 2 * pval; if (pval > 1) pval <- 2 - pval; alt <- "kurtosis is not equal to 3" }
-    else if (alter == 1) { alt <- "kurtosis is greater than 3" }
-    else { pval <- 1 - pval; alt <- "kurtosis is lower than 3" }
-    RVAL <- list(statistic = c(kurt = b, z = z), p.value = pval,
-                 alternative = alt, method = "Anscombe-Glynn kurtosis test",
-                 data.name = DNAME)
-    class(RVAL) <- "htest"
-    return(RVAL)
-  }
+              if( isTRUE(prob.trans) ){
 
-  # --- Input checks ---
-  if (is.null(pred)) stop("Tentative predictor is missing.")
-  if (!is.numeric(B) || B < 0) stop("Number of resamples 'B' must be non-negative.")
-  if (!is.numeric(conf.level) || conf.level < 0 || conf.level > 1) stop("'conf.level' must be between 0 and 1")
-  if (!boot.type %in% c("bca", "perc")) stop("Unknown argument in boot.type; choose 'bca' or 'perc'.")
+				   xboot <- dat[, 3] # tentative (cov-adjusted) predictor
+                   yboot <- dat[, 4] # tentative (cov-adjusted) outcome
 
-  # --- Prepare outcome, predictor, and model matrix for covariates ---
-  if (!inherits(formula, "formula")) {
-    # accept a fitted lm object (mirrors dda.indep)
-    X <- if (is.matrix(formula$x)) formula$x else model.matrix(terms(formula), model.frame(formula))
-    y <- if (is.vector(formula$y)) formula$y else model.response(model.frame(formula))
-    delete.pred <- which(colnames(X) == pred)
-    if (length(delete.pred) == 0) stop("Specified predictor not found in the target model.")
-    x <- X[, delete.pred]
-    X <- X[, -delete.pred, drop = FALSE]
-    if (!is.matrix(X)) X <- as.matrix(X)
-  } else {
-    mf <- model.frame(formula, data = data)
-    y <- model.response(mf)
-    X <- model.matrix(formula, data = data)
-    delete.pred <- which(colnames(X) == pred)
-    if (length(delete.pred) == 0) stop("Specified predictor not found in the target model.")
-    x <- X[, delete.pred]
-    X <- X[, -delete.pred, drop = FALSE]
-    if (!is.matrix(X)) X <- as.matrix(X)
-  }
+				   trans.boot <- prob.int(xboot, yboot)
 
-  # Compute residuals of y ~ covariates and x ~ covariates
-  ry <- tryCatch(as.vector(scale(lm.fit(X, y)$residuals)), error = function(e) stop("Failed to compute residuals for response."))
-  rx <- tryCatch(as.vector(scale(lm.fit(X, x)$residuals)), error = function(e) stop("Failed to compute residuals for predictor."))
+				   xboot.trans <- trans.boot$x
+                   yboot.trans <- trans.boot$y
 
-  resid_df <- data.frame(rx = rx, ry = ry)
+		           if( isTRUE(robust) ){ # 0.2.0 robust estimation
+		             tar.boot.trans <- RobustLinearReg::siegel_regression(yboot.trans ~ xboot.trans)
+		             alt.boot.trans <- RobustLinearReg::siegel_regression(xboot.trans ~ yboot.trans)
+		           } else {
+		             tar.boot.trans <- lm(yboot.trans ~ xboot.trans)
+		             alt.boot.trans <- lm(xboot.trans ~ yboot.trans)
+		           }
 
-  # fit target and alternative regressions (on residualized variables)
-  # Uses 'RobustLinearReg' namespace if robust=TRUE, assume package is installed/loaded or import handled
-  tar <- tryCatch(if (robust) RobustLinearReg::siegel_regression(ry ~ rx, data = resid_df) else lm(ry ~ rx, data = resid_df), error = function(e) NULL)
-  alt <- tryCatch(if (robust) RobustLinearReg::siegel_regression(rx ~ ry, data = resid_df) else lm(rx ~ ry, data = resid_df), error = function(e) NULL)
-  if (is.null(tar) || is.null(alt)) stop("Model fitting failed on residuals. Consider using robust = FALSE or checking data.")
+				   xtrans <- as.vector(scale(resid(alt.boot.trans)))
+				   ytrans <- as.vector(scale(resid(tar.boot.trans)))
 
-  dat <- data.frame(alternative = as.vector(scale(resid(alt))),
-                    target = as.vector(scale(resid(tar))),
-                    pred.adj = rx,
-                    out.adj = ry)
+				   # 0.2.0 target minus alternative under prob.trans, so that > 0 speaks for the target model
+			       skew.diff <- (moments::skewness(ytrans)^2) - (moments::skewness(xtrans)^2)
+                   kurt.diff <- (moments::kurtosis(ytrans)-3)^2 - (moments::kurtosis(xtrans)-3)^2
 
-  if (isTRUE(prob.trans)) {
-    # perform probability integral transform on the adjusted predictor & outcome
-    trans <- prob.int(rx, ry)
-    rx.trans <- trans$x
-    ry.trans <- trans$y
-    tar.trans <- tryCatch(if (robust) RobustLinearReg::siegel_regression(ry.trans ~ rx.trans, data = data.frame(ry.trans = ry.trans, rx.trans = rx.trans))
-                          else lm(ry.trans ~ rx.trans), error = function(e) NULL)
-    alt.trans <- tryCatch(if (robust) RobustLinearReg::siegel_regression(rx.trans ~ ry.trans, data = data.frame(rx.trans = rx.trans, ry.trans = ry.trans))
-                          else lm(rx.trans ~ ry.trans), error = function(e) NULL)
-    dat$alternative.trans <- if (!is.null(alt.trans)) as.vector(scale(resid(alt.trans))) else rep(NA_real_, nrow(dat))
-    dat$target.trans      <- if (!is.null(tar.trans)) as.vector(scale(resid(tar.trans))) else rep(NA_real_, nrow(dat))
-  }
+			  } else{
 
-  # --- Run separate normality tests ---
-  if (isTRUE(prob.trans)) {
-    agostino.out <- apply(dat[c("alternative.trans", "target.trans")], 2, moments::agostino.test)
-    names(agostino.out) <- c("alternative", "target")
-    agostino.out <- lapply(agostino.out, unclass)
-    anscombe.out <- apply(dat[c("alternative.trans", "target.trans")], 2, myanscombe.test)
-    names(anscombe.out) <- c("alternative", "target")
-    anscombe.out <- lapply(anscombe.out, unclass)
-  } else {
-    agostino.out <- apply(dat[c("alternative", "target")], 2, moments::agostino.test)
-    agostino.out <- lapply(agostino.out, unclass)
-    anscombe.out <- apply(dat[c("alternative", "target")], 2, myanscombe.test)
-    anscombe.out <- lapply(anscombe.out, unclass)
-  }
-  # prune some fields to match original output
-  agostino.out$alternative[3:5] <- NULL
-  agostino.out$target[3:5] <- NULL
-  anscombe.out$alternative[3:5] <- NULL
-  anscombe.out$target[3:5] <- NULL
-
-  output <- list(agostino.out, anscombe.out)
-  names(output) <- c("agostino", "anscombe")
-  # adjust statistic to be kurtosis excess if needed, though anscombe test already returns kurtosis.
-  # original code does -3 adjustment
-  output$anscombe$target$statistic[1] <- output$anscombe$target$statistic[1] - 3
-  output$anscombe$alternative$statistic[1] <- output$anscombe$alternative$statistic[1] - 3
-
-  # --- Run asymptotic difference tests ---
-  if (isTRUE(prob.trans)) {
-    output <- c(output,
-                list(skewdiff = unlist(skew.diff.test(dat$target.trans, dat$alternative.trans))),
-                list(kurtdiff = unlist(kurt.diff.test(dat$target.trans, dat$alternative.trans)))
-    )
-    output$skewdiff <- c(moments::skewness(dat$target.trans)^2 - moments::skewness(dat$alternative.trans)^2 , output$skewdiff)
-    output$kurtdiff <- c((moments::kurtosis(dat$target.trans)-3)^2 - (moments::kurtosis(dat$alternative.trans)-3)^2, output$kurtdiff)
-  } else {
-    output <- c(output,
-                list(skewdiff = unlist(skew.diff.test(dat$alternative, dat$target))),
-                list(kurtdiff = unlist(kurt.diff.test(dat$alternative, dat$target)))
-    )
-    output$skewdiff <- c(moments::skewness(dat$alternative)^2 - moments::skewness(dat$target)^2, output$skewdiff)
-    output$kurtdiff <- c((moments::kurtosis(dat$alternative)-3)^2 - (moments::kurtosis(dat$target)-3)^2, output$kurtdiff)
-  }
-
-  # --- Run bootstrap confidence intervals ---
-  boot.warning <- FALSE
-  if (B > 0) {
-    suppressWarnings({
-      boot.res <- tryCatch(boot::boot(dat, boot.diff, R = B, prob.trans = prob.trans), error = function(e) NULL)
-    })
-
-    if (is.null(boot.res)) {
-      boot.warning <- "Bootstrap failed entirely (boot::boot returned NULL)."
-      output$boot.args <- c(boot.type, conf.level, B)
-      output$boot.warning <- boot.warning
-    } else {
-      empinf_ok <- TRUE
-      if (boot.type == "bca") {
-        empinf <- tryCatch(boot::empinf(boot.res), error = function(e) NA)
-        if (any(is.na(empinf))) {
-          empinf_ok <- FALSE
-          boot.warning <- "Bootstrap failed: empinf() contains NA. BCa CIs not available; computed percentiles when possible."
-        }
-      }
-
-      stat_names <- c("skew.diff", "kurt.diff", "cor12.diff", "cor13.diff", "RHS3", "RCC", "RHS4")
-      boot.out <- vector("list", length = length(stat_names))
-      names(boot.out) <- stat_names
-
-      for (i in seq_along(stat_names)) {
-        t_vec <- boot.res$t[, i]
-        t0 <- boot.res$t0[i]
-        t_non_na <- t_vec[!is.na(t_vec)]
-
-        if (length(t_non_na) < 2 || sd(t_non_na) == 0 || is.na(t0)) {
-          boot.out[[i]] <- list(type = boot.type, t0 = t0, lower = NA_real_, upper = NA_real_, t = t_vec)
-          next
-        }
-
-        if (boot.type == "perc" || !empinf_ok) {
-          alpha <- (1 - conf.level)/2
-          lower <- as.numeric(stats::quantile(t_non_na, probs = alpha, na.rm = TRUE, names = FALSE))
-          upper <- as.numeric(stats::quantile(t_non_na, probs = 1 - alpha, na.rm = TRUE, names = FALSE))
-          boot.out[[i]] <- list(type = "perc", t0 = t0, lower = lower, upper = upper, t = t_vec)
-        } else { # BCa requested and empinf OK
-          ci_try <- tryCatch(boot::boot.ci(boot.res, conf = conf.level, type = "bca", t0 = t0, t = t_vec), error = function(e) NULL, warning = function(w) NULL)
-          if (is.null(ci_try)) {
-            alpha <- (1 - conf.level)/2
-            lower <- as.numeric(stats::quantile(t_non_na, probs = alpha, na.rm = TRUE, names = FALSE))
-            upper <- as.numeric(stats::quantile(t_non_na, probs = 1 - alpha, na.rm = TRUE, names = FALSE))
-            boot.out[[i]] <- list(type = "perc_fallback", t0 = t0, lower = lower, upper = upper, t = t_vec)
-          } else {
-            ci_vals <- tryCatch({
-              if (!is.null(ci_try$bca)) {
-                as.numeric(ci_try$bca[4:5])
-              } else if (!is.null(ci_try$percent)) {
-                as.numeric(ci_try$percent[4:5])
-              } else {
-                rep(NA_real_, 2)
+			       skew.diff <- (moments::skewness(x)^2) - (moments::skewness(y)^2)
+                   kurt.diff <- (moments::kurtosis(x)-3)^2 - (moments::kurtosis(y)-3)^2
               }
-            }, error = function(e) rep(NA_real_, 2))
-            boot.out[[i]] <- list(type = "bca", t0 = t0, lower = ci_vals[1], upper = ci_vals[2], t = t_vec)
-          }
-        }
-      }
 
-      # Build the CI results
-      ci.skewdiff  <- c(lower = boot.out$skew.diff$lower, upper = boot.out$skew.diff$upper)
-      ci.kurtdiff  <- c(lower = boot.out$kurt.diff$lower, upper = boot.out$kurt.diff$upper)
-      ci.cor12diff <- c(lower = boot.out$cor12.diff$lower, upper = boot.out$cor12.diff$upper)
-      ci.cor13diff <- c(lower = boot.out$cor13.diff$lower, upper = boot.out$cor13.diff$upper)
-      ci.RHS3      <- c(lower = boot.out$RHS3$lower, upper = boot.out$RHS3$upper)
-      ci.RCC       <- c(lower = boot.out$RCC$lower, upper = boot.out$RCC$upper)
-      ci.RHS4      <- c(lower = boot.out$RHS4$lower, upper = boot.out$RHS4$upper)
 
-      output$skewdiff <- c(output$skewdiff, ci.skewdiff)
-      output$kurtdiff <- c(output$kurtdiff, ci.kurtdiff)
-      output <- c(output,
-                  list(cor12diff = c(boot.res$t0[3], ci.cor12diff)),
-                  list(cor13diff = c(boot.res$t0[4], ci.cor13diff)),
-                  list(RHS3 = c(boot.res$t0[5], ci.RHS3)),
-                  list(RCC = c(boot.res$t0[6], ci.RCC)),
-                  list(RHS4 = c(boot.res$t0[7], ci.RHS4)),
-                  list(boot.args = c(boot.type, conf.level, B)),
-                  list(boot.warning = if (is.character(boot.warning)) boot.warning else FALSE)
-      )
+			  cor12.diff <- (cor.ij(y, x, i = 2, j = 1)^2) - (cor.ij(y, x, i = 1, j = 2)^2)  # rescaled to ensure > 0 under target model
+			  cor13.diff <- ((cor.ij(y, x, i = 3, j = 1)^2) - (cor.ij(y, x, i = 1, j = 3)^2)) * sign(moments::kurtosis(y)-3)  # rescaled to ensure > 0 under target model
+
+			  xx <- sign(moments::skewness(x)) * x
+			  yy <- sign(moments::skewness(y)) * y
+			  RHS3 <- cor(xx, yy) * mean( (yy^2 * xx) - (yy * xx^2) ) # rescaled to ensure > 0 under target model
+
+              RHS4 <- cor(x, y) * mean( (y^3 * x) - (y * x^3) ) * sign(moments::kurtosis(y)-3)
+
+			  C1 <- mean(y^3 * x) - 3*cor(x,y)*var(y) # with x = alternative error and y = target error
+			  C2 <- mean(y * x^3) - 3*cor(x,y)*var(x)
+              RCC <- (C1 + C2) * (C1 - C2)	# scaled to ensure that > 0 under target model
+
+              result <- c(skew.diff, kurt.diff, cor12.diff, cor13.diff, RHS3, RCC, RHS4)
+              names(result) <- c("skew.diff", "kurt.diff", "cor21.diff", "cor13.diff", "RHS3", "RCC", "RHS4")
+              return(result)
     }
-  }
 
-  response.name <- all.vars(formula(formula))[1]
-  output <- c(output, list(var.names = c(response.name, pred), probtrans = prob.trans))
+    skew.diff.test <- function(x, y){
 
-  # v0.2.0 Added call_info so dda_bagging can find data
-  call_info <- list(
-    "function_call" = match.call(),
-    "function_name" = "dda.resdist",
-    "all_args" = as.list(match.call())[-1],
-    "formula" = formula,
-    "data_name" = deparse(substitute(data)),
-    "original_data" = if(missing(data) || is.null(data)) NULL else data
-  )
-  output <- c(output, list(call_info = call_info))
+           agostino.zvalue <- function(x){
+                     n  <- length(x)
+                     s3 <- (sum((x - mean(x))^3)/n)/(sum((x - mean(x))^2)/n)^(3/2)
+                     y <- s3 * sqrt((n + 1) * (n + 3)/(6 * (n - 2)))
+                     b2 <- 3 * (n * n + 27 * n - 70) * (n + 1) * (n + 3)/((n - 2) * (n + 5) * (n + 7) * (n + 9))
+                     w <- -1 + sqrt(2 * (b2 - 1))
+                     d <- 1/sqrt(log(sqrt(w)))
+                     a <- sqrt(2/(w - 1))
+                     z <- d * log(y/a + sqrt((y/a)^2 + 1))
+                     return(z)
+            }
 
-  class(output) <- "dda.resdist"
-  return(output)
+		zval <- (agostino.zvalue(x) - agostino.zvalue(y))/sqrt(2 - 2*cor(x,y)^3)
+		pval <- (1 - pnorm(abs(zval))) * 2 # two-sided pvalue
+		return(list(z.value = zval, p.value = pval))
+	}
+
+	kurt.diff.test <- function(x, y){
+
+           anscombe.zvalue <- function(x){
+                     n   <- length(x)
+                     b   <- n * sum((x - mean(x))^4)/(sum((x - mean(x))^2)^2)
+                     eb2 <- 3 * (n - 1)/(n + 1)
+                     vb2 <- 24 * n * (n - 2) * (n - 3)/((n + 1)^2 * (n + 3) * (n + 5))
+                     m3  <- (6 * (n^2 - 5 * n + 2)/((n + 7) * (n + 9))) * sqrt((6 * (n + 3) * (n + 5))/(n * (n - 2) * (n - 3)))
+                     a   <- 6 + (8/m3) * (2/m3 + sqrt(1 + 4/m3^2))
+                     xx  <- (b - eb2)/sqrt(vb2)
+
+					 # modification when cube rooted value is negative: use sign(x) * abs(x)^(1/3) instead of (-x)^(1/3)
+					 cr <- sign((1 - 2/a)/(1 + xx * sqrt(2/(a - 4)))) * abs((1 - 2/a)/(1 + xx * sqrt(2/(a - 4))))^(1/3)
+					 z   <- (1 - 2/(9 * a) - cr ) / sqrt(2/(9 * a))
+
+                     return(z)
+            }
+
+        zval <- (anscombe.zvalue(x) - anscombe.zvalue(y))/sqrt(2 - 2*cor(x,y)^4)
+		pval <- (1 - pnorm(abs(zval))) * 2 # two-sided pvalue
+		return(list(z.value = zval, p.value = pval))
+	}
+
+
+	myanscombe.test <- function(x, alternative = c("two.sided", "less", "greater")){
+
+	# modified anscombe.test() function to handle cube roots of negative numbers
+
+	          n   <- length(x)
+			  DNAME <- deparse(substitute(x))
+              x <- sort(x[complete.cases(x)])
+              n <- length(x)
+              s <- match.arg(alternative)
+              alter <- switch(s, two.sided = 0, less = 1, greater = 2)
+
+              b   <- n * sum((x - mean(x))^4)/(sum((x - mean(x))^2)^2)
+              eb2 <- 3 * (n - 1)/(n + 1)
+              vb2 <- 24 * n * (n - 2) * (n - 3)/((n + 1)^2 * (n + 3) * (n + 5))
+              m3  <- (6 * (n^2 - 5 * n + 2)/((n + 7) * (n + 9))) * sqrt((6 * (n + 3) * (n + 5))/(n * (n - 2) * (n - 3)))
+              a   <- 6 + (8/m3) * (2/m3 + sqrt(1 + 4/m3^2))
+              xx  <- (b - eb2)/sqrt(vb2)
+
+			 # modification when cube rooted value is negative: use sign(x) * abs(x)^(1/3) instead of (-x)^(1/3)
+				cr <- sign((1 - 2/a)/(1 + xx * sqrt(2/(a - 4)))) * abs((1 - 2/a)/(1 + xx * sqrt(2/(a - 4))))^(1/3)
+				z   <- (1 - 2/(9 * a) - cr ) / sqrt(2/(9 * a))
+
+		pval <- pnorm(z, lower.tail = FALSE)
+     if (alter == 0) {
+        pval <- 2 * pval
+        if (pval > 1)
+            pval <- 2 - pval
+        alt <- "kurtosis is not equal to 3"
+      }
+     else if (alter == 1) {
+        alt <- "kurtosis is greater than 3"
+     }
+     else {
+        pval <- 1 - pval
+        alt <- "kurtosis is lower than 3"
+     }
+      RVAL <- list(statistic = c(kurt = b, z = z), p.value = pval,
+        alternative = alt, method = "Anscombe-Glynn kurtosis test",
+        data.name = DNAME)
+     class(RVAL) <- "htest"
+     return(RVAL)
+	}
+
+
+    if(is.null(pred)) stop( "Tentative predictor is missing." )
+	if(B < 0) stop( "Number of resamples 'B' must be positive." )
+	if(conf.level < 0 || conf.level > 1) stop("'conf.level' must be between 0 and 1")
+	if( !boot.type %in% c("bca", "perc") ) stop( "Unknown argument in boot.type." )
+
+	### --- prepare outcome, predictor, and model matrix for covariates
+
+    if (!inherits(formula, "formula") ) {
+           X <- if (is.matrix(formula$x) ) formula$x
+           else model.matrix(terms(formula), model.frame(formula) )
+           y <- if (is.vector(formula$y) ) formula$y
+           else model.response(model.frame(formula))
+
+           delete.pred <- which( colnames(X) == pred ) # get position of tentative predictor
+           if ( length(delete.pred) == 0 ) stop( "Specified predictor not found in the target model." )
+
+		   x <- X[, delete.pred]   # tentative predictor
+		   X <- X[ , -delete.pred] # model matrix with covariates
+		   if ( !is.matrix(X) ) X <- as.matrix(X)
+	}
+	else {
+           mf <- model.frame(formula, data = data)
+		   y <- model.response(mf)   # tentative outcome
+		   X <- model.matrix(formula, data = data)
+
+		   delete.pred <- which( colnames(X) == pred ) # get position of tentative predictor
+           if ( length(delete.pred) == 0 ) stop( "Specified predictor not found in the target model." )
+
+		   x <- X[, delete.pred]   # tentative predictor
+		   X <- X[ , -delete.pred] # model matrix with covariates
+		   if (!is.matrix(X)) X <- as.matrix(X)
+	}
+
+    ry <- lm.fit(X, y)$residuals
+	rx <- lm.fit(X, x)$residuals
+
+	### --- estimate competing models
+
+	ry <- as.vector(scale(ry))
+	rx <- as.vector(scale(rx))
+
+	if( isTRUE(robust) ){ # 0.2.0 robust estimation
+	  tar <- RobustLinearReg::siegel_regression(ry ~ rx)
+	  alt <- RobustLinearReg::siegel_regression(rx ~ ry)
+	} else {
+	  tar <- lm(ry ~ rx)
+	  alt <- lm(rx ~ ry)
+	}
+
+	dat <- data.frame(alternative = as.vector(scale(resid(alt))),
+	                  target = as.vector(scale(resid(tar))),
+                      pred.adj = rx,
+					  out.adj = ry
+					  )  # note: residuals are standardized prior DDA
+
+    if( isTRUE(prob.trans) ){  # add prob transformed if needed
+
+		trans <- prob.int(rx, ry)
+		rx.trans <- trans$x
+        ry.trans <- trans$y
+
+		if( isTRUE(robust) ){ # 0.2.0 robust estimation
+		  tar.trans <- RobustLinearReg::siegel_regression(ry.trans ~ rx.trans)
+		  alt.trans <- RobustLinearReg::siegel_regression(rx.trans ~ ry.trans)
+		} else {
+		  tar.trans <- lm(ry.trans ~ rx.trans)
+		  alt.trans <- lm(rx.trans ~ ry.trans)
+		}
+
+		dat$alternative.trans <- as.vector(scale(resid(alt.trans)))
+		dat$target.trans <- as.vector(scale(resid(tar.trans)))
+
+	}
+
+	### --- run separate normality tests
+
+
+	if( isTRUE(prob.trans) ){
+
+	  agostino.out <- apply(dat[c("alternative.trans", "target.trans")], 2, moments::agostino.test)
+	  names(agostino.out) <- c("alternative", "target")
+	  agostino.out <- lapply(agostino.out, unclass)
+
+	  anscombe.out <- apply(dat[c("alternative.trans", "target.trans")], 2, myanscombe.test)
+	  names(anscombe.out) <- c("alternative", "target")
+	  anscombe.out <- lapply(anscombe.out, unclass)
+
+	} else {
+
+	  agostino.out <- apply(dat[c("alternative", "target")], 2, moments::agostino.test)
+	  agostino.out <- lapply(agostino.out, unclass)
+
+	  anscombe.out <- apply(dat[c("alternative", "target")], 2, myanscombe.test)
+	  anscombe.out <- lapply(anscombe.out, unclass)
+
+	}
+	  agostino.out$alternative[3:5] <- NULL
+      agostino.out$target[3:5] <- NULL
+	  anscombe.out$alternative[3:5] <- NULL
+      anscombe.out$target[3:5] <- NULL
+
+	output <- list(agostino.out, anscombe.out)
+	names(output) <- c("agostino", "anscombe")
+
+	output$anscombe$target$statistic[1] <- output$anscombe$target$statistic[1] - 3 # change kurtosis to ex-kurtosis
+	output$anscombe$alternative$statistic[1] <- output$anscombe$alternative$statistic[1] - 3 # change kurtosis to ex-kurtosis
+
+	### --- run asymptotic difference tests
+
+	if(isTRUE(prob.trans)){
+
+	 # 0.2.0 target minus alternative under prob.trans, so that > 0 speaks for the target model
+	 output <- c(output,
+	            list(skewdiff = unlist(skew.diff.test(dat$target.trans, dat$alternative.trans))),
+				list(kurtdiff = unlist(kurt.diff.test(dat$target.trans, dat$alternative.trans)))
+	  )
+
+	 output$skewdiff <- c( moments::skewness(dat$target.trans)^2 - moments::skewness(dat$alternative.trans)^2, output$skewdiff)  # add point estimtes of skew and kurt differences to vector
+	 output$kurtdiff <- c((moments::kurtosis(dat$target.trans)-3)^2 - (moments::kurtosis(dat$alternative.trans)-3)^2, output$kurtdiff)
+
+
+	} else {
+
+	  output <- c(output,
+	            list(skewdiff = unlist(skew.diff.test(dat$alternative, dat$target))),
+				list(kurtdiff = unlist(kurt.diff.test(dat$alternative, dat$target)))
+	  )
+
+	output$skewdiff <- c( moments::skewness(dat$alternative)^2 - moments::skewness(dat$target)^2, output$skewdiff)  # add point estimtes of skew and kurt differences to vector
+	output$kurtdiff <- c((moments::kurtosis(dat$alternative)-3)^2 - (moments::kurtosis(dat$target)-3)^2, output$kurtdiff)
+
+	}
+
+    ### --- run bootstrap confidence intervals
+
+   if(B > 0){
+             suppressWarnings(boot.res <- boot::boot(dat, boot.diff, R = B, prob.trans = prob.trans, robust = robust))
+
+			 if( boot.type == "bca"){
+			 boot.out <- suppressWarnings( try(
+			         lapply(as.list(1:7), function(i, boot.res) boot::boot.ci(boot.res, conf=conf.level, type="bca", t0=boot.res$t0[i], t=boot.res$t[,i]), boot.res=boot.res), silent = TRUE))
+			 if (inherits(boot.out, "try-error")) { stop("Acceleration constant cannot be calculated. Increase the number of resamples or use boot.type = 'perc'") }
+			 }
+
+			 if( boot.type == "perc"){
+			 suppressWarnings(boot.out <- lapply(as.list(1:7), function(i, boot.res) boot::boot.ci(boot.res, conf=conf.level, type="perc", t0=boot.res$t0[i], t=boot.res$t[,i]), boot.res=boot.res))
+			 }
+
+			 names(boot.out) <- c("skew.diff", "kurt.diff", "cor12.diff", "cor13.diff", "RHS3", "RCC", "RHS4")
+
+             ci.skewdiff  <- unclass(boot.out$skew.diff)[[4]][4:5] ; names(ci.skewdiff) <- c("lower", "upper")
+			 ci.kurtdiff  <- unclass(boot.out$kurt.diff)[[4]][4:5] ; names(ci.kurtdiff) <- c("lower", "upper")
+			 ci.cor12diff <- unclass(boot.out$cor12.diff)[[4]][4:5] ; names(ci.cor12diff) <- c("lower", "upper")
+			 ci.cor13diff <- unclass(boot.out$cor13.diff)[[4]][4:5] ; names(ci.cor13diff) <- c("lower", "upper")
+			 ci.RHS3      <- unclass(boot.out$RHS3)[[4]][4:5] ; names(ci.RHS3) <- c("lower", "upper")
+			 ci.RCC       <- unclass(boot.out$RCC)[[4]][4:5] ; names(ci.RCC) <- c("lower", "upper")
+			 ci.RHS4      <- unclass(boot.out$RHS4)[[4]][4:5] ; names(ci.RHS4) <- c("lower", "upper")
+
+			 output$skewdiff <- c(output$skewdiff, ci.skewdiff)
+			 output$kurtdiff <-	c(output$kurtdiff, ci.kurtdiff)
+
+			 output <- c(output,
+						 list(cor12diff = c(boot.res$t0[3], ci.cor12diff)),
+						 list(cor13diff = c(boot.res$t0[4], ci.cor13diff)),
+						 list(RHS3 = c(boot.res$t0[5], ci.RHS3)),
+						 list(RCC = c(boot.res$t0[6], ci.RCC)),
+						 list(RHS4 = c(boot.res$t0[7], ci.RHS4)),
+						 list(boot.args = c(boot.type, conf.level, B)),
+						 list(boot.warning = FALSE)
+						)
+			if(sign(output$anscombe$alternative$statistic[1]) != sign(output$anscombe$target$statistic[1])) { output$boot.warning <- TRUE }
+	}
+
+	response.name <- all.vars(formula(formula))[1]  # get name of response variable
+	output <- c(output, list(var.names = c(response.name, pred), probtrans = prob.trans))
+
+	output$call_info <- list(function_call = match.call(), formula = formula) # 0.2.0 call information for dda.bagging
+
+	class(output) <- "dda.resdist"
+	return(output)
+
 }
 
 #' @title Print Method for \code{dda.resdist} Objects
@@ -528,7 +536,8 @@ print.dda.resdist <- function(x, ...){
     cat(paste("      As of package version 0.2.0, difference statistics > 0 the Target model when using prob.trans = TRUE.", varnames[2], "->", varnames[1], sep = " "))
   }
   cat("\n")
-  if(isTRUE(object$boot.warning)) { cat("Warning: Excess-kurtosis values of residuals have unequal signs", "\n", "        Also compute Co-Kurtosis and Hyvarinen-Smith Co-Kurtosis for", varnames[1], "->", varnames[2], "\n") }
+  if(isTRUE(object$boot.warning)) { # 0.2.0 isTRUE for B = 0
+    cat("Warning: Excess-kurtosis values of residuals have unequal signs", "\n", "        Also compute Co-Kurtosis and Hyvarinen-Smith Co-Kurtosis for", varnames[1], "->", varnames[2], "\n") }
 	cat("\n")
   }
 
