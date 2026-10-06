@@ -24,11 +24,6 @@
 #' @param win_prob Numeric. Proportion of observations winsorized on each
 #'   side of the sampling distribution when \code{agg_stat = "winsorized"}
 #'   (default: 0.10).
-# inner_B is disabled for now. To restore it, uncomment this block, the
-# argument in the signature and its use before the bootstrap loop.
-# #' @param inner_B Optional positive integer. Number of inner bootstrap
-# #'   resamples (\code{B}) passed to each DDA call. \code{NULL} (default)
-# #'   keeps the \code{B} used in the original DDA call.
 #' @param progress Logical. Whether to display a progress bar (default:
 #'   \code{TRUE}).
 #' @param save_file Character. Optional file path used to save the result as
@@ -72,8 +67,8 @@
 #' Difference statistics use their bootstrap confidence intervals. An
 #' interval above zero speaks for the target model, an interval below zero
 #' speaks for the alternative model, and an interval containing zero is
-#' undecided. As of version 0.2.0 this holds for \code{dda.resdist} under
-#' both \code{prob.trans = FALSE} and \code{prob.trans = TRUE}. Difference
+#' undecided. This holds for \code{dda.resdist} under both
+#' \code{prob.trans = FALSE} and \code{prob.trans = TRUE}. Difference
 #' statistics without a bootstrap interval (\code{B = 0}) are not decided.
 #'
 #' Run time grows with \code{iter} times the resampling budget (\code{B}) of
@@ -118,7 +113,7 @@
 #' ## --- Bootstrap aggregation of the base model
 #'
 #' bagged <- dda.bagging(base_model, data = d, iter = 5, progress = FALSE)
-#' # Note: n, B and iter are kept small here to lower computation time.
+#' # n, B and iter are kept small here to lower computation time.
 #'
 #' print(bagged)
 #' summary(bagged, show = c("hsic", "dcor"))
@@ -147,7 +142,6 @@ dda.bagging <- function(dda_result,
                         agg_stat = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
                         trim_prob = 0.10,
                         win_prob = 0.10,
-                        # inner_B = NULL,
                         progress = TRUE,
                         save_file = NULL
                         ){
@@ -172,10 +166,9 @@ dda.bagging <- function(dda_result,
   boot.call <- dda_result$call_info$function_call
   boot.call$formula <- formula.tar
   boot.call$data <- quote(boot.data)
-  # if (!is.null(inner_B)) boot.call$B <- inner_B
 
-  # boot.data is stored here, and all other arguments of the original call are
-  # found where dda.bagging is init called
+  # boot.data lives here; all other arguments of the original call are found
+  # in the environment dda.bagging is called from
   boot.env <- new.env(parent = parent.frame())
 
   ### --- bootstrap loop
@@ -268,9 +261,6 @@ dda.bagging <- function(dda_result,
 #'
 #' @param x An object of class \code{dda_bagging} when using \code{print}.
 #' @param ... Additional arguments to be passed to the function.
-#'
-#' @examples
-#' print(bagged)
 #'
 #' @export
 #' @rdname dda.bagging
@@ -373,7 +363,7 @@ bag.aggregate <- function(results, agg_stat, trim_prob = 0.10, win_prob = 0.10){
     if (!is.null(first$cor12diff)) {
       for (s in c("cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) agg[[s]] <- bag(s)
       agg$boot.args <- first$boot.args
-      agg$boot.warning <- FALSE
+      agg$boot.warning <- sign(agg$anscombe$alternative$statistic[1]) != sign(agg$anscombe$target$statistic[1])
     }
 
     agg$probtrans <- first$probtrans

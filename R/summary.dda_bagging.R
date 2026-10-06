@@ -127,9 +127,9 @@ round_preserve_sum <- function(x, digits = 2){
 
   scaled  <- x * 10^digits
   rounded <- floor(scaled)
-  missing <- round(sum(scaled) - sum(rounded))
+  short   <- round(sum(scaled) - sum(rounded))
 
-  add <- order(scaled - rounded, decreasing = TRUE)[seq_len(missing)]
+  add <- order(scaled - rounded, decreasing = TRUE)[seq_len(short)]
   rounded[add] <- rounded[add] + 1
 
   rounded / 10^digits

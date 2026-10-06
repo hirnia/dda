@@ -98,6 +98,9 @@ Separate normality tests (\code{dda.vardist}: outcome and predictor;
   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
   \item otherwise: undecided
 }
+For \code{dda.resdist} with \code{prob.trans = TRUE} the target and
+alternative residual p-values swap roles in these rules
+(\code{p_yx <= alpha} and \code{p_xy > alpha}: target model).
 
 Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
 Breusch-Pagan, and non-linear correlation using the smallest of the three
@@ -112,8 +115,9 @@ p-values):
 Difference statistics use their bootstrap confidence intervals. An
 interval above zero speaks for the target model, an interval below zero
 speaks for the alternative model, and an interval containing zero is
-undecided. As of version 0.2.0 this holds for \code{dda.resdist} under
-both \code{prob.trans = FALSE} and \code{prob.trans = TRUE}.
+undecided. This holds for \code{dda.resdist} under both
+\code{prob.trans = FALSE} and \code{prob.trans = TRUE}. Difference
+statistics without a bootstrap interval (\code{B = 0}) are not decided.
 
 Run time grows with \code{iter} times the resampling budget (\code{B}) of
 the original DDA call.
@@ -133,7 +137,7 @@ base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20, hetero = TRUE)
 ## --- Bootstrap aggregation of the base model
 
 bagged <- dda.bagging(base_model, data = d, iter = 5, progress = FALSE)
-# Note: n, B and iter are kept small here to lower computation time.
+# n, B and iter are kept small here to lower computation time.
 
 print(bagged)
 summary(bagged, show = c("hsic", "dcor"))
@@ -152,8 +156,6 @@ print(bagged, agg_stat = "median")
 summary(bagged, show = c("hsic", "dcor", "bp"))
 summary_ols(bagged)
 }
-
-print(bagged)
 
 }
 \references{

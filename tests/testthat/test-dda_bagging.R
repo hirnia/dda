@@ -1,6 +1,6 @@
 ## ============================================================================
 ## testthat file: test-dda_bagging.R
-## Tests for dda.bagging()
+## Tests for dda.bagging(), dda.decisions() and agg.value()
 ## ============================================================================
 
 # --- Shared setup -----------------------------------------------------------
@@ -21,253 +21,203 @@ generate_test_data_cov <- function(n = 200, seed = 42) {
   data.frame(x = x, y = y, z = z)
 }
 
-# Fit base DDA objects (low B for speed)
 d     <- generate_test_data()
 d_cov <- generate_test_data_cov()
 
-base_indep   <- dda.indep(y ~ x, pred = "x", data = d, B = 10)
-base_resdist <- dda.resdist(y ~ x, pred = "x", data = d, B = 10)
-base_vardist <- dda.vardist(y ~ x, pred = "x", data = d, B = 10)
-
-# Richer base objects for optional-feature tests
-base_indep_hetero <- dda.indep(y ~ x, pred = "x", data = d, B = 10,
-                                hetero = TRUE, nlfun = 2, diff = TRUE)
-base_resdist_pt   <- dda.resdist(y ~ x, pred = "x", data = d, B = 10,
-                                  prob.trans = TRUE)
-base_indep_cov    <- dda.indep(y ~ x + z, pred = "x", data = d_cov, B = 10)
-
-## ============================================================================
-## 1. Input Validation
-## ============================================================================
-
-test_that("dda_bagging errors on wrong input class", {
-  expect_error(
-    dda.bagging(list(a = 1), data = d, iter = 5),
-    regexp = "Unsupported DDA object"
-  )
-})
-
-test_that("dda_bagging errors when data is NULL", {
-  expect_error(
-    dda.bagging(base_indep, data = NULL, iter = 5),
-    regexp = "Please provide"
-  )
-})
-
-test_that("dda_bagging errors with invalid agg_stat", {
-  expect_error(
-    dda.bagging(base_indep, data = d, iter = 5, agg_stat = "geometric"),
-    regexp = "should be one of"
-  )
-})
-
-## ============================================================================
-## 2. Return Structure — all three object types
-## ============================================================================
+base_indep      <- dda.indep(y ~ x, pred = "x", data = d, B = 10)
+base_indep_full <- dda.indep(y ~ x, pred = "x", data = d, B = 10,
+                             hetero = TRUE, nlfun = 2, diff = TRUE)
+base_indep_cov  <- dda.indep(y ~ x + z, pred = "x", data = d_cov, B = 10)
+base_resdist    <- dda.resdist(y ~ x, pred = "x", data = d, B = 10)
+base_resdist_pt <- dda.resdist(y ~ x, pred = "x", data = d, B = 10, prob.trans = TRUE)
+base_vardist    <- dda.vardist(y ~ x, pred = "x", data = d, B = 10)
 
 run_bag <- function(base, dat, iter = 10, ...) {
   dda.bagging(base, data = dat, iter = iter, progress = FALSE, ...)
 }
 
-test_that("dda_bagging returns correct class for dda.indep input", {
-  result <- run_bag(base_indep, d)
-  expect_s3_class(result, "dda_bagging_indep")
-  expect_s3_class(result, "dda_bagging")
+bag_indep   <- run_bag(base_indep_full, d)
+bag_resdist <- run_bag(base_resdist, d)
+bag_vardist <- run_bag(base_vardist, d)
+
+## ============================================================================
+## 1. Input validation
+## ============================================================================
+
+test_that("dda.bagging rejects objects that are not DDA results", {
+  expect_error(dda.bagging(list(a = 1), data = d, iter = 5),
+               regexp = "must be a dda.indep, dda.resdist, or dda.vardist")
 })
 
-test_that("dda_bagging returns correct class for dda.resdist input", {
-  result <- run_bag(base_resdist, d)
-  expect_s3_class(result, "dda_bagging_resdist")
-  expect_s3_class(result, "dda_bagging")
+test_that("dda.bagging requires a data.frame", {
+  expect_error(dda.bagging(base_indep, iter = 5), regexp = "Please provide")
+  expect_error(dda.bagging(base_indep, data = NULL, iter = 5), regexp = "Please provide")
 })
 
-test_that("dda_bagging returns correct class for dda.vardist input", {
-  result <- run_bag(base_vardist, d)
-  expect_s3_class(result, "dda_bagging_vardist")
-  expect_s3_class(result, "dda_bagging")
+test_that("dda.bagging rejects an unknown agg_stat", {
+  expect_error(dda.bagging(base_indep, data = d, iter = 5, agg_stat = "geometric"),
+               regexp = "should be one of")
 })
 
-test_that("dda_bagging output contains all required top-level slots", {
-  result <- run_bag(base_indep, d)
-  expect_named(result, c("bagged_results", "raw_stats", "aggregated_stats",
-                          "decision_percentages", "n_valid_iterations",
-                          "agg_stat_used"),
+test_that("dda.bagging has no inner_B argument", {
+  expect_false("inner_B" %in% names(formals(dda.bagging)))
+})
+
+## ============================================================================
+## 2. Return structure
+## ============================================================================
+
+test_that("classes follow the base DDA object", {
+  expect_s3_class(bag_indep,   c("dda_bagging_indep", "dda_bagging"), exact = TRUE)
+  expect_s3_class(bag_resdist, c("dda_bagging_resdist", "dda_bagging"), exact = TRUE)
+  expect_s3_class(bag_vardist, c("dda_bagging_vardist", "dda_bagging"), exact = TRUE)
+})
+
+test_that("output holds all top-level elements", {
+  expect_named(bag_indep,
+               c("bagged_results", "aggregated_stats", "decisions",
+                 "decision_proportions", "ols", "n_valid_iterations",
+                 "alpha", "agg_stat", "trim_prob", "win_prob"),
                ignore.order = TRUE)
 })
 
-test_that("n_valid_iterations is a positive integer <= iter", {
-  result <- run_bag(base_indep, d, iter = 10)
-  expect_true(result$n_valid_iterations > 0)
-  expect_true(result$n_valid_iterations <= 10)
+test_that("settings are stored in the object", {
+  res <- run_bag(base_indep, d, iter = 5, alpha = 0.10,
+                 agg_stat = "winsorized", trim_prob = 0.2, win_prob = 0.05)
+  expect_equal(res$alpha, 0.10)
+  expect_equal(res$agg_stat, "winsorized")
+  expect_equal(res$trim_prob, 0.2)
+  expect_equal(res$win_prob, 0.05)
 })
 
-test_that("agg_stat_used matches the requested method", {
+test_that("n_valid_iterations matches the stored bootstrap results", {
+  expect_true(bag_indep$n_valid_iterations > 0)
+  expect_true(bag_indep$n_valid_iterations <= 10)
+  expect_length(bag_indep$bagged_results, bag_indep$n_valid_iterations)
+  expect_equal(nrow(bag_indep$decisions), bag_indep$n_valid_iterations)
+})
+
+test_that("agg_stat is stored for every method", {
   for (method in c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey")) {
-    result <- run_bag(base_indep, d, agg_stat = method)
-    expect_equal(result$agg_stat_used, method,
-                 info = paste("Failed for agg_stat =", method))
+    res <- run_bag(base_indep, d, iter = 5, agg_stat = method)
+    expect_equal(res$agg_stat, method, info = method)
   }
 })
 
 ## ============================================================================
-## 3. Aggregated Stats Content
+## 3. Aggregated statistics
 ## ============================================================================
 
-test_that("aggregated_stats contains HSIC results for indep object", {
-  result <- run_bag(base_indep, d)
-  agg <- result$aggregated_stats
-  expect_true(!is.null(agg$hsic_yx_stat))
-  expect_true(!is.null(agg$hsic_xy_stat))
-  expect_true(!is.null(agg$hsic_yx_pval))
-  expect_true(!is.null(agg$hsic_xy_pval))
-  expect_true(is.numeric(agg$hsic_yx_stat))
+test_that("aggregated_stats keeps the class of the base object", {
+  expect_s3_class(bag_indep$aggregated_stats, "dda.indep")
+  expect_s3_class(bag_resdist$aggregated_stats, "dda.resdist")
+  expect_s3_class(bag_vardist$aggregated_stats, "dda.vardist")
+  expect_equal(bag_indep$aggregated_stats$var.names, c("y", "x"))
 })
 
-test_that("aggregated_stats contains dCor results when base object has them", {
-  result <- run_bag(base_indep, d)
-  agg <- result$aggregated_stats
-  # dCor is present because dda.indep computes it by default
-  expect_true(!is.null(agg$dcor_yx_stat) || is.null(agg$dcor_yx_stat),
-              label = "dCor slot exists or is absent depending on base object")
-})
-
-test_that("aggregated_stats contains BP results when hetero = TRUE", {
-  result <- run_bag(base_indep_hetero, d)
-  agg <- result$aggregated_stats
-  expect_true(!is.null(agg$breusch_pagan))
+test_that("indep aggregates hold HSIC, dCor, BP, nlcor and difference results", {
+  agg <- bag_indep$aggregated_stats
+  expect_true(is.numeric(agg$hsic.yx$statistic))
+  expect_true(is.numeric(agg$hsic.xy$p.value))
+  expect_true(is.numeric(agg$distance_cor.dcor_yx$statistic))
+  expect_true(is.numeric(agg$distance_cor.dcor_xy$p.value))
   expect_length(agg$breusch_pagan, 4)
+  expect_false(is.null(agg$nlcor.yx$t1))
+  expect_false(is.null(agg$nlcor.xy$t3))
+  expect_equal(dim(agg$out.diff), dim(base_indep_full$out.diff))
 })
 
-test_that("aggregated_stats contains nlcor results when nlfun is set", {
-  result <- run_bag(base_indep_hetero, d)
-  agg <- result$aggregated_stats
-  expect_true(!is.null(agg$nlcor.yx))
-  expect_true(!is.null(agg$nlcor.xy))
+test_that("resdist and vardist aggregates hold the separate tests", {
+  expect_true(is.numeric(bag_resdist$aggregated_stats$agostino$target$statistic))
+  expect_true(is.numeric(bag_resdist$aggregated_stats$anscombe$alternative$p.value))
+  expect_true(is.numeric(bag_vardist$aggregated_stats$agostino$predictor$statistic))
+  expect_true(is.numeric(bag_vardist$aggregated_stats$anscombe$outcome$p.value))
 })
 
-test_that("aggregated_stats contains diff_matrix when diff = TRUE", {
-  result <- run_bag(base_indep_hetero, d)
-  agg <- result$aggregated_stats
-  expect_true(!is.null(agg$diff_matrix))
+test_that("resdist boot.warning follows the aggregated kurtosis signs", {
+  agg <- bag_resdist$aggregated_stats
+  expect_equal(agg$boot.warning,
+               sign(agg$anscombe$alternative$statistic[1]) != sign(agg$anscombe$target$statistic[1]))
 })
 
-test_that("aggregated_stats for resdist contains agostino and anscombe results", {
-  result <- run_bag(base_resdist, d)
-  agg <- result$aggregated_stats
-  expect_true(!is.null(agg$agostino.target.statistic))
-  expect_true(!is.null(agg$agostino.alternative.statistic))
-  expect_true(!is.null(agg$anscombe.target.statistic))
-  expect_true(!is.null(agg$anscombe.alternative.statistic))
+test_that("trimmed with trim_prob = 0 and winsorized with win_prob = 0 equal the mean", {
+  set.seed(101); res_mean <- run_bag(base_indep, d, iter = 5)
+  set.seed(101); res_trim <- run_bag(base_indep, d, iter = 5, agg_stat = "trimmed", trim_prob = 0)
+  set.seed(101); res_win  <- run_bag(base_indep, d, iter = 5, agg_stat = "winsorized", win_prob = 0)
+  expect_equal(res_mean$aggregated_stats$hsic.yx$statistic,
+               res_trim$aggregated_stats$hsic.yx$statistic)
+  expect_equal(res_mean$aggregated_stats$hsic.yx$statistic,
+               res_win$aggregated_stats$hsic.yx$statistic)
 })
 
-test_that("aggregated_stats for vardist contains predictor/outcome agostino results", {
-  result <- run_bag(base_vardist, d)
-  agg <- result$aggregated_stats
-  expect_true(!is.null(agg$agostino.predictor.statistic.skew))
-  expect_true(!is.null(agg$agostino.outcome.statistic.skew))
-  expect_true(!is.null(agg$anscombe.predictor.statistic.kurt))
-  expect_true(!is.null(agg$anscombe.outcome.statistic.kurt))
-})
-
-test_that("OLS target and alternative results are populated", {
-  result <- run_bag(base_indep, d)
-  agg <- result$aggregated_stats
-  expect_true(!is.null(agg$ols_target))
-  expect_true(!is.null(agg$ols_alternative))
-  expect_true(is.matrix(agg$ols_target))
-  expect_equal(colnames(agg$ols_target),
-               c("estimate", "2.5 %", "97.5 %", "Prop (p<0.05)"))
-})
-
-test_that("var.names are stored correctly in aggregated_stats", {
-  result <- run_bag(base_indep, d)
-  expect_equal(result$aggregated_stats$var.names, c("y", "x"))
+test_that("agg.value drops non-finite values and handles every method", {
+  x <- c(1, 2, 3, 4, 100, NA, Inf)
+  expect_equal(agg.value(x, "mean"), mean(c(1, 2, 3, 4, 100)))
+  expect_equal(agg.value(x, "median"), 3)
+  expect_equal(agg.value(x, "midhinge"), mean(quantile(c(1, 2, 3, 4, 100), c(0.25, 0.75), names = FALSE)))
+  expect_true(is.numeric(agg.value(x, "tukey")))
+  expect_true(is.na(agg.value(c(NA, Inf), "mean")))
+  expect_error(agg.value(x, "geometric"), regexp = "Unknown agg_stat")
 })
 
 ## ============================================================================
-## 4. Decision Percentages
+## 4. Decisions
 ## ============================================================================
 
-test_that("decision_percentages is a non-empty list", {
-  result <- run_bag(base_indep, d)
-  expect_true(is.list(result$decision_percentages))
-  expect_true(length(result$decision_percentages) > 0)
+test_that("decision_proportions has one row per test and rows sum to 1", {
+  props <- bag_indep$decision_proportions
+  expect_equal(rownames(props), colnames(bag_indep$decisions))
+  expect_equal(colnames(props), c("Target", "Alternative", "Confounding", "Undecided"))
+  expect_equal(unname(rowSums(props)), rep(1, nrow(props)), tolerance = 1e-8)
 })
 
-test_that("each decision entry sums to 1", {
-  result <- run_bag(base_indep, d)
-  for (nm in names(result$decision_percentages)) {
-    s <- sum(result$decision_percentages[[nm]])
-    expect_equal(s, 1, tolerance = 1e-6,
-                 label = paste("decision sum for", nm))
-  }
+test_that("resdist and vardist decisions have no Confounding level", {
+  expect_equal(colnames(bag_resdist$decision_proportions), c("Target", "Alternative", "Undecided"))
+  expect_equal(colnames(bag_vardist$decision_proportions), c("Target", "Alternative", "Undecided"))
 })
 
-test_that("indep decision levels are Target / Alternative / Confounding / Undecided", {
-  result <- run_bag(base_indep, d)
-  for (nm in names(result$decision_percentages)) {
-    expect_setequal(names(result$decision_percentages[[nm]]),
-                    c("Target", "Alternative", "Confounding", "Undecided"))
-  }
+test_that("dda.decisions returns the expected tests for each object type", {
+  expect_setequal(names(dda.decisions(base_indep_full)),
+                  c("hsic", "dcor", "bp", "nlcor", "hsic.diff", "dcor.diff", "mi.diff"))
+  expect_true(all(c("agostino", "anscombe", "skewdiff", "kurtdiff") %in%
+                    names(dda.decisions(base_vardist))))
+  expect_true(all(dda.decisions(base_resdist) %in% c("Target", "Alternative", "Undecided", NA)))
 })
 
-## ============================================================================
-## 5. Aggregation Methods (spot-check numeric plausibility)
-## ============================================================================
-
-test_that("trimmed aggregation with trim_prob = 0 equals mean", {
-  set.seed(101)
-  res_mean    <- run_bag(base_indep, d, agg_stat = "mean")
-  set.seed(101)
-  res_trimmed <- run_bag(base_indep, d, agg_stat = "trimmed", trim_prob = 0)
-  # Both use the same raw stats seeded the same way; HSIC stat should be equal
-  expect_equal(res_mean$aggregated_stats$hsic_yx_stat,
-               res_trimmed$aggregated_stats$hsic_yx_stat,
-               tolerance = 1e-6)
+test_that("dda.decisions swaps the separate resdist tests under prob.trans = TRUE", {
+  obj <- base_resdist_pt
+  obj$agostino$target$p.value      <- 0.01
+  obj$agostino$alternative$p.value <- 0.50
+  expect_equal(unname(dda.decisions(obj)["agostino"]), "Target")
+  obj$probtrans <- FALSE
+  expect_equal(unname(dda.decisions(obj)["agostino"]), "Alternative")
 })
 
-test_that("winsorized aggregation with win_prob = 0 equals mean", {
-  set.seed(101)
-  res_mean <- run_bag(base_indep, d, agg_stat = "mean")
-  set.seed(101)
-  res_win  <- run_bag(base_indep, d, agg_stat = "winsorized", win_prob = 0)
-  expect_equal(res_mean$aggregated_stats$hsic_yx_stat,
-               res_win$aggregated_stats$hsic_yx_stat,
-               tolerance = 1e-6)
+test_that("dda.decisions rejects other objects", {
+  expect_error(dda.decisions(list(a = 1)), regexp = "must be a dda.indep")
 })
 
 ## ============================================================================
-## 6. save_file Argument
+## 5. save_file, covariates, prob.trans
 ## ============================================================================
 
-test_that("save_file writes a readable RDS to disk", {
+test_that("save_file writes the dda_bagging object to disk", {
   tmp <- tempfile(fileext = ".rds")
   on.exit(unlink(tmp))
-  run_bag(base_indep, d, save_file = tmp)
-  expect_true(file.exists(tmp))
+  run_bag(base_indep, d, iter = 5, save_file = tmp)
   saved <- readRDS(tmp)
-  expect_true(is.list(saved))
-  expect_true("aggregated_stats" %in% names(saved))
+  expect_s3_class(saved, "dda_bagging_indep")
 })
 
-## ============================================================================
-## 7. Covariate Support
-## ============================================================================
-
-test_that("dda_bagging works with covariates in the model", {
-  result <- run_bag(base_indep_cov, d_cov)
-  expect_s3_class(result, "dda_bagging_indep")
-  expect_true(result$n_valid_iterations > 0)
+test_that("dda.bagging works with covariates", {
+  res <- run_bag(base_indep_cov, d_cov, iter = 5)
+  expect_s3_class(res, "dda_bagging_indep")
+  expect_true("z" %in% colnames(res$ols$target$coef))
+  expect_true("z" %in% colnames(res$ols$alternative$coef))
 })
 
-## ============================================================================
-## 8. prob.trans = TRUE for resdist
-## ============================================================================
-
-test_that("dda_bagging handles prob.trans = TRUE in resdist correctly", {
-  result <- run_bag(base_resdist_pt, d)
-  expect_s3_class(result, "dda_bagging_resdist")
-  # skewdiff decisions should be reversed; just check they exist and sum to 1
-  decs <- result$decision_percentages
-  expect_true(!is.null(decs$dec_skewdiff) || !is.null(decs$dec_agost))
+test_that("dda.bagging handles prob.trans = TRUE", {
+  res <- run_bag(base_resdist_pt, d, iter = 5)
+  expect_true(isTRUE(res$aggregated_stats$probtrans))
+  expect_true("agostino" %in% rownames(res$decision_proportions))
 })
