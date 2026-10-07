@@ -121,7 +121,7 @@ summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
 #'
 #' @keywords internal
 #' @noRd
-round_preserve_sum <- function(x, digits = 2){
+round_preserve_sum <- function(x, digits){
 
   if (any(is.na(x))) return(round(x, digits))
 

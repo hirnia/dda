@@ -321,7 +321,7 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = object$trim
 #'
 #' @keywords internal
 #' @noRd
-bag.aggregate <- function(results, agg_stat, trim_prob = 0.10, win_prob = 0.10){
+bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
 
   first <- results[[1]]
 
@@ -430,7 +430,7 @@ bag.aggregate <- function(results, agg_stat, trim_prob = 0.10, win_prob = 0.10){
 #'
 #' @keywords internal
 #' @noRd
-agg.value <- function(x, agg_stat = "mean", trim_prob = 0.10, win_prob = 0.10){
+agg.value <- function(x, agg_stat, trim_prob, win_prob){
 
   x <- x[is.finite(x)]
   if (length(x) == 0) return(NA)
@@ -474,12 +474,13 @@ agg.value <- function(x, agg_stat = "mean", trim_prob = 0.10, win_prob = 0.10){
 #' @noRd
 dda.decisions <- function(dda_result, alpha = 0.05){
 
-  # separate tests: p.yx from the target model, p.xy from the alternative model
-  decide.p <- function(p.yx, p.xy, both.significant = "Undecided"){
+  # separate tests: p.yx from the target model, p.xy from the alternative model;
+  # both significant is confounding for dda.indep and undecided otherwise
+  decide.p <- function(p.yx, p.xy){
     if (is.na(p.yx) || is.na(p.xy)) return(NA)
     if (p.yx >  alpha & p.xy <= alpha) return("Target")
     if (p.yx <= alpha & p.xy >  alpha) return("Alternative")
-    if (p.yx <= alpha & p.xy <= alpha) return(both.significant)
+    if (p.yx <= alpha & p.xy <= alpha & inherits(dda_result, "dda.indep")) return("Confounding")
     return("Undecided")
   }
 
@@ -520,19 +521,19 @@ dda.decisions <- function(dda_result, alpha = 0.05){
 
   } else if (inherits(obj, "dda.indep")) {
 
-    dec["hsic"] <- decide.p(obj$hsic.yx$p.value, obj$hsic.xy$p.value, "Confounding")
-    dec["dcor"] <- decide.p(obj$distance_cor.dcor_yx$p.value, obj$distance_cor.dcor_xy$p.value, "Confounding")
+    dec["hsic"] <- decide.p(obj$hsic.yx$p.value, obj$hsic.xy$p.value)
+    dec["dcor"] <- decide.p(obj$distance_cor.dcor_yx$p.value, obj$distance_cor.dcor_xy$p.value)
 
     # robust Breusch-Pagan tests are elements 2 (target) and 4 (alternative)
     if (!is.null(obj$breusch_pagan)) {
-      dec["bp"] <- decide.p(obj$breusch_pagan[[2]]$p.value, obj$breusch_pagan[[4]]$p.value, "Confounding")
+      dec["bp"] <- decide.p(obj$breusch_pagan[[2]]$p.value, obj$breusch_pagan[[4]]$p.value)
     }
 
     # smallest p-value of the three non-linear correlation tests
     if (!is.null(obj$nlcor.yx)) {
       p.yx <- min(obj$nlcor.yx$t1[4], obj$nlcor.yx$t2[4], obj$nlcor.yx$t3[4])
       p.xy <- min(obj$nlcor.xy$t1[4], obj$nlcor.xy$t2[4], obj$nlcor.xy$t3[4])
-      dec["nlcor"] <- decide.p(p.yx, p.xy, "Confounding")
+      dec["nlcor"] <- decide.p(p.yx, p.xy)
     }
 
     if (!is.null(obj$out.diff)) {

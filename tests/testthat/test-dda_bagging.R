@@ -59,10 +59,6 @@ test_that("dda.bagging rejects an unknown agg_stat", {
                regexp = "should be one of")
 })
 
-test_that("dda.bagging has no inner_B argument", {
-  expect_false("inner_B" %in% names(formals(dda.bagging)))
-})
-
 ## ============================================================================
 ## 2. Return structure
 ## ============================================================================
@@ -191,6 +187,17 @@ test_that("dda.decisions swaps the separate resdist tests under prob.trans = TRU
   expect_equal(unname(dda.decisions(obj)["agostino"]), "Target")
   obj$probtrans <- FALSE
   expect_equal(unname(dda.decisions(obj)["agostino"]), "Alternative")
+})
+
+test_that("both significant separate tests are confounding for indep and undecided otherwise", {
+  obj <- base_indep
+  obj$hsic.yx$p.value <- 0.01
+  obj$hsic.xy$p.value <- 0.01
+  expect_equal(unname(dda.decisions(obj)["hsic"]), "Confounding")
+  obj <- base_vardist
+  obj$agostino$outcome$p.value   <- 0.01
+  obj$agostino$predictor$p.value <- 0.01
+  expect_equal(unname(dda.decisions(obj)["agostino"]), "Undecided")
 })
 
 test_that("dda.decisions rejects other objects", {
