@@ -38,6 +38,10 @@
 #' the distribution of p-values across bootstrap samples; it is not a pooled
 #' test of a single null hypothesis.
 #'
+#' Bootstrap samples in which the DDA call fails (e.g., when BCa intervals
+#' cannot be computed) are dropped with a warning that reports the number of
+#' failed samples and the last error message.
+#'
 #' Within each bootstrap sample every DDA test leads to a model selection
 #' decision. The target model is \code{x -> y} and the alternative model is
 #' \code{y -> x}; \code{p_yx} is the p-value obtained under the target model
@@ -175,6 +179,7 @@ dda.bagging <- function(dda_result,
 
   nobs <- nrow(data)
   results <- vector("list", iter)
+  error.msg <- NULL
   ols.tar.coef <- ols.tar.p <- ols.tar.r2 <- NULL
   ols.alt.coef <- ols.alt.p <- ols.alt.r2 <- NULL
 
@@ -186,7 +191,10 @@ dda.bagging <- function(dda_result,
 
     fit <- try(eval(boot.call, boot.env), silent = TRUE)
     if (progress) setTxtProgressBar(pb, i)
-    if (inherits(fit, "try-error")) next
+    if (inherits(fit, "try-error")) {
+      error.msg <- conditionMessage(attr(fit, "condition"))
+      next
+    }
 
     fit$call_info <- NULL
     results[[i]] <- fit
@@ -206,7 +214,8 @@ dda.bagging <- function(dda_result,
 
   results <- results[!sapply(results, is.null)]
   n.valid <- length(results)
-  if (n.valid == 0) stop("The DDA call failed in every bootstrap sample.")
+  if (n.valid == 0) stop(paste("The DDA call failed in every bootstrap sample:", error.msg))
+  if (n.valid < iter) warning(paste(iter - n.valid, "of", iter, "bootstrap samples failed and were dropped. Last error:", error.msg), call. = FALSE)
 
   ### --- aggregated test statistics
 

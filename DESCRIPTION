@@ -17,8 +17,8 @@ Suggests: devtools, doParallel, iterators, spelling,
 Encoding: UTF-8
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3
-URL: https://github.com/hirnia/dda2
+URL: https://github.com/hirnia/dda
 NeedsCompilation: no
 Author: Wolfgang Wiedermann [aut, cre],
   Megan Hirni [aut]
-BugReports: https://github.com/hirnia/dda2/issues
+BugReports: https://github.com/hirnia/dda/issues

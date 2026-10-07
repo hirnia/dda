@@ -221,3 +221,27 @@ test_that("dda.bagging handles prob.trans = TRUE", {
   expect_true(isTRUE(res$aggregated_stats$probtrans))
   expect_true("agostino" %in% rownames(res$decision_proportions))
 })
+
+## ============================================================================
+## 6. Failed bootstrap samples
+## ============================================================================
+
+test_that("failed bootstrap samples are dropped with a warning", {
+  n.calls <- 0
+  B.fail <- function() {
+    n.calls <<- n.calls + 1
+    if (n.calls %% 2 == 0) stop("planned failure")
+    10
+  }
+  base <- dda.vardist(y ~ x, pred = "x", data = d, B = B.fail())
+  expect_warning(res <- dda.bagging(base, data = d, iter = 4, progress = FALSE),
+                 regexp = "2 of 4 bootstrap samples failed and were dropped. Last error: planned failure")
+  expect_equal(res$n_valid_iterations, 2)
+  expect_equal(nrow(res$decisions), 2)
+  expect_equal(nrow(res$ols$target$coef), 2)
+})
+
+test_that("dda.bagging reports the error when every bootstrap sample fails", {
+  expect_error(dda.bagging(base_vardist, data = data.frame(y = d$y, w = d$x), iter = 2, progress = FALSE),
+               regexp = "failed in every bootstrap sample: .*not found")
+})

@@ -17,7 +17,7 @@ Here is the link for the book: https://www.cambridge.org/core/books/abs/directio
 The `dda` development version can be installed from GitHub: 
 
 ```
-remotes::install_github("wwiedermann/dda")
+remotes::install_github("hirnia/dda")
 ```
 
 ## Usage
@@ -69,4 +69,4 @@ plot(point.vardist, stat = "rhs", ylim = c(-0.2, 0.3))
 
 ## Getting help
 
-If you encounter a clear bug, please file an issue with a minimal reproducible example on [GitHub](https://github.com/wwiedermann/dda). For questions and other discussion, please contact the package maintainer.
+If you encounter a clear bug, please file an issue with a minimal reproducible example on [GitHub](https://github.com/hirnia/dda). For questions and other discussion, please contact the package maintainer.

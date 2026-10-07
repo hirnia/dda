@@ -86,6 +86,10 @@ bootstrap samples with \code{agg_stat}. An aggregated p-value summarizes
 the distribution of p-values across bootstrap samples; it is not a pooled
 test of a single null hypothesis.
 
+Bootstrap samples in which the DDA call fails (e.g., when BCa intervals
+cannot be computed) are dropped with a warning that reports the number of
+failed samples and the last error message.
+
 Within each bootstrap sample every DDA test leads to a model selection
 decision. The target model is \code{x -> y} and the alternative model is
 \code{y -> x}; \code{p_yx} is the p-value obtained under the target model

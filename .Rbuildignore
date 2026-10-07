@@ -20,3 +20,4 @@
 ^.*\.bundle$
 ^Claude outputs$
 ^_archive$
+^PUSH_TO_GITHUB\.bat$
