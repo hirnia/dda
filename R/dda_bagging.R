@@ -123,7 +123,7 @@
 #' summary(bagged, show = c("hsic", "dcor"))
 #'
 #' \dontrun{
-#' ## --- Realistic settings; run time is substantial
+#' ## --- Realistic settings with longer runtime
 #'
 #' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 500,
 #'   hetero = TRUE, nlfun = 2, diff = TRUE)
@@ -189,13 +189,18 @@ dda.bagging <- function(dda_result,
 
     boot.env$boot.data <- data[sample(1:nobs, nobs, replace = TRUE), ]
 
+    # if BCa fails in someiters, pkg skips the iter through try()
+    # evaluates initial dda call (boot.call) within the space data lives (boot.env)
     fit <- try(eval(boot.call, boot.env), silent = TRUE)
+
     if (progress) setTxtProgressBar(pb, i)
     if (inherits(fit, "try-error")) {
       error.msg <- conditionMessage(attr(fit, "condition"))
       next
     }
 
+    # [new] drop stored call (no longer needed and slows down saving obj)
+    # each fit keeps the call + formula env, x iter copies
     fit$call_info <- NULL
     results[[i]] <- fit
 
@@ -274,10 +279,13 @@ dda.bagging <- function(dda_result,
 #' @export
 #' @rdname dda.bagging
 #' @method print dda_bagging
+
 print.dda_bagging <- function(x, agg_stat = NULL, trim_prob = x$trim_prob, win_prob = x$win_prob, ...){
+  #> agg_stat arg: view another agg (e.g. median) w/o rerun, via reaggregate_bagging
 
   object <- reaggregate_bagging(x, agg_stat, trim_prob, win_prob)
 
+  #> header lines + the agg obj printed by its own dda.* print method
   cat("\n")
   cat("BOOTSTRAP AGGREGATED DDA", "\n")
   cat(paste("Number of bootstrap samples:", object$n_valid_iterations), "\n")
@@ -299,8 +307,9 @@ print.dda_bagging <- function(x, agg_stat = NULL, trim_prob = x$trim_prob, win_p
 #'
 #' @keywords internal
 #' @noRd
-reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = object$trim_prob, win_prob = object$win_prob){
 
+reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = object$trim_prob, win_prob = object$win_prob){
+ # If a user wants to recompute aggregated_stats from stored bagged_results
   if (is.null(agg_stat)) return(object)
   agg_stat <- match.arg(agg_stat, c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"))
 
@@ -431,7 +440,10 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
 #' @keywords internal
 #' @noRd
 agg.value <- function(x, agg_stat, trim_prob, win_prob){
-
+  # non-finite dropped (failed CI -> NA / Inf)
+  # mean = Ch8 default; median; trimmed drops trim_prob each tail; midhinge = mean of Q1
+  #   Q3
+  # winsorized: clamp tails at win_prob quantiles + mean; tukey trimean (Q1 + 2 Q2 + Q3) / 4
   x <- x[is.finite(x)]
   if (length(x) == 0) return(NA)
 
@@ -473,7 +485,7 @@ agg.value <- function(x, agg_stat, trim_prob, win_prob){
 #' @keywords internal
 #' @noRd
 dda.decisions <- function(dda_result, alpha = 0.05){
-
+  # Rules transferred from Ch8 ifelse block
   # separate tests: p.yx from the target model, p.xy from the alternative model;
   # both significant is confounding for dda.indep and undecided otherwise
   decide.p <- function(p.yx, p.xy){
