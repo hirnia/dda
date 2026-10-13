@@ -110,25 +110,25 @@
 #' y <- 0.5 * x + e
 #' d <- data.frame(x, y)
 #'
-#' ## --- Fit a base DDA independence model
+#' ## --- Fit a base dda.indep model
 #'
 #' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20, hetero = TRUE)
 #'
 #' ## --- Bootstrap aggregation of the base model
 #'
 #' bagged <- dda.bagging(base_model, data = d, iter = 5, progress = FALSE)
-#' # n, B and iter are kept small here to lower computation time.
+#' # n, B and iter are kept small in example to lower computation time.
 #'
 #' print(bagged)
 #' summary(bagged, show = c("hsic", "dcor"))
 #'
 #' \dontrun{
-#' ## --- Realistic settings with longer runtime
+#' ## --- More realistic settings with longer runtime
 #'
-#' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 500,
+#' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 2000,
 #'   hetero = TRUE, nlfun = 2, diff = TRUE)
 #'
-#' bagged <- dda.bagging(base_model, data = d, iter = 200,
+#' bagged <- dda.bagging(base_model, data = d, iter = 100,
 #'   agg_stat = "trimmed", trim_prob = 0.05)
 #'
 #' print(bagged)
@@ -189,8 +189,8 @@ dda.bagging <- function(dda_result,
 
     boot.env$boot.data <- data[sample(1:nobs, nobs, replace = TRUE), ]
 
-    # if BCa fails in someiters, pkg skips the iter through try()
-    # evaluates initial dda call (boot.call) within the space data lives (boot.env)
+    # if BCa fails in some iters, run skips that iter through try()
+    # evaluates init dda call (boot.call) within the space data lives (boot.env)
     fit <- try(eval(boot.call, boot.env), silent = TRUE)
 
     if (progress) setTxtProgressBar(pb, i)
@@ -199,7 +199,7 @@ dda.bagging <- function(dda_result,
       next
     }
 
-    # [new] drop stored call (no longer needed and slows down saving obj)
+    # [new] drop stored call (call is no longer needed and slows down saving obj)
     # each fit keeps the call + formula env, x iter copies
     fit$call_info <- NULL
     results[[i]] <- fit

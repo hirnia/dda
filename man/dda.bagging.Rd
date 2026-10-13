@@ -147,7 +147,7 @@ print(bagged)
 summary(bagged, show = c("hsic", "dcor"))
 
 \dontrun{
-## --- Realistic settings; run time is substantial
+## --- Realistic settings with longer runtime
 
 base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 500,
   hetero = TRUE, nlfun = 2, diff = TRUE)
