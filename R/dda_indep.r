@@ -29,7 +29,9 @@
 #'   \code{diff = TRUE}.
 #' @param boot.type A vector of character strings representing the type of
 #'   bootstrap confidence intervals. Must be one of the two specifications
-#'   \code{c("perc", "bca")}. \code{boot.type = "perc"} is the default.
+#'   \code{c("perc", "bca")}. \code{boot.type = "perc"} is the default. When
+#'   the BCa acceleration constant cannot be calculated, percentile intervals
+#'   are returned with a warning.
 #' @param conf.level Confidence level for bootstrap confidence intervals.
 #' @param parallelize A logical value indicating whether bootstrapping is
 #'   performed on multiple cores. Only used if \code{diff = TRUE}.
@@ -310,9 +312,6 @@ dda.indep <- function(
 #'
 #' @param x An object of class \code{dda.indep} when using \code{print}.
 #' @param ... Additional arguments to be passed to the function.
-#'
-#' @examples
-#' print(result)
 #'
 #' @export
 #' @rdname dda.indep

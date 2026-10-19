@@ -56,7 +56,9 @@ resamples if \code{hsic.method = c("bootstrap", "permutation")} or
 
 \item{boot.type}{A vector of character strings representing the type of
 bootstrap confidence intervals. Must be one of the two specifications
-\code{c("perc", "bca")}. \code{boot.type = "perc"} is the default.}
+\code{c("perc", "bca")}. \code{boot.type = "perc"} is the default. When
+the BCa acceleration constant cannot be calculated, percentile intervals
+are returned with a warning.}
 
 \item{conf.level}{Confidence level for bootstrap confidence intervals.}
 
@@ -114,8 +116,6 @@ dda.indep(y ~ x, pred = "x", data = d, hsic.method = "permutation", B = 500)
 
 dda.indep(y ~ x, pred = "x", data = d, robust = TRUE, hetero = TRUE, B = 500)
 }
-
-print(result)
 
 }
 \references{

@@ -85,7 +85,7 @@ An object of class \code{cdda.vardist} containing the results of
 }
 \description{
 \code{cdda.vardist} evaluates variable distributions of competing
-             conditional models (\code{y ~ x * m} vs.\code{x ~ y * m} with \code{m}
+             conditional models (\code{y ~ x * m} vs. \code{x ~ y * m} with \code{m}
              being a continuous or categorical moderator).
 
 \code{print} returns the output of standard linear model coefficients

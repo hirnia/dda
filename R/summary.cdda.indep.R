@@ -157,7 +157,6 @@ summary.cdda.indep <- function(object,
 
     for (i in seq_along(mod_names)) {
 
-      # htest stores statistic and p.value (no separate critical value)
       tar.hsic <- c(cdda.output[[1]][[i]]$hsic.yx$statistic, cdda.output[[1]][[i]]$hsic.yx$p.value)
       alt.hsic <- c(cdda.output[[2]][[i]]$hsic.yx$statistic, cdda.output[[2]][[i]]$hsic.yx$p.value)
       hsictests[i, ] <- c(tar.hsic, alt.hsic)

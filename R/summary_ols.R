@@ -8,15 +8,18 @@
 #'
 #' @param object An object of class \code{dda_bagging} obtained from
 #'   \code{dda.bagging}.
-#' @param agg_stat Character. Method used to aggregate coefficients and
-#'   R-squared values across bootstrap samples. Must be one of
-#'   \code{c("mean", "median", "trimmed", "winsorized", "midhinge",
-#'   "tukey")}. If \code{NULL}, the method used in \code{dda.bagging} is
-#'   kept.
-#' @param trim_prob Numeric. Proportion of observations trimmed from each
-#'   side of the sampling distribution when \code{agg_stat = "trimmed"}.
-#' @param win_prob Numeric. Proportion of observations winsorized on each
-#'   side of the sampling distribution when \code{agg_stat = "winsorized"}.
+#' @param agg_stat Character. Specifies the method used for aggregating
+#'   coefficients and R-squared values across bootstrap samples. Must be one
+#'   of the following specifications \code{c("mean", "median", "trimmed",
+#'   "winsorized", "midhinge", "tukey")}. If \code{NULL} (default), the
+#'   function uses the method applied within \code{dda.bagging}.
+#' @param trim_prob Numeric. Proportion of observations to be trimmed from
+#'   each side of the sampling distribution when \code{agg_stat = "trimmed"}
+#'   (default: the value used in \code{dda.bagging}).
+#' @param win_prob Numeric. Proportion of observations to be winsorized from
+#'   each side of the sampling distribution when
+#'   \code{agg_stat = "winsorized"} (default: the value used in
+#'   \code{dda.bagging}).
 #' @param digits Integer. Number of digits used for rounding (default: 4).
 #' @param ... Additional arguments to be passed to the function.
 #'

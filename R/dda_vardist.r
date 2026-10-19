@@ -39,6 +39,8 @@
 #' result <- dda.vardist(y ~ x, pred = "x", data = d, B = 50)
 #' # Note: Only 50 bootstrap samples are used here to lower computation time
 #'
+#' print(result)
+#'
 #' \dontrun{
 #'
 #' result <- dda.vardist(y ~ x, pred = "x", data = d, B = 500,
@@ -208,9 +210,6 @@ dda.vardist <- function(formula,
 #'
 #' @param x An object of class \code{dda.vardist} when using \code{print}.
 #' @param ... Additional arguments to be passed to the function.
-#'
-#' @examples
-#' print(result)
 #'
 #' @export
 #' @rdname dda.vardist

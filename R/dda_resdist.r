@@ -12,7 +12,8 @@
 #' @param data An optional data frame containing the variables in the model
 #'   (by default variables are taken from the environment which
 #'   \code{dda.resdist} is called from).
-#' @param B Number of bootstrap samples.
+#' @param B Number of bootstrap samples. With \code{B = 0}, only the
+#'   asymptotic skewness and kurtosis difference tests are computed.
 #' @param boot.type A vector of character strings representing the type of
 #'   bootstrap confidence intervals. Must be one of the two values
 #'   \code{c("perc", "bca")}; \code{boot.type = "perc"} is the default.
@@ -25,7 +26,6 @@
 #'   \code{robust = TRUE} repeated median estimation is applied for the
 #'   causally competing models, otherwise ordinary least squares (OLS)
 #'   estimation is used.
-#' @param ... Additional arguments to be passed to the function.
 #'
 #' @return An object of class \code{dda.resdist} containing the results of
 #'   direction dependence tests of error distributions.
@@ -47,8 +47,7 @@
 #'
 #' print(result)
 #'
-#' ## --- prob.trans = TRUE maps the predictor onto the marginal of the outcome,
-#' ## --- so it is informative when the outcome is itself non-normal.
+#' ## --- Probability integral transformation with non-normal errors
 #'
 #' d.skew <- data.frame(x, y = 0.5 * x + (rchisq(n, df = 3) - 3))
 #'
@@ -437,11 +436,6 @@ dda.resdist <- function(formula,
 #'
 #' @param x An object of class \code{dda.resdist} when using \code{print}.
 #' @param ... Additional arguments to be passed to the method.
-#'
-#' @examples
-#' \dontrun{
-#' print(result)
-#' }
 #'
 #' @export
 #' @rdname dda.resdist

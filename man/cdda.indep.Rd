@@ -54,12 +54,12 @@ cdda.indep(
 values used in post-hoc probing. Possible characters include
 \code{c("mean", "median", "JN")}. \code{modval = "mean"}
 tests the interaction effect at the moderator values
-\code{M – 1SD}, \code{M}, and \code{M + 1SD};
+\code{M - 1SD}, \code{M}, and \code{M + 1SD};
 \code{modval = "median"} uses \code{Q1}, \code{Md},
 and \code{Q3}. The Johnson-Neyman approach is applied
 when \code{modval = "JN"} with conditional effects being
 evaluated at the boundary values of the significance
-regions. When a numeric sequence is specified,the
+regions. When a numeric sequence is specified, the
 pick-a-point approach is used for the selected numeric values.}
 
 \item{data}{A required data frame containing the variables in the model.}
@@ -185,9 +185,7 @@ result <- cdda.indep(m,
                      cores = 2,
                      nlfun = 2,
                      B = 2)
-# Note: Only 2 bootstrap samples are created here to lower computation time.
-# Permutation p-values cannot fall below 1 / (B + 1), so the dCor p-values
-# below are bounded at 0.33; raise B for inference.
+# Note: Only 2 bootstrap samples are created here to lower computation time
 
 \dontrun{
 

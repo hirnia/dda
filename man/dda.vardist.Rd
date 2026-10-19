@@ -61,6 +61,8 @@ d <- data.frame(x, y)
 result <- dda.vardist(y ~ x, pred = "x", data = d, B = 50)
 # Note: Only 50 bootstrap samples are used here to lower computation time
 
+print(result)
+
 \dontrun{
 
 result <- dda.vardist(y ~ x, pred = "x", data = d, B = 500,
@@ -68,8 +70,6 @@ result <- dda.vardist(y ~ x, pred = "x", data = d, B = 500,
 
 print(result)
 }
-
-print(result)
 
 }
 \references{

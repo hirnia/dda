@@ -11,6 +11,7 @@
 ### Bug fixes
 
 -	In `dda.indep`, `boot.type = "bca"` now falls back to percentile intervals with a warning when the acceleration constant cannot be calculated (previously, the function stopped).
+-	In `cdda.vardist`, `conf.level` is now passed to the bootstrap CIs for continuous moderators (previously, 95% CIs were always returned).
 -	Various minor documentation changes and clarifications.
 
 

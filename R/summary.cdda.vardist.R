@@ -214,7 +214,6 @@ summary.cdda.vardist <- function(object,
     print.default(format(hoctests.kurt, digits = max(3L, getOption("digits") - 3L)), print.gap = 2L, quote = FALSE)
     cat("---", "\n")
 
-    #cat("\n", paste("Note: (Cor^2[i,j] - Cor^2[j,i]) > 0 suggests the model", varnames[2], "->", varnames[1], sep = " "), "\n", "\n") #used orig pred & outcome varz
     if(cdda.output[[1]][[1]]$boot.warning) { cat("Warning: Excess-kurtosis values of", varnames[2], "and", varnames[1], "have unequal signs", "\n", "        Cor^2[3,1] - Cor^2[1,3] should also be computed for the model", varnames[1], "->", varnames[2], "\n") }
 
     #### Chen-Chan (co-kurtosis) ### -------------------------------------------

@@ -1,19 +1,21 @@
 #' @title Summary Method for Bootstrap Aggregated DDA Objects
 #'
 #' @description \code{summary} returns the proportion of model selection
-#' decisions (target model, alternative model, confounding, or undecided)
-#' across the bootstrap samples of a bootstrap aggregated Direction
-#' Dependence Analysis (DDA) object.
+#' decisions (i.e., target model, alternative model, presence of hidden
+#' confounding, or undecided) across the bootstrap samples for bootstrap
+#' aggregated Direction Dependence Analysis (DDA) objects.
 #'
-#' @param object An object of class \code{dda_bagging} obtained from
-#'   \code{dda.bagging}.
-#' @param show Character vector specifying the DDA statistics to report.
-#'   Accepts \code{c("hsic", "dcor", "mi", "bp", "nlcor")} for independence
+#' @param object An object of class \code{dda_bagging}
+#'   (\code{dda_bagging_indep}, \code{dda_bagging_vardist}, or
+#'   \code{dda_bagging_resdist}) obtained from \code{dda.bagging}.
+#' @param show Character vector specifying the DDA statistics used to perform
+#'   model selection. The function accepts
+#'   \code{c("hsic", "dcor", "mi", "bp", "nlcor")} for independence
 #'   properties and \code{c("skew", "kurt", "coskew", "cokurt")} for variable
-#'   and residual distributions. If \code{NULL} (default), all available
-#'   statistics are reported.
-#' @param digits Integer. Number of decimal places for proportions
-#'   (default: 2).
+#'   and residual distributions. If \code{NULL} (default), the function prints
+#'   all DDA statistics available in the input object.
+#' @param digits Integer. Number of decimal places used for rounding the
+#'   proportions (default: 2).
 #' @param ... Additional arguments to be passed to the function.
 #'
 #' @details Confounding is a possible decision only for the separate

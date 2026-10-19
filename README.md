@@ -1,6 +1,6 @@
 ## Overview
 
-Direction Dependence Analysis (Package: \code{dda}) provides framework for analyzing competing linear models. A target model \code{y ~ x} is compared to an alternate (causally reversed) model \code{x ~ y} through a series of diagnostic tests. DDA framework supports causal model exploration and potential confounding detection through diagnostics with higher-order moments.
+Direction Dependence Analysis (Package: `dda`) provides framework for analyzing competing linear models. A target model `y ~ x` is compared to an alternate (causally reversed) model `x ~ y` through a series of diagnostic tests. DDA framework supports causal model exploration and potential confounding detection through diagnostics with higher-order moments.
 
 * `cdda.indep()` conditional (moderation) independence property tests, including non‐linear correlation tests, Breusch–Pagan homoscedasticity tests, and the HSIC test 
 * `cdda.vardist()` conditional (moderation) variable distribution‐based tests, including D'Agostino and Anscombe–Glynn tests and bootstrap CIs on higher moment differences
