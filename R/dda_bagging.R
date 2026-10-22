@@ -14,7 +14,7 @@
 #' @param alpha Numeric. Significance level used for causal model selection
 #'   (default: 0.05).
 #' @param agg_stat Character. Specifies the method used for aggregating test
-#'   statistics, p-values, and coefficients across bootstrap samples. Must be
+#'   statistics and coefficients across bootstrap samples. Must be
 #'   one of the following specifications \code{c("mean", "median",
 #'   "trimmed", "winsorized", "midhinge", "tukey")}. When using \code{print},
 #'   \code{agg_stat = NULL} (default) uses the method applied within
@@ -38,8 +38,10 @@
 #' to evaluate the stability and robustness of DDA model selection. In each
 #' bootstrap sample the original DDA function is called with its original
 #' arguments and the causally competing OLS models are fitted. Test
-#' statistics and p-values obtained from significance tests are aggregated
-#' across bootstrap samples using \code{agg_stat}.
+#' statistics are aggregated across bootstrap samples using \code{agg_stat}.
+#' P-values of significance tests are pooled across bootstrap samples with
+#' the asymptotically exact harmonic mean p-value using equal weights
+#' (Wilson, 2019).
 #'
 #' Bootstrap samples in which the DDA call fails (e.g., when BCa intervals
 #' cannot be computed) are dropped with a warning that reports the number of
@@ -99,6 +101,10 @@
 #' Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis:
 #' Foundations and Statistical Methods}. Cambridge, UK: Cambridge University
 #' Press.
+#'
+#' Wilson, D. J. (2019). The harmonic mean p-value for combining dependent
+#' tests. \emph{Proceedings of the National Academy of Sciences, 116}(4),
+#' 1195-1200.
 #'
 #' @seealso \code{\link{dda.indep}}, \code{\link{dda.vardist}},
 #'   \code{\link{dda.resdist}}, \code{\link{summary.dda_bagging}},
@@ -292,7 +298,8 @@ print.dda_bagging <- function(x, agg_stat = NULL, trim_prob = x$trim_prob, win_p
   cat("BOOTSTRAP AGGREGATED DDA", "\n")
   cat(paste("Number of bootstrap samples:", object$n_valid_iterations), "\n")
   cat(paste("Aggregation method:", object$agg_stat), "\n")
-  cat("Test statistics and p-values are aggregated across bootstrap samples.", "\n")
+  cat("Test statistics are aggregated across bootstrap samples.", "\n")
+  cat("P-values are pooled with the harmonic mean p-value.", "\n")
 
   print(object$aggregated_stats)
 
@@ -326,9 +333,10 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = object$trim
 #' @title Aggregate DDA Results Across Bootstrap Samples
 #'
 #' @description Returns a DDA object of the same class as the bootstrap
-#'   results in which every test statistic and p-value is the aggregate of
-#'   that value across bootstrap samples. The object prints with the print
-#'   method of the original DDA function.
+#'   results in which every test statistic is aggregated with
+#'   \code{agg_stat} and every p-value is pooled with \code{agg.p} across
+#'   bootstrap samples. The object prints with the print method of the
+#'   original DDA function.
 #'
 #' @keywords internal
 #' @noRd
@@ -337,8 +345,9 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
   first <- results[[1]]
 
   # aggregate of one stored value; index is its position in a DDA object,
-  # e.g. c("hsic.yx", "p.value") or list("breusch_pagan", 2, "p.value")
-  bag <- function(index){
+  # e.g. c("hsic.yx", "p.value") or list("breusch_pagan", 2, "p.value");
+  # p gives the elements of the stored value that are p-values
+  bag <- function(index, p = NULL){
     out <- first
     for (k in index) out <- out[[k]]
     values <- matrix(NA, nrow = length(results), ncol = length(out))
@@ -347,7 +356,13 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
       for (k in index) value <- value[[k]]
       if (!is.null(value)) values[i, ] <- as.numeric(value)
     }
-    for (j in 1:length(out)) out[j] <- agg.value(values[, j], agg_stat, trim_prob, win_prob)
+    for (j in 1:length(out)) {
+      if (j %in% p) {
+        out[j] <- agg.p(values[, j])
+      } else {
+        out[j] <- agg.value(values[, j], agg_stat, trim_prob, win_prob)
+      }
+    }
     out
   }
 
@@ -358,7 +373,7 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
     for (test in c("agostino", "anscombe")) {
       for (m in c("predictor", "outcome")) {
         agg[[test]][[m]] <- list(statistic = bag(c(test, m, "statistic")),
-                                 p.value = bag(c(test, m, "p.value")))
+                                 p.value = bag(c(test, m, "p.value"), p = 1))
       }
     }
 
@@ -373,12 +388,13 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
     for (test in c("agostino", "anscombe")) {
       for (m in c("target", "alternative")) {
         agg[[test]][[m]] <- list(statistic = bag(c(test, m, "statistic")),
-                                 p.value = bag(c(test, m, "p.value")))
+                                 p.value = bag(c(test, m, "p.value"), p = 1))
       }
     }
 
-    agg$skewdiff <- bag("skewdiff")
-    agg$kurtdiff <- bag("kurtdiff")
+    # third element of skewdiff and kurtdiff is the p-value of the difference test
+    agg$skewdiff <- bag("skewdiff", p = 3)
+    agg$kurtdiff <- bag("kurtdiff", p = 3)
 
     if (!is.null(first$cor12diff)) {
       for (s in c("cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) agg[[s]] <- bag(s)
@@ -393,13 +409,13 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
 
     for (m in c("hsic.yx", "hsic.xy")) {
       agg[[m]] <- list(statistic = bag(c(m, "statistic")),
-                       p.value = bag(c(m, "p.value")))
+                       p.value = bag(c(m, "p.value"), p = 1))
     }
     agg$hsic.method <- first$hsic.method
 
     for (m in c("distance_cor.dcor_yx", "distance_cor.dcor_xy")) {
       agg[[m]] <- list(statistic = bag(c(m, "statistic")),
-                       p.value = bag(c(m, "p.value")))
+                       p.value = bag(c(m, "p.value"), p = 1))
     }
 
     if (!is.null(first$breusch_pagan)) {
@@ -407,15 +423,16 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
       for (k in 1:4) {
         agg$breusch_pagan[[k]] <- list(statistic = bag(list("breusch_pagan", k, "statistic")),
                                        parameter = bag(list("breusch_pagan", k, "parameter")),
-                                       p.value = bag(list("breusch_pagan", k, "p.value")))
+                                       p.value = bag(list("breusch_pagan", k, "p.value"), p = 1))
       }
     }
 
     if (!is.null(first$nlfun)) {
       for (m in c("nlcor.yx", "nlcor.xy")) {
-        agg[[m]] <- list(t1 = bag(c(m, "t1")),
-                         t2 = bag(c(m, "t2")),
-                         t3 = bag(c(m, "t3")),
+        # fourth element of t1, t2 and t3 is the p-value
+        agg[[m]] <- list(t1 = bag(c(m, "t1"), p = 4),
+                         t2 = bag(c(m, "t2"), p = 4),
+                         t3 = bag(c(m, "t3"), p = 4),
                          func = first[[m]]$func)
       }
       agg$nlfun <- first$nlfun
@@ -466,6 +483,23 @@ agg.value <- function(x, agg_stat, trim_prob, win_prob){
   }
 
   stop("Unknown agg_stat. Choose 'mean', 'median', 'trimmed', 'winsorized', 'midhinge', or 'tukey'.")
+}
+
+
+#' @title Pool p-values Across Bootstrap Samples
+#'
+#' @description Asymptotically exact harmonic mean p-value (Wilson, 2019)
+#'   with equal weights for the p-values of one test across bootstrap
+#'   samples. Non-finite values are dropped.
+#'
+#' @keywords internal
+#' @noRd
+agg.p <- function(p){
+
+  p <- p[is.finite(p)]
+  if (length(p) == 0) return(NA)
+
+  unname(harmonicmeanp::p.hmp(p, L = length(p), multilevel = FALSE))
 }
 
 

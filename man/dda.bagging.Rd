@@ -32,7 +32,7 @@ original DDA model (outcome, predictor, and any covariates).}
 (default: 0.05).}
 
 \item{agg_stat}{Character. Specifies the method used for aggregating test
-statistics, p-values, and coefficients across bootstrap samples. Must be
+statistics and coefficients across bootstrap samples. Must be
 one of the following specifications \code{c("mean", "median",
 "trimmed", "winsorized", "midhinge", "tukey")}. When using \code{print},
 \code{agg_stat = NULL} (default) uses the method applied within
@@ -90,8 +90,10 @@ statistics across \code{iter} bootstrap samples and aggregates the results
 to evaluate the stability and robustness of DDA model selection. In each
 bootstrap sample the original DDA function is called with its original
 arguments and the causally competing OLS models are fitted. Test
-statistics and p-values obtained from significance tests are aggregated
-across bootstrap samples using \code{agg_stat}.
+statistics are aggregated across bootstrap samples using \code{agg_stat}.
+P-values of significance tests are pooled across bootstrap samples with
+the asymptotically exact harmonic mean p-value using equal weights
+(Wilson, 2019).
 
 Bootstrap samples in which the DDA call fails (e.g., when BCa intervals
 cannot be computed) are dropped with a warning that reports the number of
@@ -170,6 +172,10 @@ summary_ols(bagged)
 Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis:
 Foundations and Statistical Methods}. Cambridge, UK: Cambridge University
 Press.
+
+Wilson, D. J. (2019). The harmonic mean p-value for combining dependent
+tests. \emph{Proceedings of the National Academy of Sciences, 116}(4),
+1195-1200.
 }
 \seealso{
 \code{\link{dda.indep}}, \code{\link{dda.vardist}},

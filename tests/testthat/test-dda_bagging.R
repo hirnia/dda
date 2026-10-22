@@ -156,6 +156,32 @@ test_that("agg.value drops non-finite values and handles every method", {
   expect_error(agg.value(x, "geometric"), regexp = "Unknown agg_stat")
 })
 
+test_that("p-values are pooled with the harmonic mean p-value", {
+  p <- c()
+  for (fit in bag_vardist$bagged_results) p <- c(p, fit$agostino$outcome$p.value)
+  expect_equal(bag_vardist$aggregated_stats$agostino$outcome$p.value, agg.p(p))
+
+  p <- c()
+  for (fit in bag_resdist$bagged_results) p <- c(p, fit$skewdiff[[3]])
+  expect_equal(bag_resdist$aggregated_stats$skewdiff[[3]], agg.p(p))
+
+  p <- c()
+  for (fit in bag_indep$bagged_results) p <- c(p, fit$nlcor.yx$t1[[4]])
+  expect_equal(bag_indep$aggregated_stats$nlcor.yx$t1[[4]], agg.p(p))
+})
+
+test_that("agg_stat leaves the pooled p-values unchanged", {
+  set.seed(101); res_mean <- run_bag(base_indep, d, iter = 5)
+  set.seed(101); res_med  <- run_bag(base_indep, d, iter = 5, agg_stat = "median")
+  expect_equal(res_mean$aggregated_stats$hsic.yx$p.value,
+               res_med$aggregated_stats$hsic.yx$p.value)
+})
+
+test_that("agg.p drops non-finite values", {
+  expect_true(is.na(agg.p(c(NA, Inf))))
+  expect_equal(agg.p(c(0.01, 0.2, NA)), agg.p(c(0.01, 0.2)))
+})
+
 ## ============================================================================
 ## 4. Decisions
 ## ============================================================================
