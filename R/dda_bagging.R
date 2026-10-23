@@ -553,14 +553,13 @@ dda.decisions <- function(dda_result, alpha = 0.05){
 
   } else if (inherits(obj, "dda.resdist")) {
 
-    # under prob.trans = TRUE the target and alternative p-values swap roles
-    if (isFALSE(obj$probtrans)) {
+#    if (isFALSE(obj$probtrans)) {
       dec["agostino"] <- decide.p(obj$agostino$target$p.value, obj$agostino$alternative$p.value)
       dec["anscombe"] <- decide.p(obj$anscombe$target$p.value, obj$anscombe$alternative$p.value)
-    } else if (isTRUE(obj$probtrans)) {
-      dec["agostino"] <- decide.p(obj$agostino$alternative$p.value, obj$agostino$target$p.value)
-      dec["anscombe"] <- decide.p(obj$anscombe$alternative$p.value, obj$anscombe$target$p.value)
-    } else stop("The prob.trans setting of the dda.resdist object is missing.")
+ #   } else if (isTRUE(obj$probtrans)) {
+ #     dec["agostino"] <- decide.p(obj$agostino$alternative$p.value, obj$agostino$target$p.value)
+ #     dec["anscombe"] <- decide.p(obj$anscombe$alternative$p.value, obj$anscombe$target$p.value)
+ #   } else stop("The prob.trans setting of the dda.resdist object is missing.")
 
     for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
       if ("lower" %in% names(obj[[s]])) dec[s] <- decide.ci(obj[[s]])
