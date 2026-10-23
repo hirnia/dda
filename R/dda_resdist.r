@@ -328,15 +328,13 @@ dda.resdist <- function(formula,
 
 	if( isTRUE(prob.trans) ){
 
-	  # agostino.out <- apply(dat[c("alternative.trans", "target.trans")], 2, moments::agostino.test)
-
-	  # 0.2.0 transformed residual tests stored crosswise, so that p(target) > alpha and p(alternative) <= alpha suggest the target model
+	  # 0.2.0 transformed residual tests so that p(target) > alpha and p(alternative) <= alpha suggest the target model
+  # agostino.out <- apply(dat[c("alternative.trans", "target.trans")], 2, moments::agostino.test)
 	  agostino.out <- apply(dat[c("target.trans", "alternative.trans")], 2, moments::agostino.test)
-	  # names(agostino.out) <- c("alternative", "target")
-	  # agostino.out <- lapply(agostino.out, unclass)
+	  names(agostino.out) <- c("alternative", "target")
+	  agostino.out <- lapply(agostino.out, unclass)
 
-
-	  # anscombe.out <- apply(dat[c("alternative.trans", "target.trans")], 2, myanscombe.test)
+  # anscombe.out <- apply(dat[c("alternative.trans", "target.trans")], 2, myanscombe.test)
 	  anscombe.out <- apply(dat[c("target.trans", "alternative.trans")], 2, myanscombe.test)
 	  names(anscombe.out) <- c("alternative", "target")
 	  anscombe.out <- lapply(anscombe.out, unclass)
