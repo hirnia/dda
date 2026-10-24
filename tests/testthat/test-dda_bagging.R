@@ -226,6 +226,28 @@ test_that("both significant separate tests are confounding for indep and undecid
   expect_equal(unname(dda.decisions(obj)["agostino"]), "Undecided")
 })
 
+test_that("resdist difference tests decide from p and the sign of the difference", {
+  obj <- base_resdist
+  obj$skewdiff[1] <- 0.4
+  obj$skewdiff["p.value"] <- 0.01
+  expect_equal(unname(dda.decisions(obj)["skewdiff.test"]), "Target")
+  obj$skewdiff[1] <- -0.4
+  expect_equal(unname(dda.decisions(obj)["skewdiff.test"]), "Alternative")
+  obj$skewdiff["p.value"] <- 0.20
+  expect_equal(unname(dda.decisions(obj)["skewdiff.test"]), "Undecided")
+})
+
+test_that("non-linear correlation decisions use alpha / 3", {
+  obj <- base_indep_full
+  for (k in c("t1", "t2", "t3")) {
+    obj$nlcor.yx[[k]][4] <- 0.50
+    obj$nlcor.xy[[k]][4] <- 0.03
+  }
+  expect_equal(unname(dda.decisions(obj, alpha = 0.05)["nlcor"]), "Undecided")
+  for (k in c("t1", "t2", "t3")) obj$nlcor.xy[[k]][4] <- 0.01
+  expect_equal(unname(dda.decisions(obj, alpha = 0.05)["nlcor"]), "Target")
+})
+
 test_that("dda.decisions rejects other objects", {
   expect_error(dda.decisions(list(a = 1)), regexp = "must be a dda.indep")
 })

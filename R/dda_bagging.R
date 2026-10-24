@@ -65,12 +65,19 @@
 #'
 #' Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
 #' Breusch-Pagan, and non-linear correlation using the smallest of the three
-#' p-values):
+#' p-values compared with \code{alpha / 3}, a Bonferroni correction):
 #' \itemize{
 #'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: target model
 #'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
 #'   \item \code{p_yx <= alpha} and \code{p_xy <= alpha}: confounding
 #'   \item \code{p_yx > alpha} and \code{p_xy > alpha}: undecided
+#' }
+#'
+#' Asymptotic skewness and kurtosis difference tests (\code{dda.resdist}):
+#' \itemize{
+#'   \item \code{p <= alpha} and difference \code{> 0}: target model
+#'   \item \code{p <= alpha} and difference \code{< 0}: alternative model
+#'   \item otherwise: undecided
 #' }
 #'
 #' Difference statistics use their bootstrap confidence intervals. An
@@ -197,8 +204,7 @@ dda.bagging <- function(dda_result,
 
     boot.env$boot.data <- data[sample(1:nobs, nobs, replace = TRUE), ]
 
-    # if BCa fails in some iters, run skips that iter through try()
-    # evaluates init dda call (boot.call) within the space data lives (boot.env)
+    # a bootstrap sample in which the DDA call fails is skipped
     fit <- try(eval(boot.call, boot.env), silent = TRUE)
 
     if (progress) setTxtProgressBar(pb, i)
@@ -207,8 +213,7 @@ dda.bagging <- function(dda_result,
       next
     }
 
-    # [new] drop stored call (call is no longer needed and slows down saving obj)
-    # each fit keeps the call + formula env, x iter copies
+    # the stored call is not needed in the bootstrap results
     fit$call_info <- NULL
     results[[i]] <- fit
 
@@ -392,7 +397,8 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
       }
     }
 
-    # third element of skewdiff and kurtdiff is the p-value of the difference test
+    # skewdiff and kurtdiff hold the difference, z, p and (with B > 0) the
+    # lower and upper limits; the third element is the p-value
     agg$skewdiff <- bag("skewdiff", p = 3)
     agg$kurtdiff <- bag("kurtdiff", p = 3)
 
@@ -523,11 +529,33 @@ dda.decisions <- function(dda_result, alpha = 0.05){
 
   # separate tests: p.yx from the target model, p.xy from the alternative model;
   # both significant is confounding for dda.indep and undecided otherwise
-  decide.p <- function(p.yx, p.xy){
+  decide.p <- function(p.yx, p.xy, alpha){
     if (is.na(p.yx) || is.na(p.xy)) return(NA)
     if (p.yx >  alpha & p.xy <= alpha) return("Target")
     if (p.yx <= alpha & p.xy >  alpha) return("Alternative")
     if (p.yx <= alpha & p.xy <= alpha & inherits(dda_result, "dda.indep")) return("Confounding")
+    return("Undecided")
+  }
+
+  # separate residual tests of dda.resdist; under prob.trans = TRUE the
+  # target and alternative p-values swap roles
+  decide.p.resdist <- function(p.yx, p.xy, prob.trans, alpha){
+    if (is.na(p.yx) || is.na(p.xy)) return(NA)
+    if (isTRUE(prob.trans)) {
+      if (p.yx <= alpha & p.xy >  alpha) return("Target")
+      if (p.yx >  alpha & p.xy <= alpha) return("Alternative")
+    } else if (isFALSE(prob.trans)) {
+      if (p.yx >  alpha & p.xy <= alpha) return("Target")
+      if (p.yx <= alpha & p.xy >  alpha) return("Alternative")
+    } else stop("The prob.trans setting of the dda.resdist object is missing.")
+    return("Undecided")
+  }
+
+  # asymptotic difference tests: significance from p, direction from the difference
+  decide.test <- function(diff, p, alpha){
+    if (is.na(diff) || is.na(p)) return(NA)
+    if (p <= alpha & diff > 0) return("Target")
+    if (p <= alpha & diff < 0) return("Alternative")
     return("Undecided")
   }
 
@@ -546,20 +574,18 @@ dda.decisions <- function(dda_result, alpha = 0.05){
 
   if (inherits(obj, "dda.vardist")) {
 
-    dec["agostino"] <- decide.p(obj$agostino$outcome$p.value, obj$agostino$predictor$p.value)
-    dec["anscombe"] <- decide.p(obj$anscombe$outcome$p.value, obj$anscombe$predictor$p.value)
+    dec["agostino"] <- decide.p(obj$agostino$outcome$p.value, obj$agostino$predictor$p.value, alpha)
+    dec["anscombe"] <- decide.p(obj$anscombe$outcome$p.value, obj$anscombe$predictor$p.value, alpha)
 
     for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) dec[s] <- decide.ci(obj[[s]])
 
   } else if (inherits(obj, "dda.resdist")) {
 
-#    if (isFALSE(obj$probtrans)) {
-      dec["agostino"] <- decide.p(obj$agostino$target$p.value, obj$agostino$alternative$p.value)
-      dec["anscombe"] <- decide.p(obj$anscombe$target$p.value, obj$anscombe$alternative$p.value)
- #   } else if (isTRUE(obj$probtrans)) {
- #     dec["agostino"] <- decide.p(obj$agostino$alternative$p.value, obj$agostino$target$p.value)
- #     dec["anscombe"] <- decide.p(obj$anscombe$alternative$p.value, obj$anscombe$target$p.value)
- #   } else stop("The prob.trans setting of the dda.resdist object is missing.")
+    dec["agostino"] <- decide.p.resdist(obj$agostino$target$p.value, obj$agostino$alternative$p.value, obj$probtrans, alpha)
+    dec["anscombe"] <- decide.p.resdist(obj$anscombe$target$p.value, obj$anscombe$alternative$p.value, obj$probtrans, alpha)
+
+    dec["skewdiff.test"] <- decide.test(obj$skewdiff[1], obj$skewdiff["p.value"], alpha)
+    dec["kurtdiff.test"] <- decide.test(obj$kurtdiff[1], obj$kurtdiff["p.value"], alpha)
 
     for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
       if ("lower" %in% names(obj[[s]])) dec[s] <- decide.ci(obj[[s]])
@@ -567,19 +593,19 @@ dda.decisions <- function(dda_result, alpha = 0.05){
 
   } else if (inherits(obj, "dda.indep")) {
 
-    dec["hsic"] <- decide.p(obj$hsic.yx$p.value, obj$hsic.xy$p.value)
-    dec["dcor"] <- decide.p(obj$distance_cor.dcor_yx$p.value, obj$distance_cor.dcor_xy$p.value)
+    dec["hsic"] <- decide.p(obj$hsic.yx$p.value, obj$hsic.xy$p.value, alpha)
+    dec["dcor"] <- decide.p(obj$distance_cor.dcor_yx$p.value, obj$distance_cor.dcor_xy$p.value, alpha)
 
     # robust Breusch-Pagan tests are elements 2 (target) and 4 (alternative)
     if (!is.null(obj$breusch_pagan)) {
-      dec["bp"] <- decide.p(obj$breusch_pagan[[2]]$p.value, obj$breusch_pagan[[4]]$p.value)
+      dec["bp"] <- decide.p(obj$breusch_pagan[[2]]$p.value, obj$breusch_pagan[[4]]$p.value, alpha)
     }
 
-    # smallest p-value of the three non-linear correlation tests
+    # smallest p-value of the three non-linear correlation tests, Bonferroni corrected
     if (!is.null(obj$nlcor.yx)) {
       p.yx <- min(obj$nlcor.yx$t1[4], obj$nlcor.yx$t2[4], obj$nlcor.yx$t3[4])
       p.xy <- min(obj$nlcor.xy$t1[4], obj$nlcor.xy$t2[4], obj$nlcor.xy$t3[4])
-      dec["nlcor"] <- decide.p(p.yx, p.xy)
+      dec["nlcor"] <- decide.p(p.yx, p.xy, alpha / 3)
     }
 
     if (!is.null(obj$out.diff)) {

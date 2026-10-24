@@ -54,8 +54,8 @@ summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
                  mi     = "mi.diff",
                  bp     = "bp",
                  nlcor  = "nlcor",
-                 skew   = c("agostino", "skewdiff"),
-                 kurt   = c("anscombe", "kurtdiff"),
+                 skew   = c("agostino", "skewdiff.test", "skewdiff"),
+                 kurt   = c("anscombe", "kurtdiff.test", "kurtdiff"),
                  coskew = c("cor12diff", "RHS", "RHS3"),
                  cokurt = c("cor13diff", "RCC", "RHS4", "Rtanh"))
 
@@ -68,6 +68,8 @@ summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
               mi.diff   = "MI Difference",
               agostino  = "Separate D'Agostino Tests",
               anscombe  = "Separate Anscombe-Glynn Tests",
+              skewdiff.test = "Skewness Difference Test",
+              kurtdiff.test = "Kurtosis Difference Test",
               skewdiff  = "Skewness Difference",
               kurtdiff  = "Kurtosis Difference",
               cor12diff = "Co-Skewness Difference",
