@@ -182,6 +182,10 @@ test_that("agg.p drops non-finite values", {
   expect_equal(agg.p(c(0.01, 0.2, NA)), agg.p(c(0.01, 0.2)))
 })
 
+test_that("agg.p returns zero when a p-value is zero", {
+  expect_equal(agg.p(c(0, 0.2, 0.5)), 0)
+})
+
 ## ============================================================================
 ## 4. Decisions
 ## ============================================================================

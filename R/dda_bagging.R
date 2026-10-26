@@ -553,7 +553,8 @@ agg.value <- function(x, agg_stat, trim_prob, win_prob){
 #'
 #' @description Asymptotically exact harmonic mean p-value (Wilson, 2019)
 #'   with equal weights for the p-values of one test across bootstrap
-#'   samples. Non-finite values are dropped.
+#'   samples. Non-finite values are dropped. A p-value of zero gives a
+#'   pooled p-value of zero.
 #'
 #' @keywords internal
 #' @noRd
@@ -561,6 +562,7 @@ agg.p <- function(p){
 
   p <- p[is.finite(p)]
   if (length(p) == 0) return(NA)
+  if (any(p == 0)) return(0)
 
   unname(harmonicmeanp::p.hmp(p, L = length(p), multilevel = FALSE))
 }
