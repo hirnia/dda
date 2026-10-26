@@ -25,8 +25,16 @@
 #' @param win_prob Numeric. Proportion of observations to be winsorized from
 #'   each side of the sampling distribution when
 #'   \code{agg_stat = "winsorized"} (default: 0.10).
+#' @param inner_B Optional positive integer. Number of resamples (\code{B})
+#'   used by the DDA function within each bootstrap sample. \code{NULL}
+#'   (default) keeps the \code{B} of the original DDA call.
+#' @param parallelize A logical value indicating whether bootstrap samples
+#'   are computed on multiple cores (default: \code{FALSE}).
+#' @param cores A numeric value indicating the number of cores. Only used if
+#'   \code{parallelize = TRUE}.
 #' @param progress Logical. Whether to display a progress bar during
-#'   resampling (default: \code{TRUE}).
+#'   resampling (default: \code{TRUE}). Only used if
+#'   \code{parallelize = FALSE}.
 #' @param save_file Character. Optional file path to save the resulting
 #'   object (e.g., \code{"results.rds"}).
 #'
@@ -46,6 +54,19 @@
 #' Bootstrap samples in which the DDA call fails (e.g., when BCa intervals
 #' cannot be computed) are dropped with a warning that reports the number of
 #' failed samples and the last error message.
+#'
+#' Arguments of the original DDA call are evaluated once, in the environment
+#' \code{dda.bagging} is called from. \code{inner_B} lowers the number of
+#' resamples within each bootstrap sample to reduce run time; it sets the
+#' bootstrap confidence intervals of difference statistics and, for
+#' \code{dda.indep}, the number of dCor permutations. BCa intervals require
+#' \code{inner_B} to exceed the sample size. With \code{parallelize = TRUE}
+#' the bootstrap samples are distributed over \code{cores} worker processes
+#' with the \code{parallel} package that comes with R; the workers load the
+#' installed version of \code{dda}. Results are reproducible with
+#' \code{set.seed} for a fixed number of cores. Parallel bagging of a
+#' \code{dda.indep} call that itself uses \code{parallelize = TRUE} starts
+#' cores within cores and is not recommended.
 #'
 #' Within each bootstrap sample every DDA test leads to a model selection
 #' decision. The target model is \code{x -> y} and the alternative model is
@@ -161,6 +182,9 @@ dda.bagging <- function(dda_result,
                         agg_stat = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
                         trim_prob = 0.10,
                         win_prob = 0.10,
+                        inner_B = NULL,
+                        parallelize = FALSE,
+                        cores = 1,
                         progress = TRUE,
                         save_file = NULL
                         ){
@@ -186,51 +210,84 @@ dda.bagging <- function(dda_result,
   boot.call$formula <- formula.tar
   boot.call$data <- quote(boot.data)
 
-  # boot.data lives here; all other arguments of the original call are found
-  # in the environment dda.bagging is called from
-  boot.env <- new.env(parent = parent.frame())
+  # Optional: inner_B replaces the number of resamples B of the original DDA call
+  if (!is.null(inner_B)) boot.call$B <- inner_B
+
+  # all other arguments of the original call are evaluated once, where
+  # dda.bagging is called from, so that the call also runs on worker processes
+  for (a in setdiff(names(boot.call)[-1], c("formula", "data"))) {
+    boot.call[[a]] <- eval(boot.call[[a]], parent.frame())
+  }
+
+  ### --- one bootstrap sample
+
+  nobs <- nrow(data)
+
+  boot.fit <- function(i){
+
+    boot.data <- data[sample(1:nobs, nobs, replace = TRUE), ]
+
+    # a bootstrap sample in which the DDA call fails is skipped
+    fit <- try(eval(boot.call, list(boot.data = boot.data), environment()), silent = TRUE)
+    if (inherits(fit, "try-error")) return(list(error = conditionMessage(attr(fit, "condition"))))
+
+    # the stored call is not needed in the bootstrap results
+    fit$call_info <- NULL
+
+    s.tar <- summary(lm(formula.tar, data = boot.data))
+    s.alt <- summary(lm(formula.alt, data = boot.data))
+
+    list(fit = fit,
+         tar.coef = s.tar$coefficients[, 1], tar.p = s.tar$coefficients[, 4],
+         tar.r2 = c(r.squared = s.tar$r.squared, adj.r.squared = s.tar$adj.r.squared),
+         alt.coef = s.alt$coefficients[, 1], alt.p = s.alt$coefficients[, 4],
+         alt.r2 = c(r.squared = s.alt$r.squared, adj.r.squared = s.alt$adj.r.squared))
+  }
 
   ### --- bootstrap loop
 
-  nobs <- nrow(data)
-  results <- vector("list", iter)
+  if (isTRUE(parallelize)) {
+
+    # Optional: bootstrap samples are spread over worker processes with the
+    # parallel package that comes with R; one random number stream per worker
+    cl <- parallel::makeCluster(cores)
+    on.exit(parallel::stopCluster(cl))
+    parallel::clusterSetRNGStream(cl, sample.int(.Machine$integer.max, 1))
+    boot.out <- parallel::parLapply(cl, 1:iter, boot.fit)
+
+  } else {
+
+    boot.out <- vector("list", iter)
+    if (progress) pb <- txtProgressBar(min = 0, max = iter, style = 3)
+    for (i in 1:iter) {
+      boot.out[[i]] <- boot.fit(i)
+      if (progress) setTxtProgressBar(pb, i)
+    }
+    if (progress) close(pb)
+  }
+
+  ### --- collect the bootstrap results
+
+  results <- list()
   error.msg <- NULL
   ols.tar.coef <- ols.tar.p <- ols.tar.r2 <- NULL
   ols.alt.coef <- ols.alt.p <- ols.alt.r2 <- NULL
 
-  if (progress) pb <- txtProgressBar(min = 0, max = iter, style = 3)
-
   for (i in 1:iter) {
-
-    boot.env$boot.data <- data[sample(1:nobs, nobs, replace = TRUE), ]
-
-    # a bootstrap sample in which the DDA call fails is skipped
-    fit <- try(eval(boot.call, boot.env), silent = TRUE)
-
-    if (progress) setTxtProgressBar(pb, i)
-    if (inherits(fit, "try-error")) {
-      error.msg <- conditionMessage(attr(fit, "condition"))
+    out <- boot.out[[i]]
+    if (!is.null(out$error)) {
+      error.msg <- out$error
       next
     }
-
-    # the stored call is not needed in the bootstrap results
-    fit$call_info <- NULL
-    results[[i]] <- fit
-
-    s.tar <- summary(lm(formula.tar, data = boot.env$boot.data))
-    s.alt <- summary(lm(formula.alt, data = boot.env$boot.data))
-
-    ols.tar.coef <- rbind(ols.tar.coef, s.tar$coefficients[, 1])
-    ols.tar.p    <- rbind(ols.tar.p,    s.tar$coefficients[, 4])
-    ols.tar.r2   <- rbind(ols.tar.r2,   c(r.squared = s.tar$r.squared, adj.r.squared = s.tar$adj.r.squared))
-    ols.alt.coef <- rbind(ols.alt.coef, s.alt$coefficients[, 1])
-    ols.alt.p    <- rbind(ols.alt.p,    s.alt$coefficients[, 4])
-    ols.alt.r2   <- rbind(ols.alt.r2,   c(r.squared = s.alt$r.squared, adj.r.squared = s.alt$adj.r.squared))
+    results[[length(results) + 1]] <- out$fit
+    ols.tar.coef <- rbind(ols.tar.coef, out$tar.coef)
+    ols.tar.p    <- rbind(ols.tar.p,    out$tar.p)
+    ols.tar.r2   <- rbind(ols.tar.r2,   out$tar.r2)
+    ols.alt.coef <- rbind(ols.alt.coef, out$alt.coef)
+    ols.alt.p    <- rbind(ols.alt.p,    out$alt.p)
+    ols.alt.r2   <- rbind(ols.alt.r2,   out$alt.r2)
   }
 
-  if (progress) close(pb)
-
-  results <- results[!sapply(results, is.null)]
   n.valid <- length(results)
   if (n.valid == 0) stop(paste("The DDA call failed in every bootstrap sample:", error.msg))
   if (n.valid < iter) warning(paste(iter - n.valid, "of", iter, "bootstrap samples failed and were dropped. Last error:", error.msg), call. = FALSE)

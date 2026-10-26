@@ -283,13 +283,13 @@ test_that("dda.bagging handles prob.trans = TRUE", {
 
 test_that("failed bootstrap samples are dropped with a warning", {
   n.calls <- 0
-  B.fail <- function() {
+  vardist <- dda.vardist
+  local_mocked_bindings(dda.vardist = function(...) {
     n.calls <<- n.calls + 1
     if (n.calls %% 2 == 0) stop("planned failure")
-    10
-  }
-  base <- dda.vardist(y ~ x, pred = "x", data = d, B = B.fail())
-  expect_warning(res <- dda.bagging(base, data = d, iter = 4, progress = FALSE),
+    vardist(...)
+  })
+  expect_warning(res <- dda.bagging(base_vardist, data = d, iter = 4, progress = FALSE),
                  regexp = "2 of 4 bootstrap samples failed and were dropped. Last error: planned failure")
   expect_equal(res$n_valid_iterations, 2)
   expect_equal(nrow(res$decisions), 2)
@@ -299,4 +299,29 @@ test_that("failed bootstrap samples are dropped with a warning", {
 test_that("dda.bagging reports the error when every bootstrap sample fails", {
   expect_error(dda.bagging(base_vardist, data = data.frame(y = d$y, w = d$x), iter = 2, progress = FALSE),
                regexp = "failed in every bootstrap sample: .*not found")
+})
+
+## ============================================================================
+## 7. inner_B and parallelize
+## ============================================================================
+
+test_that("inner_B sets B of the DDA call within each bootstrap sample", {
+  res <- run_bag(base_vardist, d, iter = 3, inner_B = 15)
+  expect_equal(as.numeric(res$bagged_results[[1]]$boot.args[3]), 15)
+})
+
+test_that("arguments of the original call are evaluated when bagging starts", {
+  B.local <- 12
+  base <- dda.vardist(y ~ x, pred = "x", data = d, B = B.local)
+  res <- dda.bagging(base, data = d, iter = 2, progress = FALSE)
+  expect_equal(as.numeric(res$bagged_results[[1]]$boot.args[3]), 12)
+})
+
+test_that("parallel bagging returns the same structure as serial bagging", {
+  skip_on_cran()
+  set.seed(1)
+  res <- run_bag(base_vardist, d, iter = 4, parallelize = TRUE, cores = 2)
+  expect_s3_class(res, "dda_bagging_vardist")
+  expect_equal(res$n_valid_iterations, 4)
+  expect_equal(nrow(res$ols$target$coef), 4)
 })
