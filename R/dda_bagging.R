@@ -636,7 +636,7 @@ dda.decisions <- function(dda_result, alpha = 0.05){
     dec["agostino"] <- decide.p(obj$agostino$outcome$p.value, obj$agostino$predictor$p.value, alpha)
     dec["anscombe"] <- decide.p(obj$anscombe$outcome$p.value, obj$anscombe$predictor$p.value, alpha)
 
-    for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS", "RCC", "Rtanh")) dec[s] <- decide.ci(obj[[s]])
+    for (s in c("skewdiff", "kurtdiff", "cor12diff", "RHS", "cor13diff", "RCC", "Rtanh")) dec[s] <- decide.ci(obj[[s]])
 
   } else if (inherits(obj, "dda.resdist")) {
 
@@ -646,7 +646,7 @@ dda.decisions <- function(dda_result, alpha = 0.05){
     dec["skewdiff.test"] <- decide.test(obj$skewdiff[1], obj$skewdiff["p.value"], alpha)
     dec["kurtdiff.test"] <- decide.test(obj$kurtdiff[1], obj$kurtdiff["p.value"], alpha)
 
-    for (s in c("skewdiff", "kurtdiff", "cor12diff", "cor13diff", "RHS3", "RCC", "RHS4")) {
+    for (s in c("skewdiff", "kurtdiff", "cor12diff", "RHS3", "cor13diff", "RHS4", "RCC")) {
       if ("lower" %in% names(obj[[s]])) dec[s] <- decide.ci(obj[[s]])
     }
 

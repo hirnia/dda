@@ -61,7 +61,7 @@ summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
 
   labels <- c(hsic      = "HSIC",
               dcor      = "dCor",
-              bp        = "Robust Breusch-Pagan",
+              bp        = "Robust BP-test",
               nlcor     = "Non-linear Correlation",
               hsic.diff = "HSIC Difference",
               dcor.diff = "dCor Difference",
@@ -74,11 +74,11 @@ summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
               kurtdiff  = "Kurtosis Difference",
               cor12diff = "Co-Skewness Difference",
               cor13diff = "Co-Kurtosis Difference",
-              RHS       = "Hyvarinen-Smith Co-Skewness Difference",
-              RHS3      = "Hyvarinen-Smith Co-Skewness Difference",
-              RHS4      = "Hyvarinen-Smith Co-Kurtosis Difference",
-              RCC       = "Chen-Chan Co-Kurtosis Difference",
-              Rtanh     = "Hyvarinen-Smith tanh Difference")
+              RHS       = "Hyvarinen-Smith (Co-Skewness) Difference",
+              RHS3      = "Hyvarinen-Smith (Co-Skewness) Difference",
+              RHS4      = "Hyvarinen-Smith (Co-Kurtosis) Difference",
+              RCC       = "Chen-Chan (Co-Kurtosis) Difference",
+              Rtanh     = "Hyvarinen-Smith (tanh) Difference")
 
   if (!is.null(show)) {
     keep <- c()

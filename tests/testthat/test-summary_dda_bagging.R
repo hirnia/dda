@@ -69,7 +69,7 @@ test_that("Confounding appears only for independence properties", {
 test_that("show filters the reported statistics", {
   out <- withVisible(summary(bag_indep, show = "hsic"))$value
   expect_setequal(rownames(out), c("hsic", "hsic.diff"))
-  expect_output(summary(bag_indep, show = "bp"), regexp = "Robust Breusch-Pagan")
+  expect_output(summary(bag_indep, show = "bp"), regexp = "Robust BP-test")
   expect_output(summary(bag_indep, show = "nlcor"), regexp = "Non-linear Correlation")
 
   out <- withVisible(summary(bag_vardist, show = c("skew", "coskew")))$value
@@ -90,6 +90,16 @@ test_that("every show option runs on a matching object", {
 test_that("unknown or unavailable show options give an error", {
   expect_error(summary(bag_indep, show = "not_a_stat"), regexp = "Unknown statistic")
   expect_error(summary(bag_vardist, show = "hsic"), regexp = "None of the requested")
+})
+
+test_that("rows follow the order of the base print methods", {
+  expect_equal(rownames(bag_vardist$decision_proportions),
+               c("agostino", "anscombe", "skewdiff", "kurtdiff", "cor12diff", "RHS", "cor13diff", "RCC", "Rtanh"))
+  expect_equal(rownames(bag_resdist$decision_proportions),
+               c("agostino", "anscombe", "skewdiff.test", "kurtdiff.test", "skewdiff", "kurtdiff",
+                 "cor12diff", "RHS3", "cor13diff", "RHS4", "RCC"))
+  expect_equal(rownames(bag_indep$decision_proportions),
+               c("hsic", "dcor", "bp", "nlcor", "hsic.diff", "dcor.diff", "mi.diff"))
 })
 
 test_that("digits sets the decimal places", {
