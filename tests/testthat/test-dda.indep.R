@@ -203,3 +203,21 @@ test_that("dda.indep runs quickly with small B for non-diff scenarios", {
     expect_true(is.list(out))
   }
 })
+
+test_that("bptestrobust matches lmtest::bptest for lm fits", {
+  set.seed(1)
+  x <- rnorm(100)
+  y <- x + rnorm(100, sd = abs(x))
+  fit <- lm(y ~ x)
+  expect_equal(unname(bptestrobust(fit, studentize = FALSE)$statistic),
+               unname(lmtest::bptest(fit, studentize = FALSE)$statistic))
+  expect_equal(unname(bptestrobust(fit, studentize = TRUE)$statistic),
+               unname(lmtest::bptest(fit, studentize = TRUE)$statistic))
+})
+
+test_that("robust Breusch-Pagan tests use the repeated median residuals", {
+  out <- dda.indep(y ~ x, pred = "x", data = dat, B = 20, hetero = TRUE, robust = TRUE)
+  ols <- dda.indep(y ~ x, pred = "x", data = dat, B = 20, hetero = TRUE)
+  expect_false(isTRUE(all.equal(out$breusch_pagan[[1]]$statistic, ols$breusch_pagan[[2]]$statistic)))
+  expect_false(isTRUE(all.equal(out$breusch_pagan[[1]]$statistic, out$breusch_pagan[[2]]$statistic)))
+})

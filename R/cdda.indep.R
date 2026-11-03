@@ -245,12 +245,14 @@ cdda.indep <- function(
       indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
-                                              conf.level = conf.level, diff = diff, hetero = hetero
+                                              conf.level = conf.level, diff = diff, hetero = hetero,
+                                              robust = robust # 0.2.0 robust estimation of the competing models
       ))
       indep.temp.xy[[i]] <- unclass(dda.indep(rx.aux.alt ~ ry.aux.alt, pred = "ry.aux.alt",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
-                                              conf.level = conf.level, diff = diff, hetero = hetero
+                                              conf.level = conf.level, diff = diff, hetero = hetero,
+                                              robust = robust # 0.2.0 robust estimation of the competing models
       ))
     }
 
@@ -323,27 +325,13 @@ cdda.indep <- function(
 
     for ( i in 1:(ncol(modmat)) ) {
 
-      if (robust == TRUE){
-        #Target model: x -> y
-        aux.yx.tar <- mblm::mblm(y ~ X + modmat[,i] + modmat[,i]:x, data = data)
-        aux.xy.tar <- mblm::mblm(x ~ X + modmat[,i] + modmat[,i]:x, data = data)
+      #Target model: x -> y
+      aux.yx.tar <- lm(y ~ X + modmat[,i] + modmat[,i]:x)
+      aux.xy.tar <- lm(x ~ X + modmat[,i] + modmat[,i]:x)
 
-        #Alternative model: y -> x
-        aux.yx.alt <- mblm::mblm(y ~ X + modmat[,i] + modmat[,i]:y, data = data)
-        aux.xy.alt <- mblm::mblm(x ~ X + modmat[,i] + modmat[,i]:y, data = data)
-      }
-
-      else if (robust == FALSE){
-        #Target model: x -> y
-        aux.yx.tar <- lm(y ~ X + modmat[,i] + modmat[,i]:x)
-        aux.xy.tar <- lm(x ~ X + modmat[,i] + modmat[,i]:x)
-
-        #Alternative model: y -> x
-        aux.yx.alt <- lm(y ~ X + modmat[,i] + modmat[,i]:y)
-        aux.xy.alt <- lm(x ~ X + modmat[,i] + modmat[,i]:y)
-      }
-
-      else stop("Invalid specification for robust argument. Please use TRUE or FALSE.")
+      #Alternative model: y -> x
+      aux.yx.alt <- lm(y ~ X + modmat[,i] + modmat[,i]:y)
+      aux.xy.alt <- lm(x ~ X + modmat[,i] + modmat[,i]:y)
 
       #Target model residuals
       ry.aux.tar <- resid(aux.yx.tar)
@@ -358,13 +346,15 @@ cdda.indep <- function(
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
                                               conf.level = conf.level, diff = diff,
-                                              hetero = hetero, parallelize = parallelize, cores = cores
+                                              hetero = hetero, parallelize = parallelize, cores = cores,
+                                              robust = robust # 0.2.0 robust estimation of the competing models
       ))
       indep.temp.xy[[i]] <- unclass(dda.indep(rx.aux.alt ~ ry.aux.alt, pred = "ry.aux.alt",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
                                               conf.level = conf.level, diff = diff,
-                                              hetero = hetero, parallelize = parallelize, cores = cores
+                                              hetero = hetero, parallelize = parallelize, cores = cores,
+                                              robust = robust # 0.2.0 robust estimation of the competing models
       ))
 
     }

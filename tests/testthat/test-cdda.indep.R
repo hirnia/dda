@@ -149,3 +149,9 @@ test_that("cdda.indep returns non-empty structure", {
   expect_true(is.list(out))
   expect_true(length(out) > 0)
 })
+
+test_that("cdda.indep runs with robust estimation", {
+  out <- cdda.indep(m, pred = "x", mod = "z", modval = c(-1, 1), data = dat,
+                    hetero = TRUE, B = 20, robust = TRUE)
+  expect_s3_class(out, "cdda.indep")
+})

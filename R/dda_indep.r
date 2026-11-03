@@ -219,8 +219,8 @@ dda.indep <- function(
     if(hetero){
 
 	  if( isTRUE(robust) ){ # 0.2.0 Breusch-Pagan tests for robust estimation
-	    bp_yx <- bptestrobust(ry ~ rx, studentize = FALSE)
-	    bp_xy <- bptestrobust(rx ~ ry, studentize = FALSE)
+	    bp_yx <- bptestrobust(m.yx, studentize = FALSE)
+	    bp_xy <- bptestrobust(m.xy, studentize = FALSE)
 
 	    rbp_yx <- bptestrobust(m.yx, studentize = TRUE)
 	    rbp_xy <- bptestrobust(m.xy, studentize = TRUE)
