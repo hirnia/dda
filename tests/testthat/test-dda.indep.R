@@ -30,32 +30,32 @@ m <- lm(y ~ x * z, data = dat)
 
 # Safe wrapper for calls that may trigger known internal failures.
 # - Skips on the known internal helper error 'delete.mod'.
-# - If accept_patterns is provided, returns an object of class 'dda_test_accepted_error'
+# - If accept.patterns is provided, returns an object of class 'dda.test.accepted.error'
 #   when the error message matches any of those patterns.
-safe_call <- function(call_expr, accept_patterns = NULL) {
+safe.call <- function(call.expr, accept.patterns = NULL) {
   tryCatch(
-    eval(call_expr, envir = parent.frame()),
+    eval(call.expr, envir = parent.frame()),
     error = function(e) {
       msg <- conditionMessage(e)
       if (grepl("delete.mod", msg, ignore.case = TRUE)) {
         skip(paste("Internal helper error in dda.indep (delete.mod); skipping test:", msg))
       }
-      if (!is.null(accept_patterns) &&
-          any(vapply(accept_patterns, function(p) grepl(p, msg, ignore.case = TRUE), logical(1)))) {
-        structure(list(error = TRUE, message = msg), class = "dda_test_accepted_error")
+      if (!is.null(accept.patterns) &&
+          any(vapply(accept.patterns, function(p) grepl(p, msg, ignore.case = TRUE), logical(1)))) {
+        structure(list(error = TRUE, message = msg), class = "dda.test.accepted.error")
       }
       stop(e)
     }
   )
 }
-is_accepted_error <- function(x) inherits(x, "dda_test_accepted_error")
+is.accepted.error <- function(x) inherits(x, "dda.test.accepted.error")
 
 # ------------------------
 # Basic functionality
 # ------------------------
 
 test_that("dda.indep runs and returns expected structure (numeric nlfun)", {
-  out <- safe_call(quote(
+  out <- safe.call(quote(
     dda.indep(formula = m, pred = "x", data = dat, nlfun = 2, B = 100, diff = FALSE)
   ))
   expect_true(is.list(out))
@@ -63,7 +63,7 @@ test_that("dda.indep runs and returns expected structure (numeric nlfun)", {
 })
 
 test_that("dda.indep print produces output", {
-  out <- safe_call(quote(
+  out <- safe.call(quote(
     dda.indep(formula = m, pred = "x", data = dat, nlfun = 2, B = 80, diff = FALSE)
   ))
   expect_true(is.list(out))
@@ -71,10 +71,10 @@ test_that("dda.indep print produces output", {
 })
 
 test_that("dda.indep accepts a function nlfun", {
-  out_f <- safe_call(quote(
+  out.f <- safe.call(quote(
     dda.indep(formula = m, pred = "x", data = dat, nlfun = function(t) t^2, B = 80, diff = FALSE)
   ))
-  expect_true(is.list(out_f))
+  expect_true(is.list(out.f))
 })
 
 # ------------------------
@@ -91,11 +91,11 @@ test_that("dda.indep errors with invalid formula input", {
 })
 
 test_that("dda.indep errors when nlfun has wrong type", {
-  expect_error(dda.indep(formula = m, pred = "x", data = dat, nlfun = "not_a_function"))
+  expect_error(dda.indep(formula = m, pred = "x", data = dat, nlfun = "not.a.function"))
 })
 
 test_that("dda.indep errors for unrecognized hsic.method", {
-  expect_error(dda.indep(formula = m, pred = "x", data = dat, hsic.method = "invalid_method"))
+  expect_error(dda.indep(formula = m, pred = "x", data = dat, hsic.method = "invalid.method"))
 })
 
 test_that("dda.indep errors when B is non-positive", {
@@ -116,7 +116,7 @@ test_that("dda.indep diff with small B and bca triggers warning/fallback or acce
   # Otherwise the test is skipped to avoid brittle failures.
 
   # collect warnings (if any)
-  w_messages <- character()
+  w.messages <- character()
   res <- NULL
 
   withCallingHandlers(
@@ -127,13 +127,13 @@ test_that("dda.indep diff with small B and bca triggers warning/fallback or acce
       )
     },
     warning = function(w) {
-      w_messages <<- c(w_messages, conditionMessage(w))
+      w.messages <<- c(w.messages, conditionMessage(w))
       invokeRestart("muffleWarning")
     }
   )
 
   # Check warnings first for known BCa/empinf messages
-  if (length(w_messages) && any(grepl("Acceleration constant cannot be calculated|Falling back|empinf|acceleration|increase the number of resamples", w_messages, ignore.case = TRUE))) {
+  if (length(w.messages) && any(grepl("Acceleration constant cannot be calculated|Falling back|empinf|acceleration|increase the number of resamples", w.messages, ignore.case = TRUE))) {
     expect_true(TRUE)
     return()
   }
@@ -151,9 +151,9 @@ test_that("dda.indep diff with small B and bca triggers warning/fallback or acce
 
   # If a list was returned, look for fallback indicators exposed in output
   if (is.list(res)) {
-    boot_warning_flag <- !is.null(res$boot.warning) && identical(res$boot.warning, TRUE)
-    boot_args_perc <- !is.null(res$boot.args) && length(res$boot.args) >= 1 && identical(as.character(res$boot.args[1]), "perc")
-    if (boot_warning_flag || boot_args_perc) {
+    boot.warning.flag <- !is.null(res$boot.warning) && identical(res$boot.warning, TRUE)
+    boot.args.perc <- !is.null(res$boot.args) && length(res$boot.args) >= 1 && identical(as.character(res$boot.args[1]), "perc")
+    if (boot.warning.flag || boot.args.perc) {
       expect_true(TRUE)
       return()
     }
@@ -167,10 +167,10 @@ test_that("dda.indep diff with small B and bca triggers warning/fallback or acce
 })
 
 test_that("dda.indep diff uses bootstrap/permutation methods where supported", {
-  res <- safe_call(quote(
+  res <- safe.call(quote(
     dda.indep(formula = m, pred = "x", data = dat, diff = TRUE, B = 30, hsic.method = "permutation")
-  ), accept_patterns = c("Unknown argument in hsic.method", "Unknown argument"))
-  if (is_accepted_error(res)) {
+  ), accept.patterns = c("Unknown argument in hsic.method", "Unknown argument"))
+  if (is.accepted.error(res)) {
     expect_true(TRUE)
   } else {
     expect_true(is.list(res))
@@ -182,7 +182,7 @@ test_that("dda.indep diff uses bootstrap/permutation methods where supported", {
 # ------------------------
 
 test_that("dda.indep includes var.names in output when successful", {
-  out <- safe_call(quote(
+  out <- safe.call(quote(
     dda.indep(formula = m, pred = "x", data = dat, nlfun = NULL, B = 60, diff = FALSE)
   ))
   expect_true(is.list(out))
@@ -194,10 +194,10 @@ test_that("dda.indep includes var.names in output when successful", {
 # ------------------------
 
 test_that("dda.indep runs quickly with small B for non-diff scenarios", {
-  out <- safe_call(quote(
+  out <- safe.call(quote(
     dda.indep(formula = m, pred = "x", data = dat, B = 20, diff = FALSE)
-  ), accept_patterns = c("Unknown argument in hsic.method", "Unknown argument"))
-  if (is_accepted_error(out)) {
+  ), accept.patterns = c("Unknown argument in hsic.method", "Unknown argument"))
+  if (is.accepted.error(out)) {
     expect_true(TRUE)
   } else {
     expect_true(is.list(out))
@@ -218,6 +218,6 @@ test_that("bptestrobust matches lmtest::bptest for lm fits", {
 test_that("robust Breusch-Pagan tests use the repeated median residuals", {
   out <- dda.indep(y ~ x, pred = "x", data = dat, B = 20, hetero = TRUE, robust = TRUE)
   ols <- dda.indep(y ~ x, pred = "x", data = dat, B = 20, hetero = TRUE)
-  expect_false(isTRUE(all.equal(out$breusch_pagan[[1]]$statistic, ols$breusch_pagan[[2]]$statistic)))
-  expect_false(isTRUE(all.equal(out$breusch_pagan[[1]]$statistic, out$breusch_pagan[[2]]$statistic)))
+  expect_false(isTRUE(all.equal(out$breusch.pagan[[1]]$statistic, ols$breusch.pagan[[2]]$statistic)))
+  expect_false(isTRUE(all.equal(out$breusch.pagan[[1]]$statistic, out$breusch.pagan[[2]]$statistic)))
 })

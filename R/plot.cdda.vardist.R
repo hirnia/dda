@@ -33,8 +33,8 @@ plot.cdda.vardist <- function(x,
   obj <- x
 
   ## Plot Label and Assignment ##
-  mod.vals <- obj[[4]][["mod_data"]]
-  mod.levels <- x.axis.labels <- obj[[4]][["mod_levels"]] #modval levels for pick-a-point
+  mod.vals <- obj[[4]][["mod.data"]]
+  mod.levels <- x.axis.labels <- obj[[4]][["mod.levels"]] #modval levels for pick-a-point
   y.title <- obj[[3]][[1]] #Test statistic CI header
   ci.level <- as.numeric(obj[[1]][[1]]$boot.args[2]) * 100
 

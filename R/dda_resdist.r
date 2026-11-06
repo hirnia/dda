@@ -94,9 +94,9 @@ dda.resdist <- function(formula,
 
 		fval <- ecdf(y)(y)
 		xval <- y
-		quant_y <- approxfun(fval, xval, ties = mean) # 0.2.0 ties = mean for tied values in resampled data
-		cum_x <- ecdf(x)
-		transform <- function(x) quant_y(cum_x(x))
+		quant.y <- approxfun(fval, xval, ties = mean) # 0.2.0 ties = mean for tied values in resampled data
+		cum.x <- ecdf(x)
+		transform <- function(x) quant.y(cum.x(x))
 		x <- transform(x)
 		x[is.na(x)] <- min(y)
 		list(x = x, y = y)
@@ -425,7 +425,7 @@ dda.resdist <- function(formula,
 	response.name <- all.vars(formula(formula))[1]  # get name of response variable
 	output <- c(output, list(var.names = c(response.name, pred), probtrans = prob.trans))
 
-	output$call_info <- list(function_call = match.call(), formula = formula) # 0.2.0 call information for dda.bagging
+	output$call.info <- list(function.call = match.call(), formula = formula) # 0.2.0 call information for dda.bagging
 
 	class(output) <- "dda.resdist"
 	return(output)

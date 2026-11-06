@@ -144,24 +144,24 @@ cdda.vardist <- function(formula,
 
   # compute competing models
 
-  target_model <- round(summary(lm(y ~ x + moderator*x + X))$coefficients, 4)
+  target.model <- round(summary(lm(y ~ x + moderator*x + X))$coefficients, 4)
 
-  alternate_model <- round(summary(lm(x ~ y + moderator*y + X))$coefficients, 4)
+  alternate.model <- round(summary(lm(x ~ y + moderator*y + X))$coefficients, 4)
 
   response.name <- all.vars(formula(formula))[1]  # get name of response variable
 
-  nam_tar <- rownames(target_model)
-  nam_tar <- gsub("moderator", mod, rownames(target_model))
-  nam_tar <- gsub("x", pred, nam_tar)
-  rownames(target_model) <- sub("^X", "", nam_tar)
+  nam.tar <- rownames(target.model)
+  nam.tar <- gsub("moderator", mod, rownames(target.model))
+  nam.tar <- gsub("x", pred, nam.tar)
+  rownames(target.model) <- sub("^X", "", nam.tar)
 
-  nam_alt <- gsub("moderator", mod, rownames(alternate_model))
-  nam_alt <- gsub("y", response.name, nam_alt)
-  rownames(alternate_model) <- sub("^X", "", nam_alt)
+  nam.alt <- gsub("moderator", mod, rownames(alternate.model))
+  nam.alt <- gsub("y", response.name, nam.alt)
+  rownames(alternate.model) <- sub("^X", "", nam.alt)
 
   if (is.factor(data[,mod])) {
 
-    moderator_levels <- unique(data[,mod])
+    moderator.levels <- unique(data[,mod])
 
     indep.temp.yx <- list()
     indep.temp.xy <- list()
@@ -171,10 +171,10 @@ cdda.vardist <- function(formula,
 
     for (i in (levels(data[,mod]))) {
 
-      moderator_rlvl <- relevel(data[,mod], ref = i)
+      moderator.rlvl <- relevel(data[,mod], ref = i)
 
       #Target model: x -> y
-      design.tar <- model.matrix(~ X + moderator_rlvl + moderator_rlvl:x + x)
+      design.tar <- model.matrix(~ X + moderator.rlvl + moderator.rlvl:x + x)
 
       design.tar <- as.data.frame(design.tar[,-1])
       design.tar$x <- NULL
@@ -186,7 +186,7 @@ cdda.vardist <- function(formula,
       rx.aux.tar <- resid(aux.xy.tar)
 
       #Alternative model: y -> x
-      design.alt<- model.matrix(~ X + moderator_rlvl + moderator_rlvl:y + y)
+      design.alt<- model.matrix(~ X + moderator.rlvl + moderator.rlvl:y + y)
       design.alt <- as.data.frame(design.alt[,-1])
       design.alt$y <- NULL
 
@@ -264,7 +264,7 @@ cdda.vardist <- function(formula,
 
     else stop("Invalid or no moderator value specified.")
 
-    moderator_levels <- colnames(modmat)
+    moderator.levels <- colnames(modmat)
 
     indep.temp.yx <- list()
     indep.temp.xy <- list()
@@ -302,23 +302,23 @@ cdda.vardist <- function(formula,
   cdda.var.output <- list()
   cdda.var.output[[1]] <- indep.temp.yx
   cdda.var.output[[2]] <- indep.temp.xy
-  cdda.var.output[[3]] <- list("target_model" = target_model, "alternate_model" = alternate_model)
-  cdda.var.output[[4]] <- list("response_name" = response.name,
-                           "pred_name"= pred,
-                           "mod_name" = mod,
-                           "mod_levels" = moderator_levels,
-                           "mod_data" = data[,mod]
+  cdda.var.output[[3]] <- list("target.model" = target.model, "alternate.model" = alternate.model)
+  cdda.var.output[[4]] <- list("response.name" = response.name,
+                           "pred.name"= pred,
+                           "mod.name" = mod,
+                           "mod.levels" = moderator.levels,
+                           "mod.data" = data[,mod]
                            )
   cdda.var.output[[5]] <- list(
-    "function_call" = match.call(),
-    "function_name" = as.character(match.call()[[1]]),
-    "all_args" = as.list(match.call())[-1],  # Remove function name
+    "function.call" = match.call(),
+    "function.name" = as.character(match.call()[[1]]),
+    "all.args" = as.list(match.call())[-1],  # Remove function name
     "environment" = parent.frame(),
     "formula" = if(exists("formula")) formula else NULL,
-    "data_name" = deparse(substitute(data))
+    "data.name" = deparse(substitute(data))
   )
-  names(cdda.var.output) <- c("cdda_target", "cdda_alternative", "models",
-                              "df_original", "call_info")
+  names(cdda.var.output) <- c("cdda.target", "cdda.alternative", "models",
+                              "df.original", "call.info")
   class(cdda.var.output) <- "cdda.vardist"
   return(cdda.var.output)
 
@@ -345,12 +345,12 @@ print.cdda.vardist <- function(x, ...){
 
   cat("OLS Summary: Target Model", "\n")
   cat("\n")
-  print(cdda.var.output[[3]]$target_model)
+  print(cdda.var.output[[3]]$target.model)
 
   cat(paste("-----------------------------------------------------"))
   cat("\n", "\n")
 
   cat("OLS Summary: Alternative Model", "\n")
   cat("\n")
-  print(cdda.var.output[[3]]$alternate_model)
+  print(cdda.var.output[[3]]$alternate.model)
 }

@@ -207,11 +207,11 @@ dda.indep <- function(
 
 	### --- separate dCor Tests
 
-	dcor_yx <- energy::dcor.test(as.vector(rx), as.vector(err.yx), R = B)
-	dcor_xy <- energy::dcor.test(as.vector(ry), as.vector(err.xy), R = B)
+	dcor.yx <- energy::dcor.test(as.vector(rx), as.vector(err.yx), R = B)
+	dcor.xy <- energy::dcor.test(as.vector(ry), as.vector(err.xy), R = B)
 
     output <- c(output,
-	            distance_cor = list(dcor_yx = dcor_yx, dcor_xy = dcor_xy, dcor.method = as.character(B))
+	            distance.cor = list(dcor.yx = dcor.yx, dcor.xy = dcor.xy, dcor.method = as.character(B))
 				)
 
 	### --- Homoscedasticity tests
@@ -219,21 +219,21 @@ dda.indep <- function(
     if(hetero){
 
 	  if( isTRUE(robust) ){ # 0.2.0 Breusch-Pagan tests for robust estimation
-	    bp_yx <- bptestrobust(m.yx, studentize = FALSE)
-	    bp_xy <- bptestrobust(m.xy, studentize = FALSE)
+	    bp.yx <- bptestrobust(m.yx, studentize = FALSE)
+	    bp.xy <- bptestrobust(m.xy, studentize = FALSE)
 
-	    rbp_yx <- bptestrobust(m.yx, studentize = TRUE)
-	    rbp_xy <- bptestrobust(m.xy, studentize = TRUE)
+	    rbp.yx <- bptestrobust(m.yx, studentize = TRUE)
+	    rbp.xy <- bptestrobust(m.xy, studentize = TRUE)
 	  } else {
-	    bp_yx <- lmtest::bptest(m.yx, studentize = FALSE)
-	    bp_xy <- lmtest::bptest(m.xy, studentize = FALSE)
+	    bp.yx <- lmtest::bptest(m.yx, studentize = FALSE)
+	    bp.xy <- lmtest::bptest(m.xy, studentize = FALSE)
 
-	    rbp_yx <- lmtest::bptest(m.yx, studentize = TRUE)
-	    rbp_xy <- lmtest::bptest(m.xy, studentize = TRUE)
+	    rbp.yx <- lmtest::bptest(m.yx, studentize = TRUE)
+	    rbp.xy <- lmtest::bptest(m.xy, studentize = TRUE)
 	  }
 
 	  output <- c(output,
-	              list(breusch_pagan = list( bp_yx, rbp_yx, bp_xy, rbp_xy ) )
+	              list(breusch.pagan = list( bp.yx, rbp.yx, bp.xy, rbp.xy ) )
 	              )
 
 	}
@@ -245,11 +245,11 @@ dda.indep <- function(
 
     fname = deparse(substitute(nlfun))
 
-      nlout_yx <- unclass( nlcor.test( err.yx, rx, fun = nlfun, fname=fname ) )
-	  nlout_xy <- unclass( nlcor.test( err.xy, ry, fun = nlfun, fname=fname ) )
+      nlout.yx <- unclass( nlcor.test( err.yx, rx, fun = nlfun, fname=fname ) )
+	  nlout.xy <- unclass( nlcor.test( err.xy, ry, fun = nlfun, fname=fname ) )
 
 	  output <- c(output,
-	              list(nlcor.yx = nlout_yx, nlcor.xy = nlout_xy, nlfun = nlfun)
+	              list(nlcor.yx = nlout.yx, nlcor.xy = nlout.xy, nlfun = nlfun)
 				 )
 	}
 
@@ -302,7 +302,7 @@ dda.indep <- function(
   response.name <- all.vars(formula(formula))[1]  # get name of response variable
   output <- c(output, list(var.names = c(response.name, pred)))
 
-  output$call_info <- list(function_call = match.call(), formula = formula) # 0.2.0 call information for dda.bagging
+  output$call.info <- list(function.call = match.call(), formula = formula) # 0.2.0 call information for dda.bagging
 
   class(output) <- "dda.indep"
   return(output)
@@ -334,16 +334,16 @@ print.dda.indep <- function(x, ...){
 
 	 cat(paste("HSIC = ", round(x$hsic.yx$statistic, 4), ", p-value = ", round(x$hsic.yx$p.value, 4), sep = ""))
 	 cat("\n")
-	 #cat(paste("Distance Correlation: Permutation", " (", x$distance_cor.dcor.method, " resamples)", sep = ""), "\n")
-	 cat(paste("dCor = ", round(x$distance_cor.dcor_yx$statistic, 4), ", p-value = ", round(x$distance_cor.dcor_yx$p.value, 4), sep = ""))
+	 #cat(paste("Distance Correlation: Permutation", " (", x$distance.cor.dcor.method, " resamples)", sep = ""), "\n")
+	 cat(paste("dCor = ", round(x$distance.cor.dcor.yx$statistic, 4), ", p-value = ", round(x$distance.cor.dcor.yx$p.value, 4), sep = ""))
      cat("\n", "\n")
 
-	 if(!is.null(x$breusch_pagan)){
+	 if(!is.null(x$breusch.pagan)){
 
 	 cat("Homoscedasticity Tests:", "\n")
 
-	     sigtests1.yx <- rbind( c(x$breusch_pagan[[1]]$statistic, x$breusch_pagan[[1]]$parameter, x$breusch_pagan[[1]]$p.value),
-	                            c(x$breusch_pagan[[2]]$statistic, x$breusch_pagan[[2]]$parameter, x$breusch_pagan[[2]]$p.value)
+	     sigtests1.yx <- rbind( c(x$breusch.pagan[[1]]$statistic, x$breusch.pagan[[1]]$parameter, x$breusch.pagan[[1]]$p.value),
+	                            c(x$breusch.pagan[[2]]$statistic, x$breusch.pagan[[2]]$parameter, x$breusch.pagan[[2]]$p.value)
 	                        )
          sigtests1.yx <- round(sigtests1.yx, 4)
          rownames(sigtests1.yx) <- c("BP-test", "Robust BP-test")
@@ -393,16 +393,16 @@ print.dda.indep <- function(x, ...){
 
 	 cat(paste("HSIC = ", round(x$hsic.xy$statistic, 4), ", p-value = ", round(x$hsic.xy$p.value, 4), sep = ""))
 	 cat("\n")
-	 #cat(paste("Distance Correlation: Permutation", " (", x$distance_cor.dcor.method, " resamples)", sep = ""), "\n")
-	 cat(paste("dCor = ", round(x$distance_cor.dcor_xy$statistic, 4), ", p-value = ", round(x$distance_cor.dcor_xy$p.value, 4), sep = ""))
+	 #cat(paste("Distance Correlation: Permutation", " (", x$distance.cor.dcor.method, " resamples)", sep = ""), "\n")
+	 cat(paste("dCor = ", round(x$distance.cor.dcor.xy$statistic, 4), ", p-value = ", round(x$distance.cor.dcor.xy$p.value, 4), sep = ""))
      cat("\n", "\n")
 
-     if(!is.null(x$breusch_pagan)){
+     if(!is.null(x$breusch.pagan)){
 
 	 cat("Homoscedasticity Tests:", "\n")
 
-	     sigtests1.xy <- rbind( c(x$breusch_pagan[[3]]$statistic, x$breusch_pagan[[3]]$parameter, x$breusch_pagan[[3]]$p.value),
-	                            c(x$breusch_pagan[[4]]$statistic, x$breusch_pagan[[4]]$parameter, x$breusch_pagan[[4]]$p.value)
+	     sigtests1.xy <- rbind( c(x$breusch.pagan[[3]]$statistic, x$breusch.pagan[[3]]$parameter, x$breusch.pagan[[3]]$p.value),
+	                            c(x$breusch.pagan[[4]]$statistic, x$breusch.pagan[[4]]$parameter, x$breusch.pagan[[4]]$p.value)
 	                        )
          sigtests1.xy <- round(sigtests1.xy, 4)
          rownames(sigtests1.xy) <- c("BP-test", "Robust BP-test")

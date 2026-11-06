@@ -5,7 +5,8 @@
 ### New features
 -	Under `prob.trans = TRUE`, `dda.resdist` now computes skewness and kurtosis differences as target minus alternative, so that differences > 0 suggest the target model under both `prob.trans = FALSE` and `prob.trans = TRUE` (previously, differences < 0 suggested the target model under `prob.trans = TRUE`).
 -	The print method of `dda.vardist` now reports bootstrap CIs in two tables: marginal higher moment differences (skewness and kurtosis) and joint higher moment differences (co-skewness, Hyvarinen-Smith co-skewness, co-kurtosis, Chen-Chan co-kurtosis, and Hyvarinen-Smith tanh). The reported statistics are unchanged.
--	`dda.bagging` performs bootstrap aggregation (bagging) of `dda.indep`, `dda.resdist`, and `dda.vardist` objects to evaluate the stability of direction dependence decisions, with accompanying `print` and `summary` methods. Test statistics are aggregated with `agg_stat`; p-values are pooled with the asymptotically exact harmonic mean p-value (Wilson, 2019).
+-	`dda.bagging` performs bootstrap aggregation (bagging) of `dda.indep`, `dda.resdist`, and `dda.vardist` objects to evaluate the stability of direction dependence decisions, with accompanying `print` and `summary` methods. Test statistics are aggregated with `agg.stat`; p-values are pooled with the asymptotically exact harmonic mean p-value (Wilson, 2019).
+-	Argument, element, and class names now use dot case (e.g., `agg.stat`, `trim.prob`, `aggregated.stats`, `decision.proportions`, `breusch.pagan`, `call.info`, and class `dda.bagging`). The OLS summary of bagged objects is now `ols.summary` (previously `summary_ols`).
 -	`dda.indep`, `cdda.indep`, and `dda.resdist` now include a `robust` argument applying Siegel's (1982) repeated median estimation to the causally competing models.
 
 ### Bug fixes

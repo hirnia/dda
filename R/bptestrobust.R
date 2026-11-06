@@ -11,16 +11,16 @@ bptestrobust <- function(fit, studentize = FALSE, ...) {
   res <- residuals(fit)
   X <- model.matrix(fit)
   # Auxiliary regression: regress squared residuals on regressors
-  aux_fit <- lm(res^2 ~ X[, -1, drop = FALSE])
+  aux.fit <- lm(res^2 ~ X[, -1, drop = FALSE])
   if (studentize) {
-    bp_stat <- length(res) * summary(aux_fit)$r.squared
+    bp.stat <- length(res) * summary(aux.fit)$r.squared
   } else {
-    bp_stat <- sum((fitted(aux_fit) - mean(res^2))^2) / (2 * mean(res^2)^2)
+    bp.stat <- sum((fitted(aux.fit) - mean(res^2))^2) / (2 * mean(res^2)^2)
   }
   df <- ncol(X) - 1
-  pval <- pchisq(bp_stat, df, lower.tail = FALSE)
+  pval <- pchisq(bp.stat, df, lower.tail = FALSE)
   structure(list(
-    statistic = bp_stat,
+    statistic = bp.stat,
     parameter = df,
     p.value = pval,
     method = sprintf("Robust Breusch-Pagan test (studentize=%s)", studentize)

@@ -199,7 +199,7 @@ dda.vardist <- function(formula,
 	response.name <- all.vars(formula(formula))[1]  # get name of response variable
 	output <- c(output, list(var.names = c(response.name, pred)))
 
-	output$call_info <- list(function_call = match.call(), formula = formula) # 0.2.0 call information for dda.bagging
+	output$call.info <- list(function.call = match.call(), formula = formula) # 0.2.0 call information for dda.bagging
 
 	class(output) <- "dda.vardist"
 	return(output)

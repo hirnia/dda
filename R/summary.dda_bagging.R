@@ -5,9 +5,9 @@
 #' confounding, or undecided) across the bootstrap samples for bootstrap
 #' aggregated Direction Dependence Analysis (DDA) objects.
 #'
-#' @param object An object of class \code{dda_bagging}
-#'   (\code{dda_bagging_indep}, \code{dda_bagging_vardist}, or
-#'   \code{dda_bagging_resdist}) obtained from \code{dda.bagging}.
+#' @param object An object of class \code{dda.bagging}
+#'   (\code{dda.bagging.indep}, \code{dda.bagging.vardist}, or
+#'   \code{dda.bagging.resdist}) obtained from \code{dda.bagging}.
 #' @param show Character vector specifying the DDA statistics used to perform
 #'   model selection. The function accepts
 #'   \code{c("hsic", "dcor", "mi", "bp", "nlcor")} for independence
@@ -32,8 +32,8 @@
 #' y <- 0.5 * x + e
 #' d <- data.frame(x, y)
 #'
-#' base_model <- dda.vardist(y ~ x, pred = "x", data = d, B = 10)
-#' bagged <- dda.bagging(base_model, data = d, iter = 10, progress = FALSE)
+#' base.model <- dda.vardist(y ~ x, pred = "x", data = d, B = 10)
+#' bagged <- dda.bagging(base.model, data = d, iter = 10, progress = FALSE)
 #'
 #' ## proportion of model selection decisions across bootstrap samples
 #' summary(bagged)
@@ -42,12 +42,12 @@
 #' summary(bagged, show = c("skew", "coskew"))
 #'
 #' @export
-#' @rdname summary.dda_bagging
-#' @method summary dda_bagging
-summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
+#' @rdname summary.dda.bagging
+#' @method summary dda.bagging
+summary.dda.bagging <- function(object, show = NULL, digits = 2, ...){
 
-  props <- object$decision_proportions
-  varnames <- object$aggregated_stats$var.names
+  props <- object$decision.proportions
+  varnames <- object$aggregated.stats$var.names
 
   groups <- list(hsic   = c("hsic", "hsic.diff"),
                  dcor   = c("dcor", "dcor.diff"),
@@ -95,13 +95,13 @@ summary.dda_bagging <- function(object, show = NULL, digits = 2, ...){
   for (r in 1:nrow(out)) out[r, ] <- round_preserve_sum(props[r, ], digits)
   rownames(out) <- labels[rownames(props)]
 
-  if (inherits(object, "dda_bagging_indep"))   type <- "Independence Properties"
-  if (inherits(object, "dda_bagging_resdist")) type <- "Residual Distributions"
-  if (inherits(object, "dda_bagging_vardist")) type <- "Variable Distributions"
+  if (inherits(object, "dda.bagging.indep"))   type <- "Independence Properties"
+  if (inherits(object, "dda.bagging.resdist")) type <- "Residual Distributions"
+  if (inherits(object, "dda.bagging.vardist")) type <- "Variable Distributions"
 
   cat("\n")
   cat(paste("BOOTSTRAP AGGREGATED DDA:", type), "\n")
-  cat(paste("Number of bootstrap samples:", object$n_valid_iterations), "\n")
+  cat(paste("Number of bootstrap samples:", object$n.valid.iterations), "\n")
   cat(paste("Proportion of model selection decisions (alpha = ", object$alpha, "):", sep = ""), "\n", "\n")
 
   print.default(format(out, nsmall = digits), print.gap = 2L, quote = FALSE)

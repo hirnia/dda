@@ -46,40 +46,40 @@ summary.cdda.indep <- function(object,
   cdda.output <- object
 
   varnames <- cdda.output[[1]][[1]]$var.names
-  mod_names <- names(cdda.output[[1]])
+  mod.names <- names(cdda.output[[1]])
 
   varnames <- cdda.output[[1]][[1]]$var.names
-  mod_names <- names(cdda.output[[1]])
-  n_resamples <- cdda.output[[1]][[1]]$boot.args[3]
+  mod.names <- names(cdda.output[[1]])
+  n.resamples <- cdda.output[[1]][[1]]$boot.args[3]
   ci.level <- as.numeric(cdda.output[[1]][[1]]$boot.args[2]) * 100
 
   if (!is.null(cdda.output[[1]][[1]]$boot.args[1]) && cdda.output[[1]][[1]]$boot.args[1] == "bca") {
-    boot_print <- paste("\n", ci.level, "% BCa bootstrap CIs (", n_resamples, " resamples)", "\n\n", sep = "")
+    boot.print <- paste("\n", ci.level, "% BCa bootstrap CIs (", n.resamples, " resamples)", "\n\n", sep = "")
   } else if (!is.null(cdda.output[[1]][[1]]$boot.args[1]) && cdda.output[[1]][[1]]$boot.args[1] == "perc") {
-    boot_print <- paste("\n", ci.level, "% percentile bootstrap CIs (", n_resamples, " resamples)", "\n\n", sep = "")
+    boot.print <- paste("\n", ci.level, "% percentile bootstrap CIs (", n.resamples, " resamples)", "\n\n", sep = "")
   } else {
-    boot_print <- NULL
+    boot.print <- NULL
   }
   cat("\n")
 
   ### Indep Summary ### ----------------------------------------------------
 
   if (hetero == TRUE) {
-    if(is.null(cdda.output[[1]][[1]]$breusch_pagan)){
+    if(is.null(cdda.output[[1]][[1]]$breusch.pagan)){
       stop("Homoscedasticity tests not found. Use 'hetero = TRUE'.")
     }
 
     ### BP ### ------------------------------------------------------------
-    bptests <- matrix(NA, length(mod_names), 6)
+    bptests <- matrix(NA, length(mod.names), 6)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
 
-      tar.bp <- unlist(cdda.output[[1]][[i]]$breusch_pagan[[1]][c(1,2,4)])
-      alt.bp <- unlist(cdda.output[[2]][[i]]$breusch_pagan[[1]][c(1,2,4)])
+      tar.bp <- unlist(cdda.output[[1]][[i]]$breusch.pagan[[1]][c(1,2,4)])
+      alt.bp <- unlist(cdda.output[[2]][[i]]$breusch.pagan[[1]][c(1,2,4)])
       bptests[i, ] <- c(tar.bp, alt.bp)
     }
 
-    rownames(bptests) <- mod_names
+    rownames(bptests) <- mod.names
     colnames(bptests) <- rep(c("X2-value", "df", "p-value"), 2)
     bptests <- round(bptests, 3)
 
@@ -91,16 +91,16 @@ summary.cdda.indep <- function(object,
     cat("---", "\n", "\n")
 
     ### Robust BP ### --------------------------------------------------------
-    rbptests <- matrix(NA, length(mod_names), 6)
+    rbptests <- matrix(NA, length(mod.names), 6)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
 
-      tar.rbp <- unlist(cdda.output[[1]][[i]]$breusch_pagan[[2]][c(1,2,4)])
-      alt.rbp <- unlist(cdda.output[[2]][[i]]$breusch_pagan[[2]][c(1,2,4)])
+      tar.rbp <- unlist(cdda.output[[1]][[i]]$breusch.pagan[[2]][c(1,2,4)])
+      alt.rbp <- unlist(cdda.output[[2]][[i]]$breusch.pagan[[2]][c(1,2,4)])
       rbptests[i, ] <- c(tar.rbp, alt.rbp)
     }
 
-    rownames(rbptests) <- mod_names
+    rownames(rbptests) <- mod.names
     colnames(rbptests) <- rep(c("X2-value", "df", "p-value"), 2)
     rbptests <- round(rbptests, 3)
 
@@ -118,9 +118,9 @@ summary.cdda.indep <- function(object,
 
     if(is.null(cdda.output[[1]][[1]]$nlfun)) stop("Non-linear function is missing.")
 
-    nlsigtests <- matrix(NA, length(mod_names), 8)
+    nlsigtests <- matrix(NA, length(mod.names), 8)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
 
       tar.nl <- rbind(cdda.output[[1]][[i]]$nlcor.yx$t1,
                       cdda.output[[1]][[i]]$nlcor.yx$t2,
@@ -136,7 +136,7 @@ summary.cdda.indep <- function(object,
       nlsigtests[i, ] <- c(tar.nl, alt.nl)
     }
 
-    rownames(nlsigtests) <- mod_names
+    rownames(nlsigtests) <- mod.names
     colnames(nlsigtests) <- rep(c("statistic", "t-value", "df", "p-value"), 2)
     nlsigtests <- round(nlsigtests, 3)
 
@@ -153,16 +153,16 @@ summary.cdda.indep <- function(object,
     ### HSIC ### ------------------------------------------------------------
     if(is.null(cdda.output[[1]][[1]]$hsic.yx)) stop("Difference tests not found, set 'diff = TRUE'.")
 
-    hsictests <- matrix(NA, length(mod_names), 4)
+    hsictests <- matrix(NA, length(mod.names), 4)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
 
       tar.hsic <- c(cdda.output[[1]][[i]]$hsic.yx$statistic, cdda.output[[1]][[i]]$hsic.yx$p.value)
       alt.hsic <- c(cdda.output[[2]][[i]]$hsic.yx$statistic, cdda.output[[2]][[i]]$hsic.yx$p.value)
       hsictests[i, ] <- c(tar.hsic, alt.hsic)
     }
 
-    rownames(hsictests) <- mod_names
+    rownames(hsictests) <- mod.names
     colnames(hsictests) <- rep(c("HSIC", "p-value"), 2)
     hsictests <- round(hsictests, 3)
 
@@ -179,20 +179,20 @@ summary.cdda.indep <- function(object,
     ### HSIC Diff ### ----------------------------------------------------------
     if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
 
-    hsicdiff <- matrix(NA, length(mod_names), 6)
+    hsicdiff <- matrix(NA, length(mod.names), 6)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
 
       tar.hsicd <- unlist(cdda.output[[1]][[i]]$out.diff[1, ])
       alt.hsicd <- unlist(cdda.output[[2]][[i]]$out.diff[1, ])
       hsicdiff[i, ] <- c(tar.hsicd, alt.hsicd)
     }
 
-    rownames(hsicdiff) <- mod_names
+    rownames(hsicdiff) <- mod.names
     colnames(hsicdiff) <- rep(c("diff", "lower", "upper"), 2)
     hsicdiff <- round(hsicdiff, 3)
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Hilbert-Schmidt Independence Criterion Differences", "\n"))
     cat(paste0("---------------------------------------------------------------------", "\n"))
@@ -207,21 +207,21 @@ summary.cdda.indep <- function(object,
   ## dcor ## -------------------------------------------------------------------
   if (dcor == TRUE){
 
-    dcor <- matrix(NA, length(mod_names), 4)
+    dcor <- matrix(NA, length(mod.names), 4)
 
-    for (i in seq_along(mod_names)) {
-      tar.dcor <- unlist(c(cdda.output[[1]][[i]]$distance_cor.dcor_yx$statistic,
-                           cdda.output[[1]][[i]]$distance_cor.dcor_yx$p.value))
-      alt.dcor <- unlist(c(cdda.output[[2]][[i]]$distance_cor.dcor_yx$statistic,
-                           cdda.output[[2]][[i]]$distance_cor.dcor_yx$p.value))
+    for (i in seq_along(mod.names)) {
+      tar.dcor <- unlist(c(cdda.output[[1]][[i]]$distance.cor.dcor.yx$statistic,
+                           cdda.output[[1]][[i]]$distance.cor.dcor.yx$p.value))
+      alt.dcor <- unlist(c(cdda.output[[2]][[i]]$distance.cor.dcor.yx$statistic,
+                           cdda.output[[2]][[i]]$distance.cor.dcor.yx$p.value))
       dcor[i, ] <- c(tar.dcor, alt.dcor)
     }
 
-    rownames(dcor) <- mod_names
+    rownames(dcor) <- mod.names
     colnames(dcor) <- rep(c("dCor", "p-value"), 2)
     dcor <- round(dcor, 3)
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Distance Correlation", "\n"))
     cat(paste0("---------------------------------------------------------------------", "\n"))
@@ -237,19 +237,19 @@ summary.cdda.indep <- function(object,
 
     if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
 
-    dcortests <- matrix(NA, length(mod_names), 6)
+    dcortests <- matrix(NA, length(mod.names), 6)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
       tar.dcor.diff <- unlist(cdda.output[[1]][[i]]$out.diff[2, ])
       alt.dcor.diff <- unlist(cdda.output[[2]][[i]]$out.diff[2, ])
       dcortests[i, ] <- c(tar.dcor.diff, alt.dcor.diff)
     }
 
-    rownames(dcortests) <- mod_names
+    rownames(dcortests) <- mod.names
     colnames(dcortests) <- rep(c("diff", "lower", "upper"), 2)
     dcortests <- round(dcortests, 3)
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Distance Correlation Differences", "\n"))
     cat(paste0("---------------------------------------------------------------------", "\n"))
@@ -264,19 +264,19 @@ summary.cdda.indep <- function(object,
 
     if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
 
-    mitests <- matrix(NA, length(mod_names), 6)
+    mitests <- matrix(NA, length(mod.names), 6)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
       tar.mi <- unlist(cdda.output[[1]][[i]]$out.diff[3, ])
       alt.mi <- unlist(cdda.output[[2]][[i]]$out.diff[3, ])
       mitests[i, ] <- c(tar.mi, alt.mi)
     }
 
-    rownames(mitests) <- mod_names
+    rownames(mitests) <- mod.names
     colnames(mitests) <- rep(c("diff", "lower", "upper"), 2)
     mitests <- round(mitests, 3)
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Mutual Information Difference", "\n"))
     cat(paste0("---------------------------------------------------------------------", "\n"))

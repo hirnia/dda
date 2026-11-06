@@ -1,24 +1,24 @@
 #' @title OLS Summary of Bootstrap Aggregated DDA Objects
 #'
-#' @description \code{summary_ols} returns aggregated ordinary least squares
+#' @description \code{ols.summary} returns aggregated ordinary least squares
 #' (OLS) regression summaries for the causally competing target and
 #' alternative models of a bootstrap aggregated DDA object. Coefficients are
 #' aggregated across bootstrap samples with the method used in
-#' \code{dda.bagging} or the method given in \code{agg_stat}.
+#' \code{dda.bagging} or the method given in \code{agg.stat}.
 #'
-#' @param object An object of class \code{dda_bagging} obtained from
+#' @param object An object of class \code{dda.bagging} obtained from
 #'   \code{dda.bagging}.
-#' @param agg_stat Character. Specifies the method used for aggregating
+#' @param agg.stat Character. Specifies the method used for aggregating
 #'   coefficients and R-squared values across bootstrap samples. Must be one
 #'   of the following specifications \code{c("mean", "median", "trimmed",
 #'   "winsorized", "midhinge", "tukey")}. If \code{NULL} (default), the
 #'   function uses the method applied within \code{dda.bagging}.
-#' @param trim_prob Numeric. Proportion of observations to be trimmed from
-#'   each side of the sampling distribution when \code{agg_stat = "trimmed"}
+#' @param trim.prob Numeric. Proportion of observations to be trimmed from
+#'   each side of the sampling distribution when \code{agg.stat = "trimmed"}
 #'   (default: the value used in \code{dda.bagging}).
-#' @param win_prob Numeric. Proportion of observations to be winsorized from
+#' @param win.prob Numeric. Proportion of observations to be winsorized from
 #'   each side of the sampling distribution when
-#'   \code{agg_stat = "winsorized"} (default: the value used in
+#'   \code{agg.stat = "winsorized"} (default: the value used in
 #'   \code{dda.bagging}).
 #' @param digits Integer. Number of digits used for rounding (default: 4).
 #' @param ... Additional arguments to be passed to the function.
@@ -40,29 +40,29 @@
 #' y <- 0.5 * x + e
 #' d <- data.frame(x, y)
 #'
-#' base_model <- dda.vardist(y ~ x, pred = "x", data = d, B = 10)
-#' bagged <- dda.bagging(base_model, data = d, iter = 10, progress = FALSE)
+#' base.model <- dda.vardist(y ~ x, pred = "x", data = d, B = 10)
+#' bagged <- dda.bagging(base.model, data = d, iter = 10, progress = FALSE)
 #'
-#' summary_ols(bagged)
-#' summary_ols(bagged, agg_stat = "median")
+#' ols.summary(bagged)
+#' ols.summary(bagged, agg.stat = "median")
 #'
 #' @export
-summary_ols <- function(object,
-                        agg_stat = NULL,
-                        trim_prob = object$trim_prob,
-                        win_prob = object$win_prob,
+ols.summary <- function(object,
+                        agg.stat = NULL,
+                        trim.prob = object$trim.prob,
+                        win.prob = object$win.prob,
                         digits = 4,
                         ...){
 
-  if (!inherits(object, "dda_bagging")) stop("object must be a dda_bagging object.")
-  if (is.null(agg_stat)) agg_stat <- object$agg_stat
+  if (!inherits(object, "dda.bagging")) stop("object must be a dda.bagging object.")
+  if (is.null(agg.stat)) agg.stat <- object$agg.stat
 
   alpha <- object$alpha
   output <- list()
 
   cat("\n")
-  cat(paste("Aggregation method:", agg_stat), "\n")
-  cat(paste("Number of bootstrap samples:", object$n_valid_iterations), "\n")
+  cat(paste("Aggregation method:", agg.stat), "\n")
+  cat(paste("Number of bootstrap samples:", object$n.valid.iterations), "\n")
 
   for (model in c("target", "alternative")) {
 
@@ -72,7 +72,7 @@ summary_ols <- function(object,
 
     tab <- matrix(NA, nrow = ncol(coefs), ncol = 4)
     for (j in 1:ncol(coefs)) {
-      tab[j, 1]   <- agg.value(coefs[, j], agg_stat, trim_prob, win_prob)
+      tab[j, 1]   <- agg.value(coefs[, j], agg.stat, trim.prob, win.prob)
       tab[j, 2:3] <- quantile(coefs[, j], probs = c(alpha / 2, 1 - alpha / 2), na.rm = TRUE, names = FALSE)
       tab[j, 4]   <- mean(pvals[, j] < alpha, na.rm = TRUE)
     }
@@ -80,8 +80,8 @@ summary_ols <- function(object,
     colnames(tab) <- c("estimate", paste(100 * alpha / 2, "%"), paste(100 * (1 - alpha / 2), "%"),
                        paste("Prop(p < ", alpha, ")", sep = ""))
 
-    rsq     <- agg.value(r2[, "r.squared"], agg_stat, trim_prob, win_prob)
-    adj.rsq <- agg.value(r2[, "adj.r.squared"], agg_stat, trim_prob, win_prob)
+    rsq     <- agg.value(r2[, "r.squared"], agg.stat, trim.prob, win.prob)
+    adj.rsq <- agg.value(r2[, "adj.r.squared"], agg.stat, trim.prob, win.prob)
 
     if (model == "target")      cat("\n", "OLS Summary: Target Model", "\n", sep = "")
     if (model == "alternative") cat("\n", "OLS Summary: Alternative Model", "\n", sep = "")

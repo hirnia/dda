@@ -6,26 +6,26 @@
 #' robustness of direction dependence decisions. \code{print} returns
 #' aggregated test statistics of bootstrap aggregated DDA objects.
 #'
-#' @param dda_result An output object from any base DDA function
+#' @param dda.result An output object from any base DDA function
 #'   (\code{dda.indep}, \code{dda.vardist}, or \code{dda.resdist}).
 #' @param data A \code{data.frame} containing all raw variables used in the
 #'   original DDA model (outcome, predictor, and any covariates).
 #' @param iter Number of bootstrap samples (default: 100).
 #' @param alpha Numeric. Significance level used for causal model selection
 #'   (default: 0.05).
-#' @param agg_stat Character. Specifies the method used for aggregating test
+#' @param agg.stat Character. Specifies the method used for aggregating test
 #'   statistics and coefficients across bootstrap samples. Must be
 #'   one of the following specifications \code{c("mean", "median",
 #'   "trimmed", "winsorized", "midhinge", "tukey")}. When using \code{print},
-#'   \code{agg_stat = NULL} (default) uses the method applied within
+#'   \code{agg.stat = NULL} (default) uses the method applied within
 #'   \code{dda.bagging}.
-#' @param trim_prob Numeric. Proportion of observations to be trimmed from
-#'   each side of the sampling distribution when \code{agg_stat = "trimmed"}
+#' @param trim.prob Numeric. Proportion of observations to be trimmed from
+#'   each side of the sampling distribution when \code{agg.stat = "trimmed"}
 #'   (default: 0.10).
-#' @param win_prob Numeric. Proportion of observations to be winsorized from
+#' @param win.prob Numeric. Proportion of observations to be winsorized from
 #'   each side of the sampling distribution when
-#'   \code{agg_stat = "winsorized"} (default: 0.10).
-#' @param inner_B Optional positive integer. Number of resamples (\code{B})
+#'   \code{agg.stat = "winsorized"} (default: 0.10).
+#' @param inner.B Optional positive integer. Number of resamples (\code{B})
 #'   used by the DDA function within each bootstrap sample. \code{NULL}
 #'   (default) keeps the \code{B} of the original DDA call.
 #' @param parallelize A logical value indicating whether bootstrap samples
@@ -35,7 +35,7 @@
 #' @param progress Logical. Whether to display a progress bar during
 #'   resampling (default: \code{TRUE}). Only used if
 #'   \code{parallelize = FALSE}.
-#' @param save_file Character. Optional file path to save the resulting
+#' @param save.file Character. Optional file path to save the resulting
 #'   object (e.g., \code{"results.rds"}).
 #'
 #' @details
@@ -46,7 +46,7 @@
 #' to evaluate the stability and robustness of DDA model selection. In each
 #' bootstrap sample the original DDA function is called with its original
 #' arguments and the causally competing OLS models are fitted. Test
-#' statistics are aggregated across bootstrap samples using \code{agg_stat}.
+#' statistics are aggregated across bootstrap samples using \code{agg.stat}.
 #' P-values of significance tests are pooled across bootstrap samples with
 #' the asymptotically exact harmonic mean p-value using equal weights
 #' (Wilson, 2019).
@@ -56,11 +56,11 @@
 #' failed samples and the last error message.
 #'
 #' Arguments of the original DDA call are evaluated once, in the environment
-#' \code{dda.bagging} is called from. \code{inner_B} lowers the number of
+#' \code{dda.bagging} is called from. \code{inner.B} lowers the number of
 #' resamples within each bootstrap sample to reduce run time; it sets the
 #' bootstrap confidence intervals of difference statistics and, for
 #' \code{dda.indep}, the number of dCor permutations. BCa intervals require
-#' \code{inner_B} to exceed the sample size. With \code{parallelize = TRUE}
+#' \code{inner.B} to exceed the sample size. With \code{parallelize = TRUE}
 #' the bootstrap samples are distributed over \code{cores} worker processes
 #' with the \code{parallel} package that comes with R; the workers load the
 #' installed version of \code{dda}. Results are reproducible with
@@ -70,28 +70,28 @@
 #'
 #' Within each bootstrap sample every DDA test leads to a model selection
 #' decision. The target model is \code{x -> y} and the alternative model is
-#' \code{y -> x}; \code{p_yx} is the p-value obtained under the target model
-#' and \code{p_xy} the p-value obtained under the alternative model.
+#' \code{y -> x}; \code{p.yx} is the p-value obtained under the target model
+#' and \code{p.xy} the p-value obtained under the alternative model.
 #'
 #' Separate normality tests (\code{dda.vardist}: outcome and predictor;
 #' \code{dda.resdist}: target and alternative residuals):
 #' \itemize{
-#'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: target model
-#'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
+#'   \item \code{p.yx > alpha} and \code{p.xy <= alpha}: target model
+#'   \item \code{p.yx <= alpha} and \code{p.xy > alpha}: alternative model
 #'   \item otherwise: undecided
 #' }
 #' For \code{dda.resdist} with \code{prob.trans = TRUE} the target and
 #' alternative residual p-values swap roles in these rules
-#' (\code{p_yx <= alpha} and \code{p_xy > alpha}: target model).
+#' (\code{p.yx <= alpha} and \code{p.xy > alpha}: target model).
 #'
 #' Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
 #' Breusch-Pagan, and non-linear correlation using the smallest of the three
 #' p-values compared with \code{alpha / 3}, a Bonferroni correction):
 #' \itemize{
-#'   \item \code{p_yx > alpha} and \code{p_xy <= alpha}: target model
-#'   \item \code{p_yx <= alpha} and \code{p_xy > alpha}: alternative model
-#'   \item \code{p_yx <= alpha} and \code{p_xy <= alpha}: confounding
-#'   \item \code{p_yx > alpha} and \code{p_xy > alpha}: undecided
+#'   \item \code{p.yx > alpha} and \code{p.xy <= alpha}: target model
+#'   \item \code{p.yx <= alpha} and \code{p.xy > alpha}: alternative model
+#'   \item \code{p.yx <= alpha} and \code{p.xy <= alpha}: confounding
+#'   \item \code{p.yx > alpha} and \code{p.xy > alpha}: undecided
 #' }
 #'
 #' Asymptotic skewness and kurtosis difference tests (\code{dda.resdist}):
@@ -108,21 +108,21 @@
 #' \code{prob.trans = FALSE} and \code{prob.trans = TRUE}. Difference
 #' statistics without a bootstrap interval (\code{B = 0}) are not decided.
 #'
-#' @return An object of class \code{dda_bagging} (with subclasses
-#'   \code{dda_bagging_indep}, \code{dda_bagging_vardist}, or
-#'   \code{dda_bagging_resdist}), which contains aggregated and raw results
+#' @return An object of class \code{dda.bagging} (with subclasses
+#'   \code{dda.bagging.indep}, \code{dda.bagging.vardist}, or
+#'   \code{dda.bagging.resdist}), which contains aggregated and raw results
 #'   from tests matching the initial DDA function (\code{dda.indep},
 #'   \code{dda.vardist}, or \code{dda.resdist}):
-#'   \item{bagged_results}{The DDA results of the bootstrap samples.}
-#'   \item{aggregated_stats}{A DDA object of the original class holding the
+#'   \item{bagged.results}{The DDA results of the bootstrap samples.}
+#'   \item{aggregated.stats}{A DDA object of the original class holding the
 #'     aggregated test statistics and p-values.}
 #'   \item{decisions}{A matrix of model selection decisions with one row per
 #'     bootstrap sample and one column per test.}
-#'   \item{decision_proportions}{A matrix of decision proportions with one
+#'   \item{decision.proportions}{A matrix of decision proportions with one
 #'     row per test.}
 #'   \item{ols}{Coefficients, p-values, and R-squared values of the target
 #'     and alternative OLS models in each bootstrap sample.}
-#'   \item{n_valid_iterations}{Number of bootstrap samples with a DDA
+#'   \item{n.valid.iterations}{Number of bootstrap samples with a DDA
 #'     result.}
 #'
 #' @references
@@ -135,8 +135,8 @@
 #' 1195-1200.
 #'
 #' @seealso \code{\link{dda.indep}}, \code{\link{dda.vardist}},
-#'   \code{\link{dda.resdist}}, \code{\link{summary.dda_bagging}},
-#'   \code{\link{summary_ols}}
+#'   \code{\link{dda.resdist}}, \code{\link{summary.dda.bagging}},
+#'   \code{\link{ols.summary}}
 #'
 #' @examples
 #' set.seed(123)
@@ -148,11 +148,11 @@
 #'
 #' ## --- Fit a base dda.indep model
 #'
-#' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 20, hetero = TRUE)
+#' base.model <- dda.indep(y ~ x, pred = "x", data = d, B = 20, hetero = TRUE)
 #'
 #' ## --- Bootstrap aggregation of the base model
 #'
-#' bagged <- dda.bagging(base_model, data = d, iter = 5, progress = FALSE)
+#' bagged <- dda.bagging(base.model, data = d, iter = 5, progress = FALSE)
 #' # n, B and iter are kept small in example to lower computation time.
 #'
 #' print(bagged)
@@ -161,57 +161,57 @@
 #' \dontrun{
 #' ## --- More realistic settings with longer runtime
 #'
-#' base_model <- dda.indep(y ~ x, pred = "x", data = d, B = 2000,
+#' base.model <- dda.indep(y ~ x, pred = "x", data = d, B = 2000,
 #'   hetero = TRUE, nlfun = 2, diff = TRUE)
 #'
-#' bagged <- dda.bagging(base_model, data = d, iter = 100,
-#'   agg_stat = "trimmed", trim_prob = 0.05)
+#' bagged <- dda.bagging(base.model, data = d, iter = 100,
+#'   agg.stat = "trimmed", trim.prob = 0.05)
 #'
 #' print(bagged)
-#' print(bagged, agg_stat = "median")
+#' print(bagged, agg.stat = "median")
 #' summary(bagged, show = c("hsic", "dcor", "bp"))
-#' summary_ols(bagged)
+#' ols.summary(bagged)
 #' }
 #'
 #' @export
 #' @rdname dda.bagging
-dda.bagging <- function(dda_result,
+dda.bagging <- function(dda.result,
                         data,
                         iter = 100,
                         alpha = 0.05,
-                        agg_stat = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
-                        trim_prob = 0.10,
-                        win_prob = 0.10,
-                        inner_B = NULL,
+                        agg.stat = c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"),
+                        trim.prob = 0.10,
+                        win.prob = 0.10,
+                        inner.B = NULL,
                         parallelize = FALSE,
                         cores = 1,
                         progress = TRUE,
-                        save_file = NULL
+                        save.file = NULL
                         ){
 
   ### --- check input
 
-  if (!inherits(dda_result, c("dda.indep", "dda.resdist", "dda.vardist")))
-    stop("dda_result must be a dda.indep, dda.resdist, or dda.vardist object.")
-  if (missing(data) || !is.data.frame(data)) stop("Please provide the data.frame used to fit dda_result.")
-  agg_stat <- match.arg(agg_stat)
+  if (!inherits(dda.result, c("dda.indep", "dda.resdist", "dda.vardist")))
+    stop("dda.result must be a dda.indep, dda.resdist, or dda.vardist object.")
+  if (missing(data) || !is.data.frame(data)) stop("Please provide the data.frame used to fit dda.result.")
+  agg.stat <- match.arg(agg.stat)
 
   ### --- target and alternative model formulas
 
-  y.name <- dda_result$var.names[1]  # tentative outcome
-  x.name <- dda_result$var.names[2]  # tentative predictor
+  y.name <- dda.result$var.names[1]  # tentative outcome
+  x.name <- dda.result$var.names[2]  # tentative predictor
 
-  formula.tar <- formula(dda_result$call_info$formula)
+  formula.tar <- formula(dda.result$call.info$formula)
   formula.alt <- stats::update(formula.tar, paste(x.name, "~ . -", x.name, "+", y.name))
 
   ### --- original DDA call, evaluated again in every bootstrap sample
 
-  boot.call <- dda_result$call_info$function_call
+  boot.call <- dda.result$call.info$function.call
   boot.call$formula <- formula.tar
   boot.call$data <- quote(boot.data)
 
-  # Optional: inner_B replaces the number of resamples B of the original DDA call
-  if (!is.null(inner_B)) boot.call$B <- inner_B
+  # Optional: inner.B replaces the number of resamples B of the original DDA call
+  if (!is.null(inner.B)) boot.call$B <- inner.B
 
   # all other arguments of the original call are evaluated once, where
   # dda.bagging is called from, so that the call also runs on worker processes
@@ -232,7 +232,7 @@ dda.bagging <- function(dda_result,
     if (inherits(fit, "try-error")) return(list(error = conditionMessage(attr(fit, "condition"))))
 
     # the stored call is not needed in the bootstrap results
-    fit$call_info <- NULL
+    fit$call.info <- NULL
 
     s.tar <- summary(lm(formula.tar, data = boot.data))
     s.alt <- summary(lm(formula.alt, data = boot.data))
@@ -294,7 +294,7 @@ dda.bagging <- function(dda_result,
 
   ### --- aggregated test statistics
 
-  agg <- bag.aggregate(results, agg_stat, trim_prob, win_prob)
+  agg <- bag.aggregate(results, agg.stat, trim.prob, win.prob)
 
   ### --- model selection decisions and their proportions
 
@@ -302,7 +302,7 @@ dda.bagging <- function(dda_result,
   decisions <- matrix(NA, nrow = n.valid, ncol = length(tests), dimnames = list(NULL, tests))
   for (i in 1:n.valid) decisions[i, ] <- dda.decisions(results[[i]], alpha)[tests]
 
-  if (inherits(dda_result, "dda.indep")) {
+  if (inherits(dda.result, "dda.indep")) {
     levs <- c("Target", "Alternative", "Confounding", "Undecided")
   } else {
     levs <- c("Target", "Alternative", "Undecided")
@@ -318,52 +318,52 @@ dda.bagging <- function(dda_result,
 
   ### --- output
 
-  output <- list(bagged_results = results,
-                 aggregated_stats = agg,
+  output <- list(bagged.results = results,
+                 aggregated.stats = agg,
                  decisions = decisions,
-                 decision_proportions = props,
+                 decision.proportions = props,
                  ols = list(target = list(formula = formula.tar, coef = ols.tar.coef,
                                           p.value = ols.tar.p, r.squared = ols.tar.r2),
                             alternative = list(formula = formula.alt, coef = ols.alt.coef,
                                                p.value = ols.alt.p, r.squared = ols.alt.r2)),
-                 n_valid_iterations = n.valid,
+                 n.valid.iterations = n.valid,
                  alpha = alpha,
-                 agg_stat = agg_stat,
-                 trim_prob = trim_prob,
-                 win_prob = win_prob)
+                 agg.stat = agg.stat,
+                 trim.prob = trim.prob,
+                 win.prob = win.prob)
 
-  type <- sub("dda.", "", class(dda_result)[1], fixed = TRUE)
-  class(output) <- c(paste0("dda_bagging_", type), "dda_bagging")
+  type <- sub("dda.", "", class(dda.result)[1], fixed = TRUE)
+  class(output) <- c(paste0("dda.bagging.", type), "dda.bagging")
 
-  if (!is.null(save_file)) saveRDS(output, file = save_file)
+  if (!is.null(save.file)) saveRDS(output, file = save.file)
 
   return(output)
 }
 
 
-#' @title Print Method for \code{dda_bagging} Objects
+#' @title Print Method for \code{dda.bagging} Objects
 #'
-#' @param x An object of class \code{dda_bagging} (\code{dda_bagging_indep},
-#'   \code{dda_bagging_vardist}, or \code{dda_bagging_resdist}) when using
+#' @param x An object of class \code{dda.bagging} (\code{dda.bagging.indep},
+#'   \code{dda.bagging.vardist}, or \code{dda.bagging.resdist}) when using
 #'   \code{print}.
 #' @param ... Additional arguments to be passed to the function.
 #'
 #' @export
 #' @rdname dda.bagging
-#' @method print dda_bagging
+#' @method print dda.bagging
 
-print.dda_bagging <- function(x, agg_stat = NULL, trim_prob = x$trim_prob, win_prob = x$win_prob, ...){
-  # agg_stat recomputes the aggregated statistics from the stored bootstrap results
-  object <- reaggregate_bagging(x, agg_stat, trim_prob, win_prob)
+print.dda.bagging <- function(x, agg.stat = NULL, trim.prob = x$trim.prob, win.prob = x$win.prob, ...){
+  # agg.stat recomputes the aggregated statistics from the stored bootstrap results
+  object <- reaggregate.bagging(x, agg.stat, trim.prob, win.prob)
 
   cat("\n")
   cat("BOOTSTRAP AGGREGATED DDA", "\n")
-  cat(paste("Number of bootstrap samples:", object$n_valid_iterations), "\n")
-  cat(paste("Aggregation method:", object$agg_stat), "\n")
+  cat(paste("Number of bootstrap samples:", object$n.valid.iterations), "\n")
+  cat(paste("Aggregation method:", object$agg.stat), "\n")
   cat("Test statistics are aggregated across bootstrap samples.", "\n")
   cat("P-values are pooled with the harmonic mean p-value.", "\n")
 
-  print(object$aggregated_stats)
+  print(object$aggregated.stats)
 
   invisible(x)
 }
@@ -372,22 +372,22 @@ print.dda_bagging <- function(x, agg_stat = NULL, trim_prob = x$trim_prob, win_p
 #' @title Re-aggregate a Bootstrap Aggregated DDA Object
 #'
 #' @description Recomputes the aggregated test statistics of a
-#'   \code{dda_bagging} object with a different aggregation method. The
+#'   \code{dda.bagging} object with a different aggregation method. The
 #'   bootstrap results are reused; no resampling is done. With
-#'   \code{agg_stat = NULL} the object is returned unchanged.
+#'   \code{agg.stat = NULL} the object is returned unchanged.
 #'
 #' @keywords internal
 #' @noRd
 
-reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = object$trim_prob, win_prob = object$win_prob){
+reaggregate.bagging <- function(object, agg.stat = NULL, trim.prob = object$trim.prob, win.prob = object$win.prob){
 
-  if (is.null(agg_stat)) return(object)
-  agg_stat <- match.arg(agg_stat, c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"))
+  if (is.null(agg.stat)) return(object)
+  agg.stat <- match.arg(agg.stat, c("mean", "median", "trimmed", "winsorized", "midhinge", "tukey"))
 
-  object$aggregated_stats <- bag.aggregate(object$bagged_results, agg_stat, trim_prob, win_prob)
-  object$agg_stat  <- agg_stat
-  object$trim_prob <- trim_prob
-  object$win_prob  <- win_prob
+  object$aggregated.stats <- bag.aggregate(object$bagged.results, agg.stat, trim.prob, win.prob)
+  object$agg.stat  <- agg.stat
+  object$trim.prob <- trim.prob
+  object$win.prob  <- win.prob
   object
 }
 
@@ -396,18 +396,18 @@ reaggregate_bagging <- function(object, agg_stat = NULL, trim_prob = object$trim
 #'
 #' @description Returns a DDA object of the same class as the bootstrap
 #'   results in which every test statistic is aggregated with
-#'   \code{agg_stat} and every p-value is pooled with \code{agg.p} across
+#'   \code{agg.stat} and every p-value is pooled with \code{agg.p} across
 #'   bootstrap samples. The object prints with the print method of the
 #'   original DDA function.
 #'
 #' @keywords internal
 #' @noRd
-bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
+bag.aggregate <- function(results, agg.stat, trim.prob, win.prob){
 
   first <- results[[1]]
 
   # aggregate of one stored value; index is its position in a DDA object,
-  # e.g. c("hsic.yx", "p.value") or list("breusch_pagan", 2, "p.value");
+  # e.g. c("hsic.yx", "p.value") or list("breusch.pagan", 2, "p.value");
   # p gives the elements of the stored value that are p-values
   bag <- function(index, p = NULL){
     out <- first
@@ -422,7 +422,7 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
       if (j %in% p) {
         out[j] <- agg.p(values[, j])
       } else {
-        out[j] <- agg.value(values[, j], agg_stat, trim_prob, win_prob)
+        out[j] <- agg.value(values[, j], agg.stat, trim.prob, win.prob)
       }
     }
     out
@@ -476,17 +476,17 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
     }
     agg$hsic.method <- first$hsic.method
 
-    for (m in c("distance_cor.dcor_yx", "distance_cor.dcor_xy")) {
+    for (m in c("distance.cor.dcor.yx", "distance.cor.dcor.xy")) {
       agg[[m]] <- list(statistic = bag(c(m, "statistic")),
                        p.value = bag(c(m, "p.value"), p = 1))
     }
 
-    if (!is.null(first$breusch_pagan)) {
-      agg$breusch_pagan <- list()
+    if (!is.null(first$breusch.pagan)) {
+      agg$breusch.pagan <- list()
       for (k in 1:4) {
-        agg$breusch_pagan[[k]] <- list(statistic = bag(list("breusch_pagan", k, "statistic")),
-                                       parameter = bag(list("breusch_pagan", k, "parameter")),
-                                       p.value = bag(list("breusch_pagan", k, "p.value"), p = 1))
+        agg$breusch.pagan[[k]] <- list(statistic = bag(list("breusch.pagan", k, "statistic")),
+                                       parameter = bag(list("breusch.pagan", k, "parameter")),
+                                       p.value = bag(list("breusch.pagan", k, "p.value"), p = 1))
       }
     }
 
@@ -521,31 +521,31 @@ bag.aggregate <- function(results, agg_stat, trim_prob, win_prob){
 #'
 #' @keywords internal
 #' @noRd
-agg.value <- function(x, agg_stat, trim_prob, win_prob){
+agg.value <- function(x, agg.stat, trim.prob, win.prob){
 
   x <- x[is.finite(x)]
   if (length(x) == 0) return(NA)
 
-  if (agg_stat == "mean")     return(mean(x))
-  if (agg_stat == "median")   return(median(x))
-  if (agg_stat == "trimmed")  return(mean(x, trim = trim_prob))
-  if (agg_stat == "midhinge") return(mean(quantile(x, probs = c(0.25, 0.75), names = FALSE)))
+  if (agg.stat == "mean")     return(mean(x))
+  if (agg.stat == "median")   return(median(x))
+  if (agg.stat == "trimmed")  return(mean(x, trim = trim.prob))
+  if (agg.stat == "midhinge") return(mean(quantile(x, probs = c(0.25, 0.75), names = FALSE)))
 
-  # winsorized mean: tails clamped at the win_prob quantiles
-  if (agg_stat == "winsorized") {
-    q <- quantile(x, probs = c(win_prob, 1 - win_prob), names = FALSE)
+  # winsorized mean: tails clamped at the win.prob quantiles
+  if (agg.stat == "winsorized") {
+    q <- quantile(x, probs = c(win.prob, 1 - win.prob), names = FALSE)
     x[x < q[1]] <- q[1]
     x[x > q[2]] <- q[2]
     return(mean(x))
   }
 
   # Tukey's trimean: (Q1 + 2 * Md + Q3) / 4
-  if (agg_stat == "tukey") {
+  if (agg.stat == "tukey") {
     q <- quantile(x, probs = c(0.25, 0.50, 0.75), names = FALSE)
     return((q[1] + 2 * q[2] + q[3]) / 4)
   }
 
-  stop("Unknown agg_stat. Choose 'mean', 'median', 'trimmed', 'winsorized', 'midhinge', or 'tukey'.")
+  stop("Unknown agg.stat. Choose 'mean', 'median', 'trimmed', 'winsorized', 'midhinge', or 'tukey'.")
 }
 
 
@@ -576,7 +576,7 @@ agg.p <- function(p){
 #'   or \code{"Undecided"}). The rules are listed in the details of
 #'   \code{dda.bagging}.
 #'
-#' @param dda_result An output object from \code{dda.indep},
+#' @param dda.result An output object from \code{dda.indep},
 #'   \code{dda.resdist}, or \code{dda.vardist}.
 #' @param alpha Numeric. Significance level (default: 0.05).
 #'
@@ -584,7 +584,7 @@ agg.p <- function(p){
 #'
 #' @keywords internal
 #' @noRd
-dda.decisions <- function(dda_result, alpha = 0.05){
+dda.decisions <- function(dda.result, alpha = 0.05){
 
   # separate tests: p.yx from the target model, p.xy from the alternative model;
   # both significant is confounding for dda.indep and undecided otherwise
@@ -592,7 +592,7 @@ dda.decisions <- function(dda_result, alpha = 0.05){
     if (is.na(p.yx) || is.na(p.xy)) return(NA)
     if (p.yx >  alpha & p.xy <= alpha) return("Target")
     if (p.yx <= alpha & p.xy >  alpha) return("Alternative")
-    if (p.yx <= alpha & p.xy <= alpha & inherits(dda_result, "dda.indep")) return("Confounding")
+    if (p.yx <= alpha & p.xy <= alpha & inherits(dda.result, "dda.indep")) return("Confounding")
     return("Undecided")
   }
 
@@ -628,7 +628,7 @@ dda.decisions <- function(dda_result, alpha = 0.05){
     return("Undecided")
   }
 
-  obj <- dda_result
+  obj <- dda.result
   dec <- c()
 
   if (inherits(obj, "dda.vardist")) {
@@ -653,11 +653,11 @@ dda.decisions <- function(dda_result, alpha = 0.05){
   } else if (inherits(obj, "dda.indep")) {
 
     dec["hsic"] <- decide.p(obj$hsic.yx$p.value, obj$hsic.xy$p.value, alpha)
-    dec["dcor"] <- decide.p(obj$distance_cor.dcor_yx$p.value, obj$distance_cor.dcor_xy$p.value, alpha)
+    dec["dcor"] <- decide.p(obj$distance.cor.dcor.yx$p.value, obj$distance.cor.dcor.xy$p.value, alpha)
 
     # robust Breusch-Pagan tests are elements 2 (target) and 4 (alternative)
-    if (!is.null(obj$breusch_pagan)) {
-      dec["bp"] <- decide.p(obj$breusch_pagan[[2]]$p.value, obj$breusch_pagan[[4]]$p.value, alpha)
+    if (!is.null(obj$breusch.pagan)) {
+      dec["bp"] <- decide.p(obj$breusch.pagan[[2]]$p.value, obj$breusch.pagan[[4]]$p.value, alpha)
     }
 
     # smallest p-value of the three non-linear correlation tests, Bonferroni corrected
@@ -673,7 +673,7 @@ dda.decisions <- function(dda_result, alpha = 0.05){
       dec["mi.diff"]   <- decide.ci(obj$out.diff["MI", ])
     }
 
-  } else stop("dda_result must be a dda.indep, dda.resdist, or dda.vardist object.")
+  } else stop("dda.result must be a dda.indep, dda.resdist, or dda.vardist object.")
 
   dec
 }

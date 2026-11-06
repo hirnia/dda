@@ -27,28 +27,28 @@ dat <- data.frame(x = x, y = y, z = z)
 m <- lm(y ~ x * z, data = dat)
 
 # Helper to run and accept environment-dependent outcomes
-safe_run <- function(expr, accept_patterns = NULL) {
+safe.run <- function(expr, accept.patterns = NULL) {
   tryCatch(
     eval(expr, envir = parent.frame()),
     error = function(e) {
       msg <- conditionMessage(e)
-      if (!is.null(accept_patterns) &&
-          any(vapply(accept_patterns, function(p) grepl(p, msg, ignore.case = TRUE), logical(1)))) {
-        structure(list(error = TRUE, message = msg), class = "dda_test_accepted_error")
+      if (!is.null(accept.patterns) &&
+          any(vapply(accept.patterns, function(p) grepl(p, msg, ignore.case = TRUE), logical(1)))) {
+        structure(list(error = TRUE, message = msg), class = "dda.test.accepted.error")
       } else {
         stop(e)
       }
     }
   )
 }
-is_accepted_error <- function(x) inherits(x, "dda_test_accepted_error")
+is.accepted.error <- function(x) inherits(x, "dda.test.accepted.error")
 
 # ------------------------
 # Existing conditional vardist tests (kept and slightly trimmed)
 # ------------------------
 
 test_that("cdda.vardist works (conditional)", {
-  out <- safe_run(quote(
+  out <- safe.run(quote(
     cdda.vardist(
       formula = m,
       pred = "x",
@@ -62,7 +62,7 @@ test_that("cdda.vardist works (conditional)", {
 })
 
 test_that("cdda.vardist print works (conditional)", {
-  out <- safe_run(quote(
+  out <- safe.run(quote(
     cdda.vardist(
       formula = m,
       pred = "x",
@@ -81,7 +81,7 @@ test_that("cdda.vardist print works (conditional)", {
 # ------------------------
 
 test_that("dda.vardist basic run returns a list-like object (unconditional)", {
-  out <- safe_run(quote(
+  out <- safe.run(quote(
     dda.vardist(formula = y ~ x, pred = "x", data = data.frame(x = x, y = y), B = 200)
   ))
   expect_true(is.list(out))
@@ -89,7 +89,7 @@ test_that("dda.vardist basic run returns a list-like object (unconditional)", {
 })
 
 test_that("dda.vardist print works (unconditional)", {
-  out <- safe_run(quote(
+  out <- safe.run(quote(
     dda.vardist(formula = y ~ x, pred = "x", data = data.frame(x = x, y = y), B = 40)
   ))
   expect_true(is.list(out))

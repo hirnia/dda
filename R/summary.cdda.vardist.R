@@ -37,29 +37,29 @@ summary.cdda.vardist <- function(object,
   cdda.output <- object
 
   varnames <- cdda.output[[1]][[1]]$var.names
-  mod_names <- names(cdda.output[[1]])
-  n_resamples <- cdda.output[[1]][[1]]$boot.args[3]
+  mod.names <- names(cdda.output[[1]])
+  n.resamples <- cdda.output[[1]][[1]]$boot.args[3]
   ci.level <- as.numeric(cdda.output[[1]][[1]]$boot.args[2]) * 100
 
   if (!is.null(cdda.output[[1]][[1]]$boot.args[1]) && cdda.output[[1]][[1]]$boot.args[1] == "bca") {
-    boot_print <- paste("\n", ci.level, "% BCa bootstrap CIs (", n_resamples, " resamples)", "\n\n", sep = "")
+    boot.print <- paste("\n", ci.level, "% BCa bootstrap CIs (", n.resamples, " resamples)", "\n\n", sep = "")
   } else if (!is.null(cdda.output[[1]][[1]]$boot.args[1]) && cdda.output[[1]][[1]]$boot.args[1] == "perc") {
-    boot_print <- paste("\n", ci.level, "% percentile bootstrap CIs (", n_resamples, " resamples)", "\n\n", sep = "")
+    boot.print <- paste("\n", ci.level, "% percentile bootstrap CIs (", n.resamples, " resamples)", "\n\n", sep = "")
   } else {
-    boot_print <- NULL
+    boot.print <- NULL
   }
   cat("\n")
 
     if (skew == TRUE){
 
       ### ----------- Boot CI Loop Setup ------------ ###
-      momdif.stats.skew <- matrix(NA, length(mod_names), 6)
+      momdif.stats.skew <- matrix(NA, length(mod.names), 6)
 
-      rownames(momdif.stats.skew) <- mod_names
+      rownames(momdif.stats.skew) <- mod.names
       colnames(momdif.stats.skew) <-  rep(c("diff", "lower", "upper"), 2)
 
       ## Boot CI Loop ##
-      for (i in seq_along(mod_names)) {
+      for (i in seq_along(mod.names)) {
 
         momdif.stats.skew[i, ]<- c(cdda.output[[1]][[i]]$skewdiff,
                                    cdda.output[[2]][[i]]$skewdiff
@@ -67,11 +67,11 @@ summary.cdda.vardist <- function(object,
       }
 
       ### Agostino ### ---------------------------------------------------------
-      agos <- matrix(NA, length(mod_names), 6)
-      rownames(agos) <- mod_names
+      agos <- matrix(NA, length(mod.names), 6)
+      rownames(agos) <- mod.names
       colnames(agos) <- rep(c("statistic", "z-value", "p-value"), 2)
 
-      for (i in seq_along(mod_names)) {
+      for (i in seq_along(mod.names)) {
 
         agos[i, ]<- c(unlist(cdda.output[[1]][[i]]$agostino$predictor),
                       unlist(cdda.output[[2]][[i]]$agostino$predictor)
@@ -98,22 +98,22 @@ summary.cdda.vardist <- function(object,
   if (coskew == TRUE){
 
     if(is.null(cdda.output[[1]][[1]]$cor12diff)) { stop("Co-Skewness differences not found. Specify coskew = TRUE.") }
-    hoctests.skew <-  matrix(NA, length(mod_names), 6)
+    hoctests.skew <-  matrix(NA, length(mod.names), 6)
 
-    for(i in seq_along(mod_names)){
+    for(i in seq_along(mod.names)){
       hoctests.skew[i, ] <- c(cdda.output[[1]][[i]]$cor12diff,
                               cdda.output[[2]][[i]]$cor12diff)
       hoctests.skew[i, ] <- round(hoctests.skew[i, ], 3)
     }
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Co-Skewness differences"), "\n")
     cat(paste("----------------------------------------------------------------------", "\n"))
     cat(paste("             Target Model            Alternative Model"), "\n")
     cat(paste("----------------------------------------------------------------------", "\n"))
 
-    rownames(hoctests.skew) <- mod_names
+    rownames(hoctests.skew) <- mod.names
     colnames(hoctests.skew) <- rep(c("diff", "lower", "upper"), 2)
 
     print.default(format(hoctests.skew, digits = max(3L, getOption("digits") - 3L)), print.gap = 2L, quote = FALSE)
@@ -122,14 +122,14 @@ summary.cdda.vardist <- function(object,
     if(cdda.output[[1]][[1]]$boot.warning) { cat("Warning: Excess-kurtosis values of", varnames[2], "and", varnames[1], "have unequal signs", "\n", "        Cor^2[3,1] - Cor^2[1,3] should also be computed for the model", varnames[1], "->", varnames[2], "\n") }
 
     ### Hyvarinen-Smith (co-skewness) ### --------------------------------------
-    rhs <- matrix(NA, length(mod_names), 6)
+    rhs <- matrix(NA, length(mod.names), 6)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
       rhs[i, ] <- c(cdda.output[[1]][[i]]$RHS, cdda.output[[2]][[i]]$RHS)
       rhs[i, ] <- round(rhs[i, ], 3)
     }
 
-    rownames(rhs) <- mod_names
+    rownames(rhs) <- mod.names
     colnames(rhs) <- rep(c("diff", "lower", "upper"), 2)
 
     cat(paste("Hyvarinen-Smith Co-Skewness differences", "\n"))
@@ -144,11 +144,11 @@ summary.cdda.vardist <- function(object,
     if (kurt == TRUE){
 
       ### Anscombe ### ---------------------------------------------------------
-      ansc <- matrix(NA, length(mod_names), 6)
-      rownames(ansc) <- mod_names
+      ansc <- matrix(NA, length(mod.names), 6)
+      rownames(ansc) <- mod.names
       colnames(ansc) <- rep(c("statistic", "z-value", "p-value"), 2)
 
-      for (i in seq_along(mod_names)) {
+      for (i in seq_along(mod.names)) {
 
         ansc[i, ]<- c(unlist(cdda.output[[1]][[i]]$anscombe$predictor),
                       unlist(cdda.output[[2]][[i]]$anscombe$predictor)
@@ -156,7 +156,7 @@ summary.cdda.vardist <- function(object,
         ansc[i, ] <- round(ansc[i, ], 3)
        }
 
-      cat(boot_print)
+      cat(boot.print)
 
       cat(paste("Anscombe-Glynn Kurtosis Tests", "\n"))
       cat(paste("----------------------------------------------------------------------", "\n"))
@@ -168,18 +168,18 @@ summary.cdda.vardist <- function(object,
 
     ### ----------- Boot CI Loop Setup ------------ ###
 
-    momdif.stats.kurt <- matrix(NA, length(mod_names), 6)
+    momdif.stats.kurt <- matrix(NA, length(mod.names), 6)
 
-    rownames(momdif.stats.kurt) <- mod_names
+    rownames(momdif.stats.kurt) <- mod.names
     colnames(momdif.stats.kurt) <- rep(c("diff", "lower", "upper"), 2)
 
     ## Boot CI Loop ##
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
 
       momdif.stats.kurt[i, ]<- c(cdda.output[[1]][[i]]$kurtdiff, cdda.output[[2]][[i]]$kurtdiff)
      }
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Excess Kurtosis differences"), "\n")
     cat(paste("----------------------------------------------------------------------", "\n"))
@@ -194,17 +194,17 @@ summary.cdda.vardist <- function(object,
 
     ### CoKurt Bootstrap CIS: Corr ### ----------------------------------------
 
-    hoctests.kurt <-  matrix(NA, length(mod_names), 6)
+    hoctests.kurt <-  matrix(NA, length(mod.names), 6)
 
-    for(i in seq_along(mod_names)){
+    for(i in seq_along(mod.names)){
       hoctests.kurt[i, ] <- c(cdda.output[[1]][[i]]$cor13diff, cdda.output[[2]][[i]]$cor13diff)
       hoctests.kurt[i, ] <- round(hoctests.kurt[i, ], 3)
     }
 
     colnames(hoctests.kurt) <- rep(c("diff", "lower", "upper"), 2)
-    rownames(hoctests.kurt) <- mod_names
+    rownames(hoctests.kurt) <- mod.names
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Co-Kurtosis differences"), "\n")
     cat(paste("----------------------------------------------------------------------", "\n"))
@@ -218,17 +218,17 @@ summary.cdda.vardist <- function(object,
 
     #### Chen-Chan (co-kurtosis) ### -------------------------------------------
 
-    rcc <- matrix(NA, length(mod_names), 6)
+    rcc <- matrix(NA, length(mod.names), 6)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
       rcc[i, ] <- c(cdda.output[[1]][[i]]$RCC, cdda.output[[2]][[i]]$RCC)
       rcc[i, ] <- round(rcc[i, ], 3)
     }
 
-    rownames(rcc) <- mod_names
+    rownames(rcc) <- mod.names
     colnames(rcc) <- rep(c("diff", "lower", "upper"), 2)
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Chen-Chan Co-Kurtosis differences", "\n"))
     cat(paste("----------------------------------------------------------------------", "\n"))
@@ -240,18 +240,18 @@ summary.cdda.vardist <- function(object,
 
     ### Hyperbolic Tangent (Rtanh) ### -----------------------------------------
 
-    rtanh <- matrix(NA, length(mod_names), 6)
+    rtanh <- matrix(NA, length(mod.names), 6)
 
-    for (i in seq_along(mod_names)) {
+    for (i in seq_along(mod.names)) {
 
       rtanh[i, ] <- c(cdda.output[[1]][[i]]$Rtanh, cdda.output[[2]][[i]]$Rtanh)
       rtanh[i, ] <- round(rtanh[i, ], 3)
     }
 
-    rownames(rtanh) <- mod_names
+    rownames(rtanh) <- mod.names
     colnames(rtanh) <- rep(c("diff", "lower", "upper"), 2)
 
-    cat(boot_print)
+    cat(boot.print)
 
     cat(paste("Hyperbolic Tangent", "\n"))
     cat(paste("----------------------------------------------------------------------", "\n"))

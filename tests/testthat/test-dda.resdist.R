@@ -12,28 +12,28 @@ dat <- data.frame(x = x, y = y)
 m <- lm(y ~ x, data = dat)
 
 # Safe runner that can treat certain error messages as accepted outcomes
-safe_run <- function(expr, accept_patterns = NULL) {
+safe.run <- function(expr, accept.patterns = NULL) {
   tryCatch(
     eval(expr, envir = parent.frame()),
     error = function(e) {
       msg <- conditionMessage(e)
-      if (!is.null(accept_patterns) &&
-          any(vapply(accept_patterns, function(p) grepl(p, msg, ignore.case = TRUE), logical(1)))) {
-        structure(list(error = TRUE, message = msg), class = "dda_test_accepted_error")
+      if (!is.null(accept.patterns) &&
+          any(vapply(accept.patterns, function(p) grepl(p, msg, ignore.case = TRUE), logical(1)))) {
+        structure(list(error = TRUE, message = msg), class = "dda.test.accepted.error")
       } else {
         stop(e)
       }
     }
   )
 }
-is_accepted_error <- function(x) inherits(x, "dda_test_accepted_error")
+is.accepted.error <- function(x) inherits(x, "dda.test.accepted.error")
 
 # ------------------------
 # Basic smoke tests
 # ------------------------
 
 test_that("dda.resdist basic run returns a list-like object", {
-  out <- safe_run(quote(
+  out <- safe.run(quote(
     dda.resdist(formula = m, pred = "x", data = dat, B = 50, prob.trans = FALSE)
   ))
   expect_true(is.list(out))
@@ -41,7 +41,7 @@ test_that("dda.resdist basic run returns a list-like object", {
 })
 
 test_that("dda.resdist print works", {
-  out <- safe_run(quote(
+  out <- safe.run(quote(
     dda.resdist(formula = m, pred = "x", data = dat, B = 40)
   ))
   expect_true(is.list(out))
@@ -62,11 +62,11 @@ test_that("dda.resdist errors for invalid formula inputs", {
 })
 
 test_that("dda.resdist handles prob.trans = TRUE without failing", {
-  res <- safe_run(quote(
+  res <- safe.run(quote(
     dda.resdist(formula = m, pred = "x", data = dat, B = 40, prob.trans = TRUE)
   ))
   # Accept either a list (successful run) or an accepted error object (environment-dependent)
-  if (is_accepted_error(res)) {
+  if (is.accepted.error(res)) {
     expect_true(TRUE)
   } else {
     expect_true(is.list(res))

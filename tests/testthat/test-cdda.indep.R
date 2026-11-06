@@ -48,7 +48,7 @@ test_that("cdda.indep runs with numeric nlfun and returns a list-like object", {
 })
 
 test_that("cdda.indep accepts a function nlfun and supports print/summary", {
-  out_f <- cdda.indep(
+  out.f <- cdda.indep(
     formula = m,
     pred = "x",
     mod = "z",
@@ -57,9 +57,9 @@ test_that("cdda.indep accepts a function nlfun and supports print/summary", {
     nlfun = function(t) t^2,
     B = 100
   )
-  expect_true(is.list(out_f))
-  expect_output(print(out_f))
-  expect_output(summary(out_f, hsic = FALSE))
+  expect_true(is.list(out.f))
+  expect_output(print(out.f))
+  expect_output(summary(out.f, hsic = FALSE))
 })
 
 # ------------------------
@@ -67,7 +67,7 @@ test_that("cdda.indep accepts a function nlfun and supports print/summary", {
 # ------------------------
 
 test_that("cdda.indep errors when pred is not in the model", {
-  expect_error(cdda.indep(formula = m, pred = "no_such_variable", data = dat))
+  expect_error(cdda.indep(formula = m, pred = "no.such.variable", data = dat))
 })
 
 test_that("cdda.indep errors when formula is not an lm object", {
@@ -76,7 +76,7 @@ test_that("cdda.indep errors when formula is not an lm object", {
 })
 
 test_that("cdda.indep errors when nlfun is of wrong type", {
-  expect_error(cdda.indep(formula = m, pred = "x", data = dat, nlfun = "not_a_function"))
+  expect_error(cdda.indep(formula = m, pred = "x", data = dat, nlfun = "not.a.function"))
 })
 
 test_that("cdda.indep errors when B is nonsensical (negative or zero)", {
@@ -92,7 +92,7 @@ test_that("cdda.indep small-B bootstrap HSIC: tolerant behavior (warning, error,
   #  - a warning emitted
   #  - an error (returned as an error object by tryCatch)
   #  - a successful return (list)
-  w_msgs <- character()
+  w.msgs <- character()
   res <- NULL
 
   withCallingHandlers(
@@ -103,13 +103,13 @@ test_that("cdda.indep small-B bootstrap HSIC: tolerant behavior (warning, error,
       )
     },
     warning = function(w) {
-      w_msgs <<- c(w_msgs, conditionMessage(w))
+      w.msgs <<- c(w.msgs, conditionMessage(w))
       invokeRestart("muffleWarning")
     }
   )
 
   # Accept any warning as evidence the function handled the situation (e.g., warned and possibly fell back)
-  if (length(w_msgs) > 0) {
+  if (length(w.msgs) > 0) {
     expect_true(TRUE)
     return()
   }
@@ -136,12 +136,12 @@ test_that("cdda.indep small-B bootstrap HSIC: tolerant behavior (warning, error,
 
 test_that("cdda.indep handles modval variations (numeric and named)", {
   # numeric pick-a-point
-  out_num <- cdda.indep(formula = m, pred = "x", mod = "z", modval = c(-1, 1), data = dat, B = 50)
-  expect_true(is.list(out_num))
+  out.num <- cdda.indep(formula = m, pred = "x", mod = "z", modval = c(-1, 1), data = dat, B = 50)
+  expect_true(is.list(out.num))
 
   # named 'mean' approach (ensure it does not error)
-  out_mean <- cdda.indep(formula = m, pred = "x", mod = "z", modval = "mean", data = dat, B = 50)
-  expect_true(is.list(out_mean))
+  out.mean <- cdda.indep(formula = m, pred = "x", mod = "z", modval = "mean", data = dat, B = 50)
+  expect_true(is.list(out.mean))
 })
 
 test_that("cdda.indep returns non-empty structure", {
