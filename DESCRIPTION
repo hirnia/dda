@@ -15,10 +15,10 @@ Imports: boot, dccpp, dHSIC, energy, graphics, harmonicmeanp, interactions,
 Suggests: devtools, doParallel, iterators, spelling,
         testthat (>= 3.1.7), waldo
 Encoding: UTF-8
-RoxygenNote: 7.3.3
 Config/testthat/edition: 3
 URL: https://github.com/hirnia/dda
 NeedsCompilation: no
 Author: Wolfgang Wiedermann [aut, cre],
   Megan Hirni [aut]
 BugReports: https://github.com/hirnia/dda/issues
+Config/roxygen2/version: 8.1.0

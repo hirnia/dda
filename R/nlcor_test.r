@@ -87,7 +87,7 @@ nlcor.test <- function(x, y, fun, fname = NULL)
 #' @returns \code{nlcor.test} test statistics and p-values.
 #'
 #' @rdname nlcor
-#' @method print nlcor.test
+#' @exportS3Method print dda.nlcor
 #'
 #' @keywords internal
 #' @noRd
