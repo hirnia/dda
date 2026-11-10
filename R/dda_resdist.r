@@ -527,7 +527,7 @@ print.dda.resdist <- function(x, ...){
   if(isFALSE(object$probtrans)){
     cat(paste("      Difference statistics > 0 suggest the model", varnames[2], "->", varnames[1], sep = " "))
   } else {
-    cat(paste("      As of package version 0.2.0, difference statistics > 0 the Target model when using prob.trans = TRUE.", varnames[2], "->", varnames[1], sep = " "))
+    cat(paste("      Difference statistics > 0 suggest the model", varnames[2], "->", varnames[1], "(as of version 0.2.0 also with prob.trans = TRUE)", sep = " ")) # 0.2.0
   }
   cat("\n")
   if(isTRUE(object$boot.warning)) { # 0.2.0 isTRUE for B = 0

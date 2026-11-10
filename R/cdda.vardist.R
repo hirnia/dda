@@ -1,10 +1,10 @@
-#' @title Conditional Directional Dependence Analysis: Variable Distributions
+#' @title Conditional Direction Dependence Analysis: Variable Distributions
 #' @description \code{cdda.vardist} evaluates variable distributions of competing
 #'              conditional models (\code{y ~ x * m} vs. \code{x ~ y * m} with \code{m}
 #'              being a continuous or categorical moderator).
 #' @name cdda.vardist
 #'
-#' @param formula     Symbolic formula of the model to be tested or an \code{lm} object
+#' @param formula     Symbolic formula of the model to be tested or an \code{lm} object.
 #' @param pred        A character indicating the variable name of the predictor
 #'                    which serves as the outcome in the alternative model.
 #' @param mod         A character indicating the variable name of the moderator.
@@ -43,7 +43,7 @@
 #' e1 <- rnorm(length(z1), sd = sqrt(6))
 #' y1 <- 0.5 * x1 + e1
 #'
-#' ## --- y -> x when m z > 0
+#' ## --- y -> x when z > 0
 #'
 #' y2 <- rchisq(length(z2), df = 4) - 4
 #' e2 <- rnorm(length(z2), sd = sqrt(6))
@@ -63,10 +63,6 @@
 #'
 #' result <- cdda.vardist(m, pred = "x", mod = "z", B = 500,
 #'                        modval = c(-1, 1), data = d)
-#'
-#' print(result)
-#' plot(result, stat = "rtanh", ylim = c(-0.05, 0.05))
-#' summary(result, skew = FALSE, kurt = FALSE, coskew = TRUE)
 #' }
 #'
 #' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.

@@ -161,7 +161,7 @@ x1 <- rchisq(length(z1), df = 4) - 4
 e1 <- rnorm(length(z1), sd = sqrt(6))
 y1 <- 0.5 * x1 + e1
 
-## --- y -> x when m z > 0
+## --- y -> x when z > 0
 
 y2 <- rchisq(length(z2), df = 4) - 4
 e2 <- rnorm(length(z2), sd = sqrt(6))
@@ -201,9 +201,7 @@ result <- cdda.indep(m,
                      nlfun = 2,
                      B = 500)
 
-print(result)
 summary(result, hsic.diff = TRUE, dcor.diff = TRUE, mi.diff = TRUE)
-plot(result, stat = "dcor.diff")
 }
 
 

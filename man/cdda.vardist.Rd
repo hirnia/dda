@@ -6,7 +6,7 @@
 \alias{print.cdda.vardist}
 \alias{plot.cdda.vardist}
 \alias{summary.cdda.vardist}
-\title{Conditional Directional Dependence Analysis: Variable Distributions}
+\title{Conditional Direction Dependence Analysis: Variable Distributions}
 \usage{
 cdda.vardist(
   formula,
@@ -26,7 +26,7 @@ cdda.vardist(
 \method{summary}{cdda.vardist}(object, skew = TRUE, coskew = FALSE, kurt = TRUE, cokurt = FALSE, ...)
 }
 \arguments{
-\item{formula}{Symbolic formula of the model to be tested or an \code{lm} object}
+\item{formula}{Symbolic formula of the model to be tested or an \code{lm} object.}
 
 \item{pred}{A character indicating the variable name of the predictor
 which serves as the outcome in the alternative model.}
@@ -112,7 +112,7 @@ x1 <- rchisq(length(z1), df = 4) - 4
 e1 <- rnorm(length(z1), sd = sqrt(6))
 y1 <- 0.5 * x1 + e1
 
-## --- y -> x when m z > 0
+## --- y -> x when z > 0
 
 y2 <- rchisq(length(z2), df = 4) - 4
 e2 <- rnorm(length(z2), sd = sqrt(6))
@@ -132,10 +132,6 @@ result <- cdda.vardist(m, pred = "x", mod = "z", B = 50,
 
 result <- cdda.vardist(m, pred = "x", mod = "z", B = 500,
                        modval = c(-1, 1), data = d)
-
-print(result)
-plot(result, stat = "rtanh", ylim = c(-0.05, 0.05))
-summary(result, skew = FALSE, kurt = FALSE, coskew = TRUE)
 }
 
 print(result)

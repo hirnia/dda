@@ -221,8 +221,6 @@ summary.cdda.indep <- function(object,
     colnames(dcor) <- rep(c("dCor", "p-value"), 2)
     dcor <- round(dcor, 3)
 
-    cat(boot.print)
-
     cat(paste("Distance Correlation", "\n"))
     cat(paste0("---------------------------------------------------------------------", "\n"))
     cat(paste0("            Target Model           Alternative Model ", "\n"))
