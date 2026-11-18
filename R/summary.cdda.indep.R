@@ -7,9 +7,6 @@
 #'
 #' @param object An object of class \code{cdda.indep} when using
 #'   \code{summary}.
-#' @param hetero A logical value indicating whether separate homoscedasticity
-#'   tests should be returned when using \code{summary}, default is
-#'   \code{FALSE}.
 #' @param hsic A logical value indicating whether separate HSIC tests should
 #'   be returned when using \code{summary}, default is \code{TRUE}.
 #' @param hsic.diff A logical value indicating whether HSIC difference
@@ -25,9 +22,6 @@
 #'   difference statistics should be returned when using \code{summary},
 #'   default is \code{FALSE}.
 #' @param ... Additional arguments to be passed to the function.
-#'
-#' @examples
-#' summary(result, hetero = FALSE)
 #'
 #' @export
 #' @rdname cdda.indep
@@ -84,10 +78,7 @@ summary.cdda.indep <- function(object,
     bptests <- round(bptests, 3)
 
     cat(paste("Homoscedasticity test Breusch-Pagan", "\n"))
-    cat(paste0("-----------------------------------------------------------------------", "\n"))
-    cat(paste0("            Target Model        Alternative Model ", "\n"))
-    cat(paste0("-----------------------------------------------------------------------", "\n"))
-    print(bptests)
+    cdda.print.table(bptests)
     cat("---", "\n", "\n")
 
     ### Robust BP ### --------------------------------------------------------
@@ -105,10 +96,7 @@ summary.cdda.indep <- function(object,
     rbptests <- round(rbptests, 3)
 
     cat(paste("Homoscedasticity test Robust Breusch-Pagan", "\n"))
-    cat(paste0("-----------------------------------------------------------------------", "\n"))
-    cat(paste0("            Target Model        Alternative Model ", "\n"))
-    cat(paste0("-----------------------------------------------------------------------", "\n"))
-    print(rbptests)
+    cdda.print.table(rbptests)
     cat("---", "\n", "\n")
   }
 
@@ -141,10 +129,7 @@ summary.cdda.indep <- function(object,
     nlsigtests <- round(nlsigtests, 3)
 
     cat(paste("Non-linear Correlation Tests", "\n"))
-    cat(paste0("-----------------------------------------------------------------------", "\n"))
-    cat(paste0("            Target Model                  Alternative Model ", "\n"))
-    cat(paste0("-----------------------------------------------------------------------", "\n"))
-    print(nlsigtests)
+    cdda.print.table(nlsigtests)
     cat("---", "\n", "\n")
   }
 
@@ -167,10 +152,7 @@ summary.cdda.indep <- function(object,
     hsictests <- round(hsictests, 3)
 
     cat(paste("Hilbert-Schmidt Independence Criterion", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-    cat(paste0("            Target Model                 Alternative Model ", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-    print(hsictests)
+    cdda.print.table(hsictests)
     cat("---", "\n", "\n")
   }
 
@@ -195,10 +177,7 @@ summary.cdda.indep <- function(object,
     cat(boot.print)
 
     cat(paste("Hilbert-Schmidt Independence Criterion Differences", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-    cat(paste0("            Target Model                 Alternative Model ", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-    print(hsicdiff)
+    cdda.print.table(hsicdiff)
     cat("---", "\n", "\n")
   }
 
@@ -222,11 +201,7 @@ summary.cdda.indep <- function(object,
     dcor <- round(dcor, 3)
 
     cat(paste("Distance Correlation", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-    cat(paste0("            Target Model           Alternative Model ", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-
-    print(dcor)
+    cdda.print.table(dcor)
     cat("---", "\n", "\n")
   }
 
@@ -250,11 +225,7 @@ summary.cdda.indep <- function(object,
     cat(boot.print)
 
     cat(paste("Distance Correlation Differences", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-    cat(paste0("            Target Model           Alternative Model ", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-
-    print(dcortests)
+    cdda.print.table(dcortests)
     cat("---", "\n", "\n")
   }
   ### Mutual Information ### ---------------------------------------------------
@@ -277,11 +248,37 @@ summary.cdda.indep <- function(object,
     cat(boot.print)
 
     cat(paste("Mutual Information Difference", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-    cat(paste0("            Target Model         Alternative Model ", "\n"))
-    cat(paste0("---------------------------------------------------------------------", "\n"))
-    print(mitests)
+    cdda.print.table(mitests)
     cat("---", "\n", "\n")
 
   }
+}
+
+
+#' @title Print a Target and Alternative Model Table
+#'
+#' @description Prints a matrix with target model columns followed by
+#'   alternative model columns and places the model labels over their columns.
+#'   Used by the summary methods of cdda.indep and cdda.vardist.
+#'
+#' @keywords internal
+#' @noRd
+cdda.print.table <- function(tab, gap = 1L, ...){
+
+  lines <- capture.output(print(tab, print.gap = gap, ...))
+
+  # the target columns end where the last target value ends in the widest row
+  w <- max(nchar(rownames(tab)))
+  k <- ncol(tab) / 2
+  end.tar <- 0
+  for (l in substring(lines, w + 1)) {
+    pos <- gregexpr("\\S+", l)[[1]]
+    if (length(pos) >= k) end.tar <- max(end.tar, pos[k] + attr(pos, "match.length")[k] - 1)
+  }
+
+  labels <- paste0(strrep(" ", w + gap), "Target Model")
+  labels <- paste0(labels, strrep(" ", max(w + end.tar + gap - nchar(labels), 2)), "Alternative Model")
+  rule <- strrep("-", max(nchar(c(lines, labels))))
+
+  cat(rule, labels, rule, lines, sep = "\n")
 }

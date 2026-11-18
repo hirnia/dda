@@ -57,12 +57,19 @@
 #'
 #' result <- cdda.vardist(m, pred = "x", mod = "z", B = 50,
 #'                       modval = c(-1, 1), data = d)
-#' # Note: Only 50 bootstrap samples are created here to lower computation time
+#' # Note: Only 50 bootstrap samples are generated here to lower computation time
+#'
+#' print(result)
+#' summary(result, skew = FALSE, kurt = FALSE, coskew = TRUE)
+#' plot(result, stat = "rhs")
 #'
 #' \dontrun{
 #'
 #' result <- cdda.vardist(m, pred = "x", mod = "z", B = 500,
 #'                        modval = c(-1, 1), data = d)
+#'
+#' summary(result, coskew = TRUE, cokurt = TRUE)
+#' plot(result, stat = "rtanh")
 #' }
 #'
 #' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
@@ -326,8 +333,6 @@ cdda.vardist <- function(formula,
 #'              for causally competing target and alternative models.
 #' @param x     An object of class \code{cdda.vardist} when using \code{print} or \code{plot}.
 #' @param ...   Additional arguments to be passed to the function.
-#'
-#' @examples print(result)
 #'
 #' @export
 #' @rdname cdda.vardist

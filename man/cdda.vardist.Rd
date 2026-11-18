@@ -57,8 +57,26 @@ pick-a-point approach is used for the selected numeric values.}
 
 \item{...}{Additional arguments to be passed to the function.}
 
-\item{stat}{A character indicating the statistic to be plotted, default is
-\code{"rhs"}, with options \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}.}
+\item{stat}{A character indicating the statistic to be plotted. Must be one
+of \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}. All statistics are
+computed from the standardized purified predictor \code{x} and outcome
+\code{y} at each moderator value:
+\itemize{
+  \item \code{"coskew"}: co-skewness difference
+    \eqn{cor(x^2, y)^2 - cor(x, y^2)^2}.
+  \item \code{"cokurt"}: co-kurtosis difference
+    \eqn{cor(x^3, y)^2 - cor(x, y^3)^2}, multiplied by the sign of the
+    excess kurtosis of \code{x}.
+  \item \code{"rhs"}: Hyvarinen-Smith co-skewness
+    \eqn{cor(x, y) E(x^2 y - x y^2)}, with \code{x} and \code{y} multiplied
+    by the sign of their skewness.
+  \item \code{"rcc"}: Chen-Chan co-kurtosis
+    \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx})}{(Cxy + Cyx)(Cxy - Cyx)} with
+    \eqn{C_{xy} = E(x^3 y) - 3 cor(x, y) var(x)}{Cxy = E(x^3 y) - 3 cor(x, y) var(x)} and
+    \eqn{C_{yx} = E(x y^3) - 3 cor(x, y) var(y)}{Cyx = E(x y^3) - 3 cor(x, y) var(y)}.
+  \item \code{"rtanh"}: Hyvarinen-Smith hyperbolic tangent
+    \eqn{cor(x, y) E(x \tanh(y) - \tanh(x) y)}{cor(x, y) E(x tanh(y) - tanh(x) y)}.
+}}
 
 \item{ylim}{A numeric vector of length 2 indicating the y-axis limits. If \code{NULL}, the function will set the limits automatically.}
 
@@ -126,19 +144,20 @@ m <- lm(y ~ x * z, data = d)
 
 result <- cdda.vardist(m, pred = "x", mod = "z", B = 50,
                       modval = c(-1, 1), data = d)
-# Note: Only 50 bootstrap samples are created here to lower computation time
+# Note: Only 50 bootstrap samples are generated here to lower computation time
+
+print(result)
+summary(result, skew = FALSE, kurt = FALSE, coskew = TRUE)
+plot(result, stat = "rhs")
 
 \dontrun{
 
 result <- cdda.vardist(m, pred = "x", mod = "z", B = 500,
                        modval = c(-1, 1), data = d)
+
+summary(result, coskew = TRUE, cokurt = TRUE)
+plot(result, stat = "rtanh")
 }
-
-print(result)
-
-plot(result, stat = "rtanh", ylim = c(-0.05, 0.05))
-
-summary(result, skew = FALSE, kurt = FALSE, coskew = TRUE)
 
 }
 \references{

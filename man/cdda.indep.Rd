@@ -64,9 +64,15 @@ pick-a-point approach is used for the selected numeric values.}
 
 \item{data}{A required data frame containing the variables in the model.}
 
-\item{hetero}{A logical value indicating whether separate homoscedasticity
-tests should be returned when using \code{summary}, default is
-\code{FALSE}.}
+\item{hetero}{Determines handling of separate homoscedasticity tests:
+\itemize{
+  \item \strong{For} \code{cdda.indep}: A logical value indicating
+    whether separate homoscedasticity tests (i.e., standard and robust
+    Breusch-Pagan tests) should be computed. Default is \code{FALSE}.
+  \item \strong{For} \code{summary}: A logical value indicating
+    whether separate homoscedasticity tests should be returned in the
+    output. Default is \code{FALSE}.
+}}
 
 \item{diff}{A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples.}
 
@@ -130,8 +136,6 @@ default is \code{FALSE}.}
 \value{
 A list of class \code{cdda.indep} containing the results of
   CDDA independence tests for pre-specified moderator values.
-
-An object of class \code{cdda.indep} with competing model coefficients.
 }
 \description{
 \code{cdda.indep} evaluates asymmetries of predictor-error independence of competing
@@ -173,7 +177,6 @@ d <- data.frame(x, y, z)
 
 m <- lm(y ~ x * z, data = d)
 
-
 result <- cdda.indep(m,
                      pred = "x",
                      mod = "z",
@@ -185,7 +188,13 @@ result <- cdda.indep(m,
                      cores = 2,
                      nlfun = 2,
                      B = 2)
-# Note: Only 2 bootstrap samples are created here to lower computation time
+# Note: Only 2 bootstrap samples are generated here to lower computation time.
+# Permutation p-values cannot fall below 1 / (B + 1), so the dCor p-values
+# below are bounded at 0.33; raise B for statistical inference.
+
+print(result)
+summary(result, hetero = TRUE)
+plot(result, stat = "dcor.diff")
 
 \dontrun{
 
@@ -202,14 +211,8 @@ result <- cdda.indep(m,
                      B = 500)
 
 summary(result, hsic.diff = TRUE, dcor.diff = TRUE, mi.diff = TRUE)
+plot(result, stat = "hsic.diff")
 }
-
-
-print(result)
-
-plot(result, stat = "dcor.diff")
-
-summary(result, hetero = FALSE)
 
 }
 \references{

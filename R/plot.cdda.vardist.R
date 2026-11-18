@@ -3,13 +3,28 @@
 #'
 #' @name plot.cdda.vardist
 #'
-#' @param x      An object of class \code{cdda.vardist} when using \code{print} or \code{plot}.
-#' @param stat   A character indicating the statistic to be plotted, default is
-#'               \code{"rhs"}, with options \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}.
+#' @param stat   A character indicating the statistic to be plotted. Must be one
+#'   of \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}. All statistics are
+#'   computed from the standardized purified predictor \code{x} and outcome
+#'   \code{y} at each moderator value:
+#'   \itemize{
+#'     \item \code{"coskew"}: co-skewness difference
+#'       \eqn{cor(x^2, y)^2 - cor(x, y^2)^2}.
+#'     \item \code{"cokurt"}: co-kurtosis difference
+#'       \eqn{cor(x^3, y)^2 - cor(x, y^3)^2}, multiplied by the sign of the
+#'       excess kurtosis of \code{x}.
+#'     \item \code{"rhs"}: Hyvarinen-Smith co-skewness
+#'       \eqn{cor(x, y) E(x^2 y - x y^2)}, with \code{x} and \code{y} multiplied
+#'       by the sign of their skewness.
+#'     \item \code{"rcc"}: Chen-Chan co-kurtosis
+#'       \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx})}{(Cxy + Cyx)(Cxy - Cyx)} with
+#'       \eqn{C_{xy} = E(x^3 y) - 3 cor(x, y) var(x)}{Cxy = E(x^3 y) - 3 cor(x, y) var(x)} and
+#'       \eqn{C_{yx} = E(x y^3) - 3 cor(x, y) var(y)}{Cyx = E(x y^3) - 3 cor(x, y) var(y)}.
+#'     \item \code{"rtanh"}: Hyvarinen-Smith hyperbolic tangent
+#'       \eqn{cor(x, y) E(x \tanh(y) - \tanh(x) y)}{cor(x, y) E(x tanh(y) - tanh(x) y)}.
+#'   }
 #' @param ylim   A numeric vector of length 2 indicating the y-axis limits. If \code{NULL}, the function will set the limits automatically.
 #' @param ...    Additional arguments to be passed to the function.
-#'
-#' @examples plot(result, stat = "rtanh", ylim = c(-0.05, 0.05))
 #'
 #' @export
 #' @rdname cdda.vardist
@@ -123,8 +138,10 @@ plot.cdda.vardist <- function(x,
 
   ### Set the y-axis ###
 
-  if(is.null(ylim)) { y.range <- c(min(c(out.tar$out.low, out.alt$out.low)) - 0.1,
-                                   max(c(out.tar$out.upp, out.alt$out.upp) + 0.1) )
+  # 0.2.0 limits include zero and are padded by 10% of the plotted range
+  if(is.null(ylim)) {
+    y.range <- range(c(0, out.tar$out.low, out.alt$out.low, out.tar$out.upp, out.alt$out.upp), na.rm = TRUE)
+    y.range <- y.range + c(-0.1, 0.1) * diff(y.range)
   } else{y.range <- ylim}
 
   ### Start two plots ###
@@ -152,7 +169,5 @@ plot.cdda.vardist <- function(x,
   points(out.alt$condition, out.alt$out.mean, type = "l")
   abline(h = 0, lty = "dashed")
 }
-
-par(mfrow = c(1, 1))
 
 

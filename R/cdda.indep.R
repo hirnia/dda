@@ -20,7 +20,15 @@
 #'                    regions. When a numeric sequence is specified, the
 #'                    pick-a-point approach is used for the selected numeric values.
 #' @param data        A required data frame containing the variables in the model.
-#' @param hetero      A logical value indicating whether separate homoscedasticity tests should be returned when using \code{summary}, default is \code{FALSE}.
+#' @param hetero Determines handling of separate homoscedasticity tests:
+#'   \itemize{
+#'     \item \strong{For} \code{cdda.indep}: A logical value indicating
+#'       whether separate homoscedasticity tests (i.e., standard and robust
+#'       Breusch-Pagan tests) should be computed. Default is \code{FALSE}.
+#'     \item \strong{For} \code{summary}: A logical value indicating
+#'       whether separate homoscedasticity tests should be returned in the
+#'       output. Default is \code{FALSE}.
+#'   }
 #' @param diff        A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples.
 #' @param nlfun Determines handling of non-linear correlation tests
 #'   depending on the function used:
@@ -71,7 +79,6 @@
 #'
 #' m <- lm(y ~ x * z, data = d)
 #'
-#'
 #' result <- cdda.indep(m,
 #'                      pred = "x",
 #'                      mod = "z",
@@ -83,7 +90,13 @@
 #'                      cores = 2,
 #'                      nlfun = 2,
 #'                      B = 2)
-#' # Note: Only 2 bootstrap samples are created here to lower computation time
+#' # Note: Only 2 bootstrap samples are generated here to lower computation time.
+#' # Permutation p-values cannot fall below 1 / (B + 1), so the dCor p-values
+#' # below are bounded at 0.33; raise B for statistical inference.
+#'
+#' print(result)
+#' summary(result, hetero = TRUE)
+#' plot(result, stat = "dcor.diff")
 #'
 #' \dontrun{
 #'
@@ -100,8 +113,8 @@
 #'                      B = 500)
 #'
 #' summary(result, hsic.diff = TRUE, dcor.diff = TRUE, mi.diff = TRUE)
+#' plot(result, stat = "hsic.diff")
 #' }
-#'
 #'
 #' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
 #' @seealso \code{\link{dda.indep}} for an unconditional version.
@@ -394,9 +407,6 @@ cdda.indep <- function(
 #' @param x     An object of class \code{cdda.indep} when using \code{print} or \code{plot}.
 #' @param ...   Additional arguments to be passed to the function.
 #'
-#' @examples print(result)
-#'
-#' @returns An object of class \code{cdda.indep} with competing model coefficients.
 #' @export
 #' @rdname cdda.indep
 #' @method print cdda.indep

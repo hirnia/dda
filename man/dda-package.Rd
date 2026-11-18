@@ -6,7 +6,7 @@
 \alias{dda-package}
 \title{dda: Direction Dependence Analysis}
 \description{
-A collection of tests to analyze the causal direction of dependence in linear models (Wiedermann, W., & von Eye, A., 2025, ISBN: 9781009381390). The package includes functions to perform Direction Dependence Analysis for variable distributions, residual distributions, and independence properties of predictors and residuals in competing causal models. In addition, the package contains functions to test the causal direction of dependence in conditional models (i.e., models with interaction terms). For more information see \url{https://www.ddaproject.com}.
+A collection of tests to analyze the causal direction of dependence in linear models (Wiedermann, W., & von Eye, A., 2025, ISBN: 9781009381390). The package includes functions to perform Direction Dependence Analysis for variable distributions, residual distributions, and independence properties of predictors and residuals in competing causal models. In addition, the package contains functions to test the causal direction of dependence in conditional models (i.e., models with interaction terms) and to evaluate the robustness of DDA model selection using bootstrap aggregation. For more information see \url{https://www.ddaproject.com}.
 }
 \seealso{
 Useful links:

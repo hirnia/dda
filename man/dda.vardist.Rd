@@ -50,6 +50,12 @@ variable distributions for causally competing models
 \code{print} returns DDA test statistics associated with
 \code{dda.vardist} objects.
 }
+\details{
+When covariates are included in the target model (e.g., when
+  selecting between the models \code{y ~ x + z} and \code{x ~ y + z},
+  where \code{z} represents a covariate), their effects are partialled out
+  before the DDA test statistics are computed.
+}
 \examples{
 set.seed(123)
 n <- 500
@@ -59,7 +65,7 @@ y <- 0.5 * x + e
 d <- data.frame(x, y)
 
 result <- dda.vardist(y ~ x, pred = "x", data = d, B = 50)
-# Note: Only 50 bootstrap samples are used here to lower computation time
+# Note: Only 50 bootstrap samples are generated here to lower computation time
 
 print(result)
 

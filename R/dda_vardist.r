@@ -22,6 +22,11 @@
 #' @return An object of class \code{dda.vardist} containing the results of
 #'   direction dependence tests of variable distributions.
 #'
+#' @details When covariates are included in the target model (e.g., when
+#'   selecting between the models \code{y ~ x + z} and \code{x ~ y + z},
+#'   where \code{z} represents a covariate), their effects are partialled out
+#'   before the DDA test statistics are computed.
+#'
 #' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction
 #'   Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK:
 #'   Cambridge University Press.
@@ -37,7 +42,7 @@
 #' d <- data.frame(x, y)
 #'
 #' result <- dda.vardist(y ~ x, pred = "x", data = d, B = 50)
-#' # Note: Only 50 bootstrap samples are used here to lower computation time
+#' # Note: Only 50 bootstrap samples are generated here to lower computation time
 #'
 #' print(result)
 #'

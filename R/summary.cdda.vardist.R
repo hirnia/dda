@@ -19,9 +19,6 @@
 #'   should be returned when using \code{summary}, default is \code{FALSE}.
 #' @param ... Additional arguments to be passed to the function.
 #'
-#' @examples
-#' summary(result, skew = FALSE, kurt = FALSE, coskew = TRUE)
-#'
 #' @export
 #' @rdname cdda.vardist
 #' @method summary cdda.vardist
@@ -80,17 +77,11 @@ summary.cdda.vardist <- function(object,
       }
 
       cat(paste("D'Agostino Skewness Tests", "\n"))
-      cat(paste("----------------------------------------------------------------------", "\n"))
-      cat(paste("            Target Model                 Alternative Model ", "\n"))
-      cat(paste("----------------------------------------------------------------------", "\n"))
-      print(agos)
+      cdda.print.table(agos)
 
       cat("\n")
       cat(paste("Skewness differences"), "\n")
-      cat(paste("----------------------------------------------------------------------", "\n"))
-      cat(paste("            Target Model       Alternative Model"), "\n")
-      cat(paste("----------------------------------------------------------------------", "\n"))
-      print(round(momdif.stats.skew, 3))
+      cdda.print.table(round(momdif.stats.skew, 3))
 
       cat("---", "\n")
     }
@@ -109,14 +100,11 @@ summary.cdda.vardist <- function(object,
     cat(boot.print)
 
     cat(paste("Co-Skewness differences"), "\n")
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    cat(paste("             Target Model            Alternative Model"), "\n")
-    cat(paste("----------------------------------------------------------------------", "\n"))
 
     rownames(hoctests.skew) <- mod.names
     colnames(hoctests.skew) <- rep(c("diff", "lower", "upper"), 2)
 
-    print.default(format(hoctests.skew, digits = max(3L, getOption("digits") - 3L)), print.gap = 2L, quote = FALSE)
+    cdda.print.table(format(hoctests.skew, digits = max(3L, getOption("digits") - 3L)), gap = 2L, quote = FALSE)
     cat("\n")
 
     if(cdda.output[[1]][[1]]$boot.warning) { cat("Warning: Excess-kurtosis values of", varnames[2], "and", varnames[1], "have unequal signs", "\n", "        Cor^2[3,1] - Cor^2[1,3] should also be computed for the model", varnames[1], "->", varnames[2], "\n") }
@@ -133,10 +121,7 @@ summary.cdda.vardist <- function(object,
     colnames(rhs) <- rep(c("diff", "lower", "upper"), 2)
 
     cat(paste("Hyvarinen-Smith Co-Skewness differences", "\n"))
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    cat(paste("            Target Model        Alternative Model ", "\n"))
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    print(rhs)
+    cdda.print.table(rhs)
 
     cat("---", "\n")
   }
@@ -159,10 +144,7 @@ summary.cdda.vardist <- function(object,
       cat(boot.print)
 
       cat(paste("Anscombe-Glynn Kurtosis Tests", "\n"))
-      cat(paste("----------------------------------------------------------------------", "\n"))
-      cat(paste("            Target Model                 Alternative Model ", "\n"))
-      cat(paste("----------------------------------------------------------------------", "\n"))
-      print(ansc)
+      cdda.print.table(ansc)
 
       cat("---", "\n")
 
@@ -182,10 +164,7 @@ summary.cdda.vardist <- function(object,
     cat(boot.print)
 
     cat(paste("Excess Kurtosis differences"), "\n")
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    cat(paste("           Target Model            Alternative Model"), "\n")
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    print(round(momdif.stats.kurt, 3))
+    cdda.print.table(round(momdif.stats.kurt, 3))
 
     cat("---", "\n")
   }
@@ -207,11 +186,8 @@ summary.cdda.vardist <- function(object,
     cat(boot.print)
 
     cat(paste("Co-Kurtosis differences"), "\n")
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    cat(paste("           Target Model              Alternative Model"), "\n")
-    cat(paste("----------------------------------------------------------------------", "\n"))
 
-    print.default(format(hoctests.kurt, digits = max(3L, getOption("digits") - 3L)), print.gap = 2L, quote = FALSE)
+    cdda.print.table(format(hoctests.kurt, digits = max(3L, getOption("digits") - 3L)), gap = 2L, quote = FALSE)
     cat("---", "\n")
 
     if(cdda.output[[1]][[1]]$boot.warning) { cat("Warning: Excess-kurtosis values of", varnames[2], "and", varnames[1], "have unequal signs", "\n", "        Cor^2[3,1] - Cor^2[1,3] should also be computed for the model", varnames[1], "->", varnames[2], "\n") }
@@ -231,10 +207,7 @@ summary.cdda.vardist <- function(object,
     cat(boot.print)
 
     cat(paste("Chen-Chan Co-Kurtosis differences", "\n"))
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    cat(paste("             Target Model         Alternative Model ", "\n"))
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    print(rcc)
+    cdda.print.table(rcc)
 
     cat("---", "\n")
 
@@ -254,10 +227,7 @@ summary.cdda.vardist <- function(object,
     cat(boot.print)
 
     cat(paste("Hyperbolic Tangent", "\n"))
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    cat(paste("            Target Model          Alternative Model ", "\n"))
-    cat(paste("----------------------------------------------------------------------", "\n"))
-    print(rtanh)
+    cdda.print.table(rtanh)
 
     cat("---", "\n")
     }

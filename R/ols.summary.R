@@ -5,6 +5,8 @@
 #' alternative models of a bootstrap aggregated DDA object. Coefficients are
 #' aggregated across bootstrap samples with the method used in
 #' \code{dda.bagging} or the method given in \code{agg.stat}.
+#' \code{print} returns the aggregated OLS summaries of \code{ols.summary}
+#' objects.
 #'
 #' @param object An object of class \code{dda.bagging} obtained from
 #'   \code{dda.bagging}.
@@ -21,16 +23,28 @@
 #'   \code{agg.stat = "winsorized"} (default: the value used in
 #'   \code{dda.bagging}).
 #' @param digits Integer. Number of digits used for rounding (default: 4).
+#' @param x An object of class \code{ols.summary} when using \code{print}.
 #' @param ... Additional arguments to be passed to the function.
 #'
-#' @details For each coefficient the table reports the aggregated estimate,
-#'   the percentile interval of the estimates across bootstrap samples at the
-#'   \code{alpha} level used in \code{dda.bagging}, and the proportion of
-#'   bootstrap samples in which the coefficient is significant at that
-#'   level.
+#' @details For each regression coefficient the table reports the aggregated
+#'   point estimate, the bootstrap percentile confidence interval of the
+#'   estimates with confidence level \code{1 - alpha}, and the proportion of
+#'   bootstrap samples in which the regression coefficient is significant at
+#'   level \code{alpha}, with \code{alpha} as used in \code{dda.bagging}.
 #'
-#' @return Invisibly returns a list with the coefficient tables and
-#'   aggregated R-squared values of the target and alternative models.
+#' @return An object of class \code{ols.summary} containing the coefficient
+#'   tables and aggregated R-squared values of the target and alternative
+#'   models:
+#'   \item{target}{Formula, coefficient table, and aggregated R-squared values
+#'     of the target model.}
+#'   \item{alternative}{Formula, coefficient table, and aggregated R-squared
+#'     values of the alternative model.}
+#'   \item{agg.stat}{Aggregation method.}
+#'   \item{n.valid.iterations}{Number of bootstrap samples with a DDA result.}
+#'   \item{alpha}{Significance level used in \code{dda.bagging}.}
+#'   \item{digits}{Number of digits used by \code{print}.}
+#'
+#' @seealso \code{\link{dda.bagging}}, \code{\link{summary.dda.bagging}}
 #'
 #' @examples
 #' set.seed(123)
@@ -44,25 +58,41 @@
 #' bagged <- dda.bagging(base.model, data = d, iter = 10, progress = FALSE)
 #'
 #' ols.summary(bagged)
-#' ols.summary(bagged, agg.stat = "median")
+#'
+#' ## --- coefficient tables of the target model
+#'
+#' ols <- ols.summary(bagged, agg.stat = "median")
+#' ols$target$coefficients
 #'
 #' @export
-ols.summary <- function(object,
-                        agg.stat = NULL,
-                        trim.prob = object$trim.prob,
-                        win.prob = object$win.prob,
-                        digits = 4,
-                        ...){
+#' @rdname ols.summary
+ols.summary <- function(object, ...){
+  UseMethod("ols.summary")
+}
 
-  if (!inherits(object, "dda.bagging")) stop("object must be a dda.bagging object.")
+
+#' @export
+#' @rdname ols.summary
+#' @method ols.summary default
+ols.summary.default <- function(object, ...){
+  stop("object must be a dda.bagging object.")
+}
+
+
+#' @export
+#' @rdname ols.summary
+#' @method ols.summary dda.bagging
+ols.summary.dda.bagging <- function(object,
+                                    agg.stat = NULL,
+                                    trim.prob = object$trim.prob,
+                                    win.prob = object$win.prob,
+                                    digits = 4,
+                                    ...){
+
   if (is.null(agg.stat)) agg.stat <- object$agg.stat
 
   alpha <- object$alpha
   output <- list()
-
-  cat("\n")
-  cat(paste("Aggregation method:", agg.stat), "\n")
-  cat(paste("Number of bootstrap samples:", object$n.valid.iterations), "\n")
 
   for (model in c("target", "alternative")) {
 
@@ -83,16 +113,43 @@ ols.summary <- function(object,
     rsq     <- agg.value(r2[, "r.squared"], agg.stat, trim.prob, win.prob)
     adj.rsq <- agg.value(r2[, "adj.r.squared"], agg.stat, trim.prob, win.prob)
 
-    if (model == "target")      cat("\n", "OLS Summary: Target Model", "\n", sep = "")
-    if (model == "alternative") cat("\n", "OLS Summary: Alternative Model", "\n", sep = "")
-    cat(deparse(object$ols[[model]]$formula), "\n", "\n")
-
-    print.default(format(round(tab, digits), nsmall = digits), print.gap = 2L, quote = FALSE)
-    cat("\n")
-    cat(paste("R-squared: ", round(rsq, digits), ", Adjusted R-squared: ", round(adj.rsq, digits), sep = ""), "\n")
-
-    output[[model]] <- list(coefficients = tab, r.squared = c(r.squared = rsq, adj.r.squared = adj.rsq))
+    output[[model]] <- list(formula = object$ols[[model]]$formula,
+                            coefficients = tab,
+                            r.squared = c(r.squared = rsq, adj.r.squared = adj.rsq))
   }
 
-  invisible(output)
+  output$agg.stat <- agg.stat
+  output$n.valid.iterations <- object$n.valid.iterations
+  output$alpha <- alpha
+  output$digits <- digits
+
+  class(output) <- "ols.summary"
+  return(output)
+}
+
+
+#' @export
+#' @rdname ols.summary
+#' @method print ols.summary
+print.ols.summary <- function(x, digits = x$digits, ...){
+
+  cat("\n")
+  cat(paste("Aggregation method:", x$agg.stat), "\n")
+  cat(paste("Number of bootstrap samples:", x$n.valid.iterations), "\n")
+
+  for (model in c("target", "alternative")) {
+
+    if (model == "target")      cat("\n", "OLS Summary: Target Model", "\n", sep = "")
+    if (model == "alternative") cat("\n", "OLS Summary: Alternative Model", "\n", sep = "")
+    cat(deparse(x[[model]]$formula), "\n", "\n")
+
+    tab <- x[[model]]$coefficients
+    print.default(format(round(tab, digits), nsmall = digits), print.gap = 2L, quote = FALSE)
+    cat("\n")
+
+    rsq <- x[[model]]$r.squared
+    cat(paste("R-squared: ", round(rsq["r.squared"], digits), ", Adjusted R-squared: ", round(rsq["adj.r.squared"], digits), sep = ""), "\n")
+  }
+
+  invisible(x)
 }

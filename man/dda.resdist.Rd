@@ -62,6 +62,14 @@ distributions of causally competing models (\code{y ~ x} vs. \code{x ~ y}).
 \code{print} returns DDA test statistics associated with \code{dda.resdist}
 objects.
 }
+\details{
+When covariates are included in the target model (e.g., when
+  selecting between the models \code{y ~ x + z} and \code{x ~ y + z},
+  where \code{z} represents a covariate), their effects are partialled out
+  before the DDA test statistics are computed. With \code{robust = TRUE}
+  covariates are partialled out with OLS and repeated median estimation is
+  applied to the causally competing models of the purified variables.
+}
 \examples{
 set.seed(123)
 n <- 500
@@ -70,26 +78,36 @@ e <- rnorm(n, sd = sqrt(6))
 y <- 0.5 * x + e
 d <- data.frame(x, y)
 
+## --- d: normal error of the true model x -> y
+
 result <- dda.resdist(y ~ x, pred = "x", data = d,
             B = 50, conf.level = 0.90, prob.trans = FALSE, robust = FALSE)
+# Note: Only 50 bootstrap samples are generated here to lower computation time
 
 print(result)
 
-## --- Probability integral transformation with non-normal errors
+## --- d.skew: chi-square error of the true model x -> y
+## --- prob.trans = TRUE maps the predictor distribution onto the marginal
+## --- distribution of the outcome, which allows model selection when the
+## --- errors of the target model are non-normal
 
-d.skew <- data.frame(x, y = 0.5 * x + (rchisq(n, df = 3) - 3))
+set.seed(456)
+e.skew <- rchisq(n, df = 3) - 3
+d.skew <- data.frame(x, y = 0.5 * x + e.skew)
 
 dda.resdist(y ~ x, pred = "x", data = d.skew,
             B = 50, conf.level = 0.90, prob.trans = TRUE)
 
 \dontrun{
 
+## --- d (normal error) with BCa intervals and 500 bootstrap samples
+
 result <- dda.resdist(y ~ x, pred = "x", data = d, B = 500,
   boot.type = "bca", conf.level = 0.95, prob.trans = FALSE)
 
 print(result)
 
-## --- Siegel (1982) repeated median estimation
+## --- d (normal error) with Siegel (1982) repeated median estimation
 
 dda.resdist(y ~ x, pred = "x", data = d, B = 500, robust = TRUE)
 }

@@ -10,9 +10,6 @@
 #'   If \code{NULL}, the function will set the limits automatically.
 #' @param ... Additional arguments to be passed to the function.
 #'
-#' @examples
-#' plot(result, stat = "dcor.diff")
-#'
 #' @export
 #' @rdname cdda.indep
 #' @method plot cdda.indep
@@ -99,8 +96,10 @@ plot.cdda.indep <- function(x = NULL,
 
   ### Set the y-axis ###
 
-  if(is.null(ylim)) { y.range <- c(min(c(out.tar$out.low, out.alt$out.low)) - 0.1,
-                                   max(c(out.tar$out.upp, out.alt$out.upp) + 0.1) )
+  # 0.2.0 limits include zero and are padded by 10% of the plotted range
+  if(is.null(ylim)) {
+    y.range <- range(c(0, out.tar$out.low, out.alt$out.low, out.tar$out.upp, out.alt$out.upp), na.rm = TRUE)
+    y.range <- y.range + c(-0.1, 0.1) * diff(y.range)
   } else{y.range <- ylim}
 
   ### Start two plots ###

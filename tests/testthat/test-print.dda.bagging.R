@@ -1,6 +1,6 @@
 ## ============================================================================
 ## testthat file: test-print_dda_bagging.R
-## Tests for print.dda.bagging(), reaggregate.bagging() and ols.summary()
+## Tests for print.dda.bagging(), reaggregate.bagging(), ols.summary() and print.ols.summary()
 ## ============================================================================
 
 # --- Shared setup -----------------------------------------------------------
@@ -98,27 +98,38 @@ test_that("ols.summary rejects other objects", {
   expect_error(ols.summary(list(a = 1)), regexp = "must be a dda.bagging object")
 })
 
+test_that("ols.summary returns an ols.summary object", {
+  out <- withVisible(ols.summary(bag.indep))
+  expect_true(out$visible)
+  expect_s3_class(out$value, "ols.summary")
+})
+
 test_that("ols.summary prints both models with R-squared", {
-  expect_output(ols.summary(bag.indep), regexp = "OLS Summary: Target Model")
-  expect_output(ols.summary(bag.indep), regexp = "OLS Summary: Alternative Model")
-  expect_output(ols.summary(bag.indep), regexp = "R-squared")
+  expect_output(print(ols.summary(bag.indep)), regexp = "OLS Summary: Target Model")
+  expect_output(print(ols.summary(bag.indep)), regexp = "OLS Summary: Alternative Model")
+  expect_output(print(ols.summary(bag.indep)), regexp = "R-squared")
 })
 
 test_that("ols.summary respects an agg.stat override", {
-  expect_output(ols.summary(bag.indep, agg.stat = "median"), regexp = "Aggregation method: median")
+  expect_output(print(ols.summary(bag.indep, agg.stat = "median")), regexp = "Aggregation method: median")
 })
 
-test_that("ols.summary returns coefficient tables invisibly", {
-  out <- withVisible(ols.summary(bag.resdist))
-  expect_false(out$visible)
-  expect_named(out$value, c("target", "alternative"))
-  expect_equal(ncol(out$value$target$coefficients), 4)
-  expect_equal(rownames(out$value$target$coefficients), c("(Intercept)", "x"))
+test_that("print.ols.summary returns its input invisibly", {
+  ols <- ols.summary(bag.resdist)
+  capture.output(res <- print(ols))
+  expect_identical(res, ols)
+})
+
+test_that("ols.summary holds the coefficient tables", {
+  out <- ols.summary(bag.resdist)
+  expect_true(all(c("target", "alternative") %in% names(out)))
+  expect_equal(ncol(out$target$coefficients), 4)
+  expect_equal(rownames(out$target$coefficients), c("(Intercept)", "x"))
 })
 
 test_that("ols.summary uses the stored trim.prob", {
-  a <- capture.output(r1 <- ols.summary(bag.vardist))
-  a <- capture.output(r2 <- ols.summary(bag.vardist, trim.prob = 0.4))
+  r1 <- ols.summary(bag.vardist)
+  r2 <- ols.summary(bag.vardist, trim.prob = 0.4)
   expect_equal(r1$target$coefficients[, 1],
                apply(bag.vardist$ols$target$coef, 2, agg.value, "trimmed", bag.vardist$trim.prob))
   expect_equal(r2$target$coefficients[, 1],
