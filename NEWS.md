@@ -16,6 +16,12 @@
 -	The `summary` methods of `cdda.indep` and `cdda.vardist` now align the Target Model and Alternative Model headers with their columns.
 -	Without `ylim`, the `plot` methods of `cdda.indep` and `cdda.vardist` now scale the y-axis to the plotted statistics and include zero (previously, a fixed padding of 0.1 flattened small statistics such as Hyvarinen-Smith tanh differences).
 -	Loading the package no longer resets the graphics layout or opens a graphics device (`Rplots.pdf`).
+-	In `cdda.indep`, HSIC, dCor and MI difference statistics now compare the target model of the target panel with the alternative model of the alternative panel at each moderator value (Li et al., 2023), so differences > 0 suggest the target model. `summary` prints one table per statistic and `plot` draws one panel. Previously, each panel compared its own model with an in-panel reverse model, which favored the target of each panel. MI differences are computed the same way but may be biased, because the two models rest on differently purified variables and their joint entropies do not cancel; see Details in `?cdda.indep`.
+-	In `cdda.indep` and `cdda.vardist`, results for factor moderators are now labelled in the order of the factor levels (previously, labels followed the order of appearance in the data and could be attached to the wrong results).
+-	`cdda.indep` and `cdda.vardist` now return a clear error when a continuous moderator is used without `modval` (previously, "argument is of length zero").
+-	`cdda.indep` and `cdda.vardist` now return "Specified moderator not found in the target model." for a moderator that is neither numeric nor a factor (previously, "object 'delete.mod' not found").
+-	With `modval = "JN"`, `cdda.indep` and `cdda.vardist` now stop with an error when the Johnson-Neyman bounds leave no moderator values in the observed range.
+-	For factor moderators, `cdda.indep` now passes `parallelize` and `cores` on.
 -	Various minor documentation changes and clarifications.
 
 

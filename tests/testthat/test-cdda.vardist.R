@@ -163,3 +163,33 @@ test_that("cdda.vardist returns an error for clearly invalid boot.type", {
     cdda.vardist(formula = m, pred = "x", mod = "z", modval = c(0,1), data = dat, B = 50, boot.type = "invalid")
   )
 })
+
+## OLD (none)
+## NEW 0.2.0
+# ------------------------
+# Factor labels and input checks
+# ------------------------
+
+test_that("cdda.vardist labels factor moderator results by level", {
+  set.seed(7)
+  n.f <- 300
+  g <- factor(sample(c("a", "b"), n.f, replace = TRUE), levels = c("a", "b"))
+  g[1] <- "b"
+  x.f <- rchisq(n.f, df = 4) - 4
+  d.f <- data.frame(x = x.f, y = 0.5 * x.f + rnorm(n.f), g = g)
+  out <- cdda.vardist(lm(y ~ x * g, data = d.f), pred = "x", mod = "g", data = d.f, B = 10)
+  expect_named(out$cdda.target, c("ModVal a", "ModVal b"))
+  expect_equal(out$df.original$mod.levels, c("a", "b"))
+})
+
+test_that("cdda.vardist asks for modval with a continuous moderator", {
+  expect_error(cdda.vardist(m, pred = "x", mod = "z", data = dat), "Please specify modval")
+})
+
+test_that("cdda.vardist rejects a moderator that is neither numeric nor a factor", {
+  d.c <- dat
+  d.c$zc <- ifelse(dat$z > 0, "hi", "lo")
+  expect_error(cdda.vardist(lm(y ~ x * zc, data = d.c), pred = "x", mod = "zc",
+                            modval = "mean", data = d.c),
+               "Specified moderator not found")
+})

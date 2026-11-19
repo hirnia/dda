@@ -106,6 +106,9 @@ cdda.vardist <- function(formula,
     }
 
     else { stop( "Specified moderator not found in the target model." ) }
+    ## OLD (none)
+    ## NEW 0.2.0
+    if ( length(delete.mod) == 0 ) stop( "Specified moderator not found in the target model." )
 
     delete.interaction <- grep(":", colnames(X))
     if ( length(delete.interaction) == 0 ) stop( "No interaction term specified in the target model." )
@@ -126,13 +129,23 @@ cdda.vardist <- function(formula,
     delete.pred <- which( colnames(X) == pred ) # get position of tentative predictor
     if ( length(delete.pred) == 0 ) stop( "Specified predictor not found in the target model." )
 
+    ## OLD
+    ## if(is.factor(data[,mod])){
+    ##   delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
+    ## }
+    ## if(is.numeric(data[,mod])){
+    ##   delete.mod <- which(colnames(X) == mod)
+    ## }
+    ## if (  is.null(delete.mod) == TRUE ) stop( "Specified moderator not found in the target model." )
+    ## NEW 0.2.0
+    delete.mod <- integer(0)
     if(is.factor(data[,mod])){
       delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
     }
     if(is.numeric(data[,mod])){
       delete.mod <- which(colnames(X) == mod)
     }
-    if (  is.null(delete.mod) == TRUE ) stop( "Specified moderator not found in the target model." )
+    if ( length(delete.mod) == 0 ) stop( "Specified moderator not found in the target model." )
 
     delete.interaction <- grep(":", colnames(X))
     if ( length(delete.interaction) == 0 ) stop( "No interaction term specified in the target model." )
@@ -164,7 +177,10 @@ cdda.vardist <- function(formula,
 
   if (is.factor(data[,mod])) {
 
-    moderator.levels <- unique(data[,mod])
+    ## OLD
+    ## moderator.levels <- unique(data[,mod])
+    ## NEW 0.2.0
+    moderator.levels <- levels(data[,mod])
 
     indep.temp.yx <- list()
     indep.temp.xy <- list()
@@ -208,14 +224,22 @@ cdda.vardist <- function(formula,
       ))
     }
 
-    names(indep.temp.xy) <- names(indep.temp.yx) <- paste("ModVal", unique(data[,mod]), sep = ' ')
+    ## OLD
+    ## names(indep.temp.xy) <- names(indep.temp.yx) <- paste("ModVal", unique(data[,mod]), sep = ' ')
+    ## NEW 0.2.0
+    names(indep.temp.xy) <- names(indep.temp.yx) <- paste("ModVal", levels(data[,mod]), sep = ' ')
   }
 
   else {
 
-    if (is.numeric(modval)){
+    ## OLD
+    ## if (is.numeric(modval)){
+    ##
+    ##   #if( is.null(modval) ) stop("No moderation values identified for pick-a-point approach.")
+    ## NEW 0.2.0
+    if (is.null(modval)) stop("Please specify modval: 'mean', 'median', 'JN', or numeric moderator values.")
 
-      #if( is.null(modval) ) stop("No moderation values identified for pick-a-point approach.")
+    if (is.numeric(modval)){
 
       modmat <- data.frame( matrix(NA, length(moderator), length(modval)) )
 
@@ -248,6 +272,9 @@ cdda.vardist <- function(formula,
                                          modx = moderator, control.fdr = FALSE ) )
       twobounds <- unwrpjn[["bounds"]]
 
+      ## OLD (none)
+      ## NEW 0.2.0
+      values <- NA
       if(twobounds[1] < min(moderator, na.rm = TRUE) &
          twobounds[2] > max(moderator, na.rm = TRUE)) values <- NA
 
@@ -260,6 +287,10 @@ cdda.vardist <- function(formula,
       if(twobounds[1] > min(moderator, na.rm = TRUE) &
          twobounds[2] < max(moderator, na.rm = TRUE)) values <- c(min(moderator), twobounds[1], twobounds[2], max(moderator))
 
+      ## OLD (none)
+      ## NEW 0.2.0
+      if (all(is.na(values))) stop("Johnson-Neyman bounds lie outside the observed moderator range. ",
+                                   "Use modval = 'mean', 'median', or numeric values.")
       modmat <- data.frame( matrix(NA, length(moderator), length(values)) )
       for( i in seq_along(values) ){ modmat[,i] <- moderator - values[i] }  # compute transformed moderator for each value
       colnames(modmat) <- paste0(round(values, 2))

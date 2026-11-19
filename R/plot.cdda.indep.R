@@ -34,7 +34,10 @@ plot.cdda.indep <- function(x = NULL,
   mod.vals <- obj[[4]][["mod.data"]]
   mod.levels <- x.axis.labels <- obj[[4]][["mod.levels"]] #modval levels for pick-a-point
   y.title <- obj[[3]][[1]] #Test statistic CI header
-  ci.level <- as.numeric(obj[[1]][[1]]$boot.args[2]) * 100
+  ## OLD
+  ## ci.level <- as.numeric(obj[[1]][[1]]$boot.args[2]) * 100
+  ## NEW 0.2.0
+  ci.level <- as.numeric(obj$cdda.diff$boot.args[2]) * 100
 
   ### Limits for X-axis ####
 
@@ -46,84 +49,123 @@ plot.cdda.indep <- function(x = NULL,
   plot.axis <- seq_along(mod.levels)
   }
 
-  out <- matrix(NA, length(plot.axis), 6)
-
-  if (stat == "hsic.diff"){
-    if(is.null(obj[[1]][[1]]$out.diff[1, ])) {
-      stop("HSIC Differences not found, set 'diff = TRUE'.")
-    }
-    y.title <- paste0("HSIC Differences (", ci.level, "% CI)")
-
-    for (i in seq_along(plot.axis)) {
-      out[i, ] <- c(obj[[1]][[i]]$out.diff[1, ],
-                    obj[[2]][[i]]$out.diff[1, ])
-    }
+  ## OLD
+  ## out <- matrix(NA, length(plot.axis), 6)
+  ##
+  ## if (stat == "hsic.diff"){
+  ##   if(is.null(obj[[1]][[1]]$out.diff[1, ])) {
+  ##     stop("HSIC Differences not found, set 'diff = TRUE'.")
+  ##   }
+  ##   y.title <- paste0("HSIC Differences (", ci.level, "% CI)")
+  ##
+  ##   for (i in seq_along(plot.axis)) {
+  ##     out[i, ] <- c(obj[[1]][[i]]$out.diff[1, ],
+  ##                   obj[[2]][[i]]$out.diff[1, ])
+  ##   }
+  ## }
+  ##
+  ## if (stat == "dcor.diff"){
+  ##   if(is.null(obj[[1]][[1]]$out.diff[2, ])){
+  ##     stop( "dCor Differences not found. Specify diff = TRUE." )
+  ##   }
+  ##
+  ##   y.title <- paste0("dCor Differences (", ci.level, "% CI)")
+  ##   for (i in seq_along(plot.axis)) {
+  ##     out[i, ] <- c(obj[[1]][[i]]$out.diff[2, ],
+  ##                   obj[[2]][[i]]$out.diff[2, ])
+  ##   }
+  ## }
+  ##
+  ## if (stat == "mi.diff"){
+  ##   if(is.null(obj[[1]][[1]]$out.diff[3, ])){
+  ##     stop( "Mutual Information differences not found. Specify diff = TRUE." )
+  ##   }
+  ##
+  ##   y.title <- paste0("Mutual Information Differences (", ci.level, "% CI)")
+  ##
+  ##   for (i in seq_along(plot.axis)) {
+  ##     out[i, ] <- c(obj[[1]][[i]]$out.diff[3, ],
+  ##                   obj[[2]][[i]]$out.diff[3, ])
+  ##   }
+  ## }
+  ## NEW 0.2.0
+  if (length(obj$cdda.diff$diff) == 0) {
+    stop("Difference statistics not found, set 'diff = TRUE'.")
   }
 
-  if (stat == "dcor.diff"){
-    if(is.null(obj[[1]][[1]]$out.diff[2, ])){
-      stop( "dCor Differences not found. Specify diff = TRUE." )
-    }
+  stat.row <- c(hsic.diff = "HSIC", dcor.diff = "dCor", mi.diff = "MI")[[stat]]
+  out <- t(sapply(obj$cdda.diff$diff, function(d) d[stat.row, ]))
+  y.title <- paste0(c(HSIC = "HSIC", dCor = "dCor", MI = "Mutual Information")[[stat.row]],
+                    " Differences (", ci.level, "% CI)")
 
-    y.title <- paste0("dCor Differences (", ci.level, "% CI)")
-    for (i in seq_along(plot.axis)) {
-      out[i, ] <- c(obj[[1]][[i]]$out.diff[2, ],
-                    obj[[2]][[i]]$out.diff[2, ])
-    }
-  }
-
-  if (stat == "mi.diff"){
-    if(is.null(obj[[1]][[1]]$out.diff[3, ])){
-      stop( "Mutual Information differences not found. Specify diff = TRUE." )
-    }
-
-    y.title <- paste0("Mutual Information Differences (", ci.level, "% CI)")
-
-    for (i in seq_along(plot.axis)) {
-      out[i, ] <- c(obj[[1]][[i]]$out.diff[3, ],
-                    obj[[2]][[i]]$out.diff[3, ])
-    }
-  }
-
+  ## OLD
+  ## ### Indep Plotting ################################################
+  ##
+  ## ### Matrix Creation ###
+  ##
+  ## out.tar <- data.frame(condition = plot.axis, out.mean = out[,1],
+  ##                       out.low = out[,2], out.upp = out[,3])
+  ## out.alt <- data.frame(condition = plot.axis, out.mean = out[,4],
+  ##                       out.low = out[,5], out.upp = out[,6])
+  ##
+  ## ### Set the y-axis ###
+  ##
+  ## # 0.2.0 limits include zero and are padded by 10% of the plotted range
+  ## if(is.null(ylim)) {
+  ##   y.range <- range(c(0, out.tar$out.low, out.alt$out.low, out.tar$out.upp, out.alt$out.upp), na.rm = TRUE)
+  ##   y.range <- y.range + c(-0.1, 0.1) * diff(y.range)
+  ## } else{y.range <- ylim}
+  ##
+  ## ### Start two plots ###
+  ## par(mfrow = c(1, 2))
+  ##
+  ## plot(plot.axis, out.tar$out.mean, type = "n",
+  ##      ylim = y.range, xlim = x.range, xaxt = "n",
+  ##      xlab = "Moderator Values", ylab = y.title, main = "Target Model")
+  ## axis(1, at = seq_along(out.tar$condition), labels = x.axis.labels)
+  ## polygon(x = c(out.tar$condition, rev(out.tar$condition)),
+  ##         y = c(out.tar$out.low, rev(out.tar$out.upp)),
+  ##         border = FALSE, col = "lightgrey")
+  ## points(out.tar$condition, out.tar$out.mean, type = "l")
+  ## abline(h = 0, lty = "dashed")
+  ##
+  ## plot(plot.axis, out.alt$out.mean, type = "n",
+  ##      ylim = y.range, xlim = x.range, xaxt = "n",
+  ##      xlab = "Moderator Values", ylab = y.title, main = "Alternative Model")
+  ## axis(1, at = seq_along(out.tar$condition), labels = x.axis.labels)
+  ## polygon(x = c(out.alt$condition, rev(out.alt$condition)),
+  ##         y = c(out.alt$out.low, rev(out.alt$out.upp)),
+  ##         border = FALSE, col = "lightgrey")
+  ## points(out.alt$condition, out.alt$out.mean, type = "l")
+  ## abline(h = 0, lty = "dashed")
+  ##
+  ## par(mfrow = c(1, 1))
+  ## NEW 0.2.0
   ### Indep Plotting ################################################
 
-  ### Matrix Creation ###
-
-  out.tar <- data.frame(condition = plot.axis, out.mean = out[,1],
-                        out.low = out[,2], out.upp = out[,3])
-  out.alt <- data.frame(condition = plot.axis, out.mean = out[,4],
-                        out.low = out[,5], out.upp = out[,6])
-
-  ### Set the y-axis ###
+  out.diff <- data.frame(condition = plot.axis, out.mean = out[,1],
+                         out.low = out[,2], out.upp = out[,3])
 
   # 0.2.0 limits include zero and are padded by 10% of the plotted range
   if(is.null(ylim)) {
-    y.range <- range(c(0, out.tar$out.low, out.alt$out.low, out.tar$out.upp, out.alt$out.upp), na.rm = TRUE)
+    y.range <- range(c(0, out.diff$out.low, out.diff$out.upp), na.rm = TRUE)
     y.range <- y.range + c(-0.1, 0.1) * diff(y.range)
   } else{y.range <- ylim}
 
-  ### Start two plots ###
-  par(mfrow = c(1, 2))
+  resp.name <- obj$df.original$response.name
+  pred.name <- obj$df.original$pred.name
 
-  plot(plot.axis, out.tar$out.mean, type = "n",
+  plot(plot.axis, out.diff$out.mean, type = "n",
        ylim = y.range, xlim = x.range, xaxt = "n",
-       xlab = "Moderator Values", ylab = y.title, main = "Target Model")
-  axis(1, at = seq_along(out.tar$condition), labels = x.axis.labels)
-  polygon(x = c(out.tar$condition, rev(out.tar$condition)),
-          y = c(out.tar$out.low, rev(out.tar$out.upp)),
+       xlab = "Moderator Values", ylab = y.title,
+       main = paste0(pred.name, " -> ", resp.name, " vs. ", resp.name, " -> ", pred.name))
+  sub.title <- paste("Values > 0 suggest", pred.name, "->", resp.name)
+  if (stat == "mi.diff") sub.title <- paste0(sub.title, " (MI may be biased, see ?cdda.indep)")
+  mtext(sub.title, side = 3, line = 0.3, cex = 0.8)
+  axis(1, at = seq_along(out.diff$condition), labels = x.axis.labels)
+  polygon(x = c(out.diff$condition, rev(out.diff$condition)),
+          y = c(out.diff$out.low, rev(out.diff$out.upp)),
           border = FALSE, col = "lightgrey")
-  points(out.tar$condition, out.tar$out.mean, type = "l")
+  points(out.diff$condition, out.diff$out.mean, type = "l")
   abline(h = 0, lty = "dashed")
-
-  plot(plot.axis, out.alt$out.mean, type = "n",
-       ylim = y.range, xlim = x.range, xaxt = "n",
-       xlab = "Moderator Values", ylab = y.title, main = "Alternative Model")
-  axis(1, at = seq_along(out.tar$condition), labels = x.axis.labels)
-  polygon(x = c(out.alt$condition, rev(out.alt$condition)),
-          y = c(out.alt$out.low, rev(out.alt$out.upp)),
-          border = FALSE, col = "lightgrey")
-  points(out.alt$condition, out.alt$out.mean, type = "l")
-  abline(h = 0, lty = "dashed")
-
-  par(mfrow = c(1, 1))
 }

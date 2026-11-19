@@ -1,3 +1,12 @@
+## OLD
+## #' @param diff        A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples.
+## #' @return A list of class \code{cdda.indep} containing the results of
+## #'   CDDA independence tests for pre-specified moderator values.
+## #' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
+## NEW 0.2.0
+## Edited in the roxygen block below: @param diff, @return, new @details
+## (including the MI caveat), and Li et al. (2023) in @references.
+
 #' @title Conditional Direction Dependence Analysis: Independence Properties
 #' @description \code{cdda.indep} evaluates asymmetries of predictor-error independence of competing
 #'              conditional models (\code{y ~ x * m} vs. \code{x ~ y * m}
@@ -29,7 +38,7 @@
 #'       whether separate homoscedasticity tests should be returned in the
 #'       output. Default is \code{FALSE}.
 #'   }
-#' @param diff        A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples.
+#' @param diff        A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples. MI differences carry a caveat described in Details.
 #' @param nlfun Determines handling of non-linear correlation tests
 #'   depending on the function used:
 #'   \itemize{
@@ -49,7 +58,25 @@
 #' @param robust      A logical value indicating whether Siegel's (1982) repeated median estimator should be used for model estimation. If \code{robust = TRUE} repeated median estimation is applied for the causally competing models, otherwise ordinary least squares (OLS) estimation is used.
 #'
 #' @return A list of class \code{cdda.indep} containing the results of
-#'   CDDA independence tests for pre-specified moderator values.
+#'   CDDA independence tests for pre-specified moderator values. When
+#'   \code{diff = TRUE} the element \code{cdda.diff} holds one matrix of HSIC,
+#'   dCor and MI differences (estimate and CI limits) per moderator value.
+#'
+#' @details At each moderator value the target model is estimated from
+#'   variables purified against the moderator and the product of moderator and
+#'   predictor. The alternative model is estimated from variables purified
+#'   against the moderator and the product of moderator and outcome (Li et al.,
+#'   2023). Difference statistics compare these two models: independence of the
+#'   alternative model minus independence of the target model, so values > 0
+#'   suggest the target model.
+#'
+#'   MI differences should be read with caution. The MI difference is built from
+#'   marginal entropies only. In \code{dda.indep} this is valid because both
+#'   models are unit-determinant linear maps of the same pair of variables, so
+#'   their joint entropy is equal and cancels. In CDDA the target and alternative
+#'   models rest on differently purified variables. Their joint entropies differ
+#'   and do not cancel, so the MI difference carries a bias of unknown size and
+#'   sign. Read it alongside the HSIC and dCor differences.
 #'
 #' @examples
 #' set.seed(321)
@@ -112,11 +139,13 @@
 #'                      nlfun = 2,
 #'                      B = 500)
 #'
-#' summary(result, hsic.diff = TRUE, dcor.diff = TRUE, mi.diff = TRUE)
+#' summary(result, hsic.diff = TRUE, dcor.diff = TRUE)
 #' plot(result, stat = "hsic.diff")
 #' }
 #'
-#' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
+#' @references Li, X., Martens, M. P., & Wiedermann, W. (2023). Conditional direction of dependence modeling: Application and implementation in SPSS. \emph{Social Science Computer Review, 41}(4), 1252-1275. \doi{10.1177/08944393211073168}
+#'
+#' Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
 #' @seealso \code{\link{dda.indep}} for an unconditional version.
 #'
 #' @export
@@ -151,6 +180,17 @@ cdda.indep <- function(
     delete.pred <- which( colnames(X) == pred ) # get position of tentative predictor
     if ( length(delete.pred) == 0 ) stop( "Specified predictor not found in the target model." )
 
+    ## OLD
+    ## if(is.factor(data[,mod])){
+    ##   delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
+    ## }
+    ## if(is.numeric(data[,mod])){
+    ##   delete.mod <- which(colnames(X) == mod)
+    ## }
+    ##
+    ## if ( is.null(delete.mod) ) stop( "Specified moderator not found in the target model." )
+    ## NEW 0.2.0
+    delete.mod <- integer(0)
     if(is.factor(data[,mod])){
       delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
     }
@@ -158,7 +198,7 @@ cdda.indep <- function(
       delete.mod <- which(colnames(X) == mod)
     }
 
-    if ( is.null(delete.mod) ) stop( "Specified moderator not found in the target model." )
+    if ( length(delete.mod) == 0 ) stop( "Specified moderator not found in the target model." )
 
     delete.interaction <- grep(":", colnames(X))
     if ( length(delete.interaction) == 0 ) stop( "No interaction term specified in the target model." )
@@ -179,6 +219,17 @@ cdda.indep <- function(
     delete.pred <- which( colnames(X) == pred ) # get position of tentative predictor
     if ( length(delete.pred) == 0 ) stop( "Specified predictor not found in the target model." )
 
+    ## OLD
+    ## if(is.factor(data[,mod])){
+    ##   delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
+    ## }
+    ## if(is.numeric(data[,mod])){
+    ##   delete.mod <- which(colnames(X) == mod)
+    ## }
+    ##
+    ## if ( is.null(delete.mod) == TRUE ) stop( "Specified moderator not found in the target model." )
+    ## NEW 0.2.0
+    delete.mod <- integer(0)
     if(is.factor(data[,mod])){
       delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
     }
@@ -186,7 +237,7 @@ cdda.indep <- function(
       delete.mod <- which(colnames(X) == mod)
     }
 
-    if ( is.null(delete.mod) == TRUE ) stop( "Specified moderator not found in the target model." )
+    if ( length(delete.mod) == 0 ) stop( "Specified moderator not found in the target model." )
 
     delete.interaction <- grep(":", colnames(X))
     if ( length(delete.interaction) == 0 ) stop( "No interaction term specified in the target model." )
@@ -214,9 +265,72 @@ cdda.indep <- function(
   nam.alt <- gsub("y", response.name, nam.alt)
   rownames(alternate.model) <- sub("^X", "", nam.alt)
 
+  ## OLD (none)
+  ## NEW 0.2.0
+  # difference statistics: independence of the alternative model (Li et al., 2023, eq. 20)
+  # minus independence of the target model (eq. 17) at the same moderator value
+  fit.cm <- function(f) {
+    if (isTRUE(robust)) RobustLinearReg::siegel_regression(f) else lm(f)
+  }
+
+  boot.cdda <- function(dat, g){
+    dat <- dat[g, ]
+    hsic <- function(a, b) dHSIC::dhsic.test(a, b, method = "gamma")$statistic
+    c(hsic(dat$ry.alt, dat$e.alt) - hsic(dat$rx.tar, dat$e.tar),
+      dccpp::dcor(dat$ry.alt, dat$e.alt) - dccpp::dcor(dat$rx.tar, dat$e.tar),
+      # MI caveat: the entropy sums below equal an MI difference only when the
+      # joint entropies of (rx.tar, ry.tar) and (rx.alt, ry.alt) are equal. The two
+      # pairs are purified against different terms (xm vs. ym), so their joint
+      # entropies differ and the difference keeps a bias of unknown size and sign.
+      (max.entropy(dat$ry.alt) + max.entropy(dat$e.alt)) -
+        (max.entropy(dat$rx.tar) + max.entropy(dat$e.tar)))
+  }
+
+  max.entropy <- function(x){
+    sdx <- sd(x)
+    x  <- as.vector(scale(x))
+    k1 <- 79.047
+    k2 <- 7.412889
+    g  <- 0.37457
+    GaussE <- log(2*pi)/2+1/2
+    NegE <- k1 * (mean(log(cosh(x))) - g)^2 + k2 * mean(x * exp(-x^2/2))^2
+    GaussE - NegE + log(sdx)
+  }
+
+  cdda.diff <- function(rx.tar, ry.tar, rx.alt, ry.alt){
+    dat <- data.frame(rx.tar = rx.tar,
+                      e.tar  = resid(fit.cm(ry.tar ~ rx.tar)),  # target model, eq. 17
+                      ry.alt = ry.alt,
+                      e.alt  = resid(fit.cm(rx.alt ~ ry.alt)))  # alternative model, eq. 20
+
+    if (parallelize) {
+      boot.res <- boot::boot(dat, boot.cdda, R = B, parallel = "snow", ncpus = cores)
+    } else {
+      boot.res <- boot::boot(dat, boot.cdda, R = B)
+    }
+
+    type <- boot.type
+    if (type == "bca" && any(is.na(boot::empinf(boot.res)))) {
+      warning("Acceleration constant cannot be calculated. Falling back to percentile bootstrap method. ",
+              "Consider increasing the number of resamples (B) for more stable results.", call. = FALSE)
+      type <- "perc"
+    }
+
+    ci <- suppressWarnings(t(sapply(1:3, function(k)
+      boot::boot.ci(boot.res, conf = conf.level, type = type, index = k)[[4]][4:5])))
+
+    out <- cbind(boot.res$t0, ci)
+    dimnames(out) <- list(c("HSIC", "dCor", "MI"), c("estimate", "lower", "upper"))
+    out
+  }
+
+  diff.temp <- list()
   if (is.factor(data[,mod])) {
 
-    moderator.levels <- unique(data[,mod])
+    ## OLD
+    ## moderator.levels <- unique(data[,mod])
+    ## NEW 0.2.0
+    moderator.levels <- levels(data[,mod])
 
     indep.temp.yx <- list()
     indep.temp.xy <- list()
@@ -253,28 +367,55 @@ cdda.indep <- function(
 
 
       #DDA Implementation
+      ## OLD
+      ## indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
+      ##                                         hsic.method = hsic.method, nlfun = nlfun,
+      ##                                         B = B, boot.type = boot.type,
+      ##                                         conf.level = conf.level, diff = diff, hetero = hetero,
+      ##                                         robust = robust # 0.2.0 robust estimation of the competing models
+      ## ))
+      ## indep.temp.xy[[i]] <- unclass(dda.indep(rx.aux.alt ~ ry.aux.alt, pred = "ry.aux.alt",
+      ##                                         hsic.method = hsic.method, nlfun = nlfun,
+      ##                                         B = B, boot.type = boot.type,
+      ##                                         conf.level = conf.level, diff = diff, hetero = hetero,
+      ##                                         robust = robust # 0.2.0 robust estimation of the competing models
+      ## ))
+      ## NEW 0.2.0
       indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
-                                              conf.level = conf.level, diff = diff, hetero = hetero,
+                                              conf.level = conf.level, diff = FALSE, hetero = hetero,
+                                              parallelize = parallelize, cores = cores,
                                               robust = robust # 0.2.0 robust estimation of the competing models
       ))
       indep.temp.xy[[i]] <- unclass(dda.indep(rx.aux.alt ~ ry.aux.alt, pred = "ry.aux.alt",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
-                                              conf.level = conf.level, diff = diff, hetero = hetero,
+                                              conf.level = conf.level, diff = FALSE, hetero = hetero,
+                                              parallelize = parallelize, cores = cores,
                                               robust = robust # 0.2.0 robust estimation of the competing models
       ))
+
+      if (diff) diff.temp[[i]] <- cdda.diff(rx.aux.tar, ry.aux.tar, rx.aux.alt, ry.aux.alt)
     }
 
-    names(indep.temp.xy) <- names(indep.temp.yx) <- paste("ModVal", unique(data[,mod]), sep = ' ')
+    ## OLD
+    ## names(indep.temp.xy) <- names(indep.temp.yx) <- paste("ModVal", unique(data[,mod]), sep = ' ')
+    ## NEW 0.2.0
+    names(indep.temp.xy) <- names(indep.temp.yx) <- paste("ModVal", levels(data[,mod]), sep = ' ')
+    if (diff) names(diff.temp) <- names(indep.temp.yx)
   }
 
   else {
 
-    if (is.numeric(modval)){
+    ## OLD
+    ## if (is.numeric(modval)){
+    ##
+    ##   if( is.null(modval) ) stop("No moderation values identified for pick-a-point approach.")
+    ## NEW 0.2.0
+    if (is.null(modval)) stop("Please specify modval: 'mean', 'median', 'JN', or numeric moderator values.")
 
-      if( is.null(modval) ) stop("No moderation values identified for pick-a-point approach.")
+    if (is.numeric(modval)){
 
       modmat <- data.frame( matrix(NA, length(moderator), length(modval)) )
 
@@ -307,6 +448,9 @@ cdda.indep <- function(
                                           modx = moderator, control.fdr = FALSE ) )
       twobounds <- jnoutput[["bounds"]]
 
+      ## OLD (none)
+      ## NEW 0.2.0
+      values <- NA
       if(twobounds[1] < min(moderator, na.rm = TRUE) &
          twobounds[2] > max(moderator, na.rm = TRUE)) values <- NA
 
@@ -319,6 +463,10 @@ cdda.indep <- function(
       if(twobounds[1] > min(moderator, na.rm = TRUE) &
          twobounds[2] < max(moderator, na.rm = TRUE)) values <- c(min(moderator), twobounds[1], twobounds[2], max(moderator))
 
+      ## OLD (none)
+      ## NEW 0.2.0
+      if (all(is.na(values))) stop("Johnson-Neyman bounds lie outside the observed moderator range. ",
+                                   "Use modval = 'mean', 'median', or numeric values.")
       modmat <- data.frame( matrix(NA, length(moderator), length(values)) )
       for( i in seq_along(values) ){ modmat[,i] <- moderator - values[i] }  # compute transformed moderator for each value
       colnames(modmat) <- paste0(round(values, 2))
@@ -353,25 +501,47 @@ cdda.indep <- function(
       rx.aux.alt <- resid(aux.xy.alt)
 
       #DDA Implementation
+      ## OLD
+      ## indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
+      ##                                         hsic.method = hsic.method, nlfun = nlfun,
+      ##                                         B = B, boot.type = boot.type,
+      ##                                         conf.level = conf.level, diff = diff,
+      ##                                         hetero = hetero, parallelize = parallelize, cores = cores,
+      ##                                         robust = robust # 0.2.0 robust estimation of the competing models
+      ## ))
+      ## indep.temp.xy[[i]] <- unclass(dda.indep(rx.aux.alt ~ ry.aux.alt, pred = "ry.aux.alt",
+      ##                                         hsic.method = hsic.method, nlfun = nlfun,
+      ##                                         B = B, boot.type = boot.type,
+      ##                                         conf.level = conf.level, diff = diff,
+      ##                                         hetero = hetero, parallelize = parallelize, cores = cores,
+      ##                                         robust = robust # 0.2.0 robust estimation of the competing models
+      ## ))
+      ## NEW 0.2.0
       indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
-                                              conf.level = conf.level, diff = diff,
+                                              conf.level = conf.level, diff = FALSE,
                                               hetero = hetero, parallelize = parallelize, cores = cores,
                                               robust = robust # 0.2.0 robust estimation of the competing models
       ))
       indep.temp.xy[[i]] <- unclass(dda.indep(rx.aux.alt ~ ry.aux.alt, pred = "ry.aux.alt",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
-                                              conf.level = conf.level, diff = diff,
+                                              conf.level = conf.level, diff = FALSE,
                                               hetero = hetero, parallelize = parallelize, cores = cores,
                                               robust = robust # 0.2.0 robust estimation of the competing models
       ))
 
+      if (diff) diff.temp[[i]] <- cdda.diff(rx.aux.tar, ry.aux.tar, rx.aux.alt, ry.aux.alt)
+
     }
 
 
+    ## OLD
+    ## names(indep.temp.xy) <- names(indep.temp.yx) <- paste("ModVal", colnames(modmat), sep = ' ')
+    ## NEW 0.2.0
     names(indep.temp.xy) <- names(indep.temp.yx) <- paste("ModVal", colnames(modmat), sep = ' ')
+    if (diff) names(diff.temp) <- names(indep.temp.yx)
 
   }
 
@@ -396,8 +566,15 @@ cdda.indep <- function(
                           "data.name" = deparse(substitute(data))
                           )
 
+  ## OLD
+  ## names(cdda.output) <- c("cdda.target", "cdda.alternative", "models",
+  ##                         "df.original", "call.info")
+  ## NEW 0.2.0
+  cdda.output[[6]] <- list(diff = diff.temp,
+                           boot.args = c(boot.type, conf.level, B))
+
   names(cdda.output) <- c("cdda.target", "cdda.alternative", "models",
-                          "df.original", "call.info")
+                          "df.original", "call.info", "cdda.diff")
   class(cdda.output) <- "cdda.indep"
   return(cdda.output)
 }

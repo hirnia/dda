@@ -1,3 +1,10 @@
+## OLD
+## #' @param mi.diff A logical value indicating whether Mutual Information (MI)
+## #'   difference statistics should be returned when using \code{summary},
+## #'   default is \code{FALSE}.
+## NEW 0.2.0
+## Edited in the roxygen block below: @param mi.diff (MI caveat added).
+
 #' @title Summary of \code{cdda.indep} Class Objects
 #'
 #' @description \code{summary} returns test statistics from the
@@ -20,7 +27,8 @@
 #'   \code{FALSE}.
 #' @param mi.diff A logical value indicating whether Mutual Information (MI)
 #'   difference statistics should be returned when using \code{summary},
-#'   default is \code{FALSE}.
+#'   default is \code{FALSE}. MI differences carry a caveat described in
+#'   Details of \code{cdda.indep}.
 #' @param ... Additional arguments to be passed to the function.
 #'
 #' @export
@@ -44,12 +52,25 @@ summary.cdda.indep <- function(object,
 
   varnames <- cdda.output[[1]][[1]]$var.names
   mod.names <- names(cdda.output[[1]])
-  n.resamples <- cdda.output[[1]][[1]]$boot.args[3]
-  ci.level <- as.numeric(cdda.output[[1]][[1]]$boot.args[2]) * 100
+  ## OLD
+  ## n.resamples <- cdda.output[[1]][[1]]$boot.args[3]
+  ## ci.level <- as.numeric(cdda.output[[1]][[1]]$boot.args[2]) * 100
+  ##
+  ## if (!is.null(cdda.output[[1]][[1]]$boot.args[1]) && cdda.output[[1]][[1]]$boot.args[1] == "bca") {
+  ##   boot.print <- paste("\n", ci.level, "% BCa bootstrap CIs (", n.resamples, " resamples)", "\n\n", sep = "")
+  ## } else if (!is.null(cdda.output[[1]][[1]]$boot.args[1]) && cdda.output[[1]][[1]]$boot.args[1] == "perc") {
+  ##   boot.print <- paste("\n", ci.level, "% percentile bootstrap CIs (", n.resamples, " resamples)", "\n\n", sep = "")
+  ## } else {
+  ##   boot.print <- NULL
+  ## }
+  ## NEW 0.2.0
+  boot.args <- cdda.output$cdda.diff$boot.args
+  n.resamples <- boot.args[3]
+  ci.level <- as.numeric(boot.args[2]) * 100
 
-  if (!is.null(cdda.output[[1]][[1]]$boot.args[1]) && cdda.output[[1]][[1]]$boot.args[1] == "bca") {
+  if (!is.null(boot.args[1]) && boot.args[1] == "bca") {
     boot.print <- paste("\n", ci.level, "% BCa bootstrap CIs (", n.resamples, " resamples)", "\n\n", sep = "")
-  } else if (!is.null(cdda.output[[1]][[1]]$boot.args[1]) && cdda.output[[1]][[1]]$boot.args[1] == "perc") {
+  } else if (!is.null(boot.args[1]) && boot.args[1] == "perc") {
     boot.print <- paste("\n", ci.level, "% percentile bootstrap CIs (", n.resamples, " resamples)", "\n\n", sep = "")
   } else {
     boot.print <- NULL
@@ -156,30 +177,47 @@ summary.cdda.indep <- function(object,
     cat("---", "\n", "\n")
   }
 
-  if (hsic.diff == TRUE){
-
-    ### HSIC Diff ### ----------------------------------------------------------
-    if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
-
-    hsicdiff <- matrix(NA, length(mod.names), 6)
-
-    for (i in seq_along(mod.names)) {
-
-      tar.hsicd <- unlist(cdda.output[[1]][[i]]$out.diff[1, ])
-      alt.hsicd <- unlist(cdda.output[[2]][[i]]$out.diff[1, ])
-      hsicdiff[i, ] <- c(tar.hsicd, alt.hsicd)
-    }
-
-    rownames(hsicdiff) <- mod.names
-    colnames(hsicdiff) <- rep(c("diff", "lower", "upper"), 2)
-    hsicdiff <- round(hsicdiff, 3)
-
+  ## OLD
+  ## if (hsic.diff == TRUE){
+  ##
+  ##   ### HSIC Diff ### ----------------------------------------------------------
+  ##   if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
+  ##
+  ##   hsicdiff <- matrix(NA, length(mod.names), 6)
+  ##
+  ##   for (i in seq_along(mod.names)) {
+  ##
+  ##     tar.hsicd <- unlist(cdda.output[[1]][[i]]$out.diff[1, ])
+  ##     alt.hsicd <- unlist(cdda.output[[2]][[i]]$out.diff[1, ])
+  ##     hsicdiff[i, ] <- c(tar.hsicd, alt.hsicd)
+  ##   }
+  ##
+  ##   rownames(hsicdiff) <- mod.names
+  ##   colnames(hsicdiff) <- rep(c("diff", "lower", "upper"), 2)
+  ##   hsicdiff <- round(hsicdiff, 3)
+  ##
+  ##   cat(boot.print)
+  ##
+  ##   cat(paste("Hilbert-Schmidt Independence Criterion Differences", "\n"))
+  ##   cdda.print.table(hsicdiff)
+  ##   cat("---", "\n", "\n")
+  ## }
+  ## NEW 0.2.0
+  show.diff <- function(row, label, note = NULL){
+    d <- cdda.output$cdda.diff$diff
+    if (length(d) == 0) stop("Difference tests not found, set 'diff = TRUE'.")
+    tab <- round(t(sapply(d, function(m) m[row, ])), 3)
+    rownames(tab) <- mod.names
     cat(boot.print)
-
-    cat(paste("Hilbert-Schmidt Independence Criterion Differences", "\n"))
-    cdda.print.table(hsicdiff)
+    cat(label, "\n")
+    cat("Values > 0 suggest", cdda.output$df.original$pred.name, "->",
+        cdda.output$df.original$response.name, "\n")
+    print(tab, print.gap = 2L)
+    if (!is.null(note)) cat(note, "\n")
     cat("---", "\n", "\n")
   }
+
+  if (hsic.diff == TRUE) show.diff("HSIC", "Hilbert-Schmidt Independence Criterion Differences")
 
   ### Distance Correlation ### -------------------------------------------------
 
@@ -205,53 +243,61 @@ summary.cdda.indep <- function(object,
     cat("---", "\n", "\n")
   }
 
-  ## dcor.diff ## --------------------------------------------------------------
-  if (dcor.diff == TRUE){
-
-    if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
-
-    dcortests <- matrix(NA, length(mod.names), 6)
-
-    for (i in seq_along(mod.names)) {
-      tar.dcor.diff <- unlist(cdda.output[[1]][[i]]$out.diff[2, ])
-      alt.dcor.diff <- unlist(cdda.output[[2]][[i]]$out.diff[2, ])
-      dcortests[i, ] <- c(tar.dcor.diff, alt.dcor.diff)
-    }
-
-    rownames(dcortests) <- mod.names
-    colnames(dcortests) <- rep(c("diff", "lower", "upper"), 2)
-    dcortests <- round(dcortests, 3)
-
-    cat(boot.print)
-
-    cat(paste("Distance Correlation Differences", "\n"))
-    cdda.print.table(dcortests)
-    cat("---", "\n", "\n")
-  }
-  ### Mutual Information ### ---------------------------------------------------
-  if (mi.diff == TRUE){
-
-    if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
-
-    mitests <- matrix(NA, length(mod.names), 6)
-
-    for (i in seq_along(mod.names)) {
-      tar.mi <- unlist(cdda.output[[1]][[i]]$out.diff[3, ])
-      alt.mi <- unlist(cdda.output[[2]][[i]]$out.diff[3, ])
-      mitests[i, ] <- c(tar.mi, alt.mi)
-    }
-
-    rownames(mitests) <- mod.names
-    colnames(mitests) <- rep(c("diff", "lower", "upper"), 2)
-    mitests <- round(mitests, 3)
-
-    cat(boot.print)
-
-    cat(paste("Mutual Information Difference", "\n"))
-    cdda.print.table(mitests)
-    cat("---", "\n", "\n")
-
-  }
+  ## OLD
+  ## ## dcor.diff ## --------------------------------------------------------------
+  ## if (dcor.diff == TRUE){
+  ##
+  ##   if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
+  ##
+  ##   dcortests <- matrix(NA, length(mod.names), 6)
+  ##
+  ##   for (i in seq_along(mod.names)) {
+  ##     tar.dcor.diff <- unlist(cdda.output[[1]][[i]]$out.diff[2, ])
+  ##     alt.dcor.diff <- unlist(cdda.output[[2]][[i]]$out.diff[2, ])
+  ##     dcortests[i, ] <- c(tar.dcor.diff, alt.dcor.diff)
+  ##   }
+  ##
+  ##   rownames(dcortests) <- mod.names
+  ##   colnames(dcortests) <- rep(c("diff", "lower", "upper"), 2)
+  ##   dcortests <- round(dcortests, 3)
+  ##
+  ##   cat(boot.print)
+  ##
+  ##   cat(paste("Distance Correlation Differences", "\n"))
+  ##   cdda.print.table(dcortests)
+  ##   cat("---", "\n", "\n")
+  ## }
+  ## NEW 0.2.0
+  if (dcor.diff == TRUE) show.diff("dCor", "Distance Correlation Differences")
+  ## OLD
+  ## ### Mutual Information ### ---------------------------------------------------
+  ## if (mi.diff == TRUE){
+  ##
+  ##   if(is.null(cdda.output[[1]][[1]]$out.diff)) stop("Difference tests not found, set 'diff = TRUE'.")
+  ##
+  ##   mitests <- matrix(NA, length(mod.names), 6)
+  ##
+  ##   for (i in seq_along(mod.names)) {
+  ##     tar.mi <- unlist(cdda.output[[1]][[i]]$out.diff[3, ])
+  ##     alt.mi <- unlist(cdda.output[[2]][[i]]$out.diff[3, ])
+  ##     mitests[i, ] <- c(tar.mi, alt.mi)
+  ##   }
+  ##
+  ##   rownames(mitests) <- mod.names
+  ##   colnames(mitests) <- rep(c("diff", "lower", "upper"), 2)
+  ##   mitests <- round(mitests, 3)
+  ##
+  ##   cat(boot.print)
+  ##
+  ##   cat(paste("Mutual Information Difference", "\n"))
+  ##   cdda.print.table(mitests)
+  ##   cat("---", "\n", "\n")
+  ##
+  ## }
+  ## NEW 0.2.0
+  if (mi.diff == TRUE) show.diff("MI", "Mutual Information Differences",
+                                note = paste("Caution: the two models use differently purified variables,",
+                                             "so MI differences may be biased. See ?cdda.indep."))
 }
 
 
