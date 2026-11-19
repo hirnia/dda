@@ -139,7 +139,7 @@
 #'                      nlfun = 2,
 #'                      B = 500)
 #'
-#' summary(result, hsic.diff = TRUE, dcor.diff = TRUE)
+#' summary(result, hsic.diff = TRUE, dcor.diff = TRUE, mi.diff = TRUE)
 #' plot(result, stat = "hsic.diff")
 #' }
 #'
