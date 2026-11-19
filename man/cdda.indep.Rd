@@ -74,7 +74,7 @@ pick-a-point approach is used for the selected numeric values.}
     output. Default is \code{FALSE}.
 }}
 
-\item{diff}{A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples.}
+\item{diff}{A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples. MI differences carry a caveat described in Details.}
 
 \item{nlfun}{Determines handling of non-linear correlation tests
 depending on the function used:
@@ -131,11 +131,14 @@ statistics should be returned when using \code{summary}, default is
 
 \item{mi.diff}{A logical value indicating whether Mutual Information (MI)
 difference statistics should be returned when using \code{summary},
-default is \code{FALSE}.}
+default is \code{FALSE}. MI differences carry a caveat described in
+Details of \code{cdda.indep}.}
 }
 \value{
 A list of class \code{cdda.indep} containing the results of
-  CDDA independence tests for pre-specified moderator values.
+  CDDA independence tests for pre-specified moderator values. When
+  \code{diff = TRUE} the element \code{cdda.diff} holds one matrix of HSIC,
+  dCor and MI differences (estimate and CI limits) per moderator value.
 }
 \description{
 \code{cdda.indep} evaluates asymmetries of predictor-error independence of competing
@@ -148,6 +151,23 @@ A list of class \code{cdda.indep} containing the results of
 
 \code{summary} returns test statistics from the
 \code{cdda.indep} class object.
+}
+\details{
+At each moderator value the target model is estimated from
+  variables purified against the moderator and the product of moderator and
+  predictor. The alternative model is estimated from variables purified
+  against the moderator and the product of moderator and outcome (Li et al.,
+  2023). Difference statistics compare these two models: independence of the
+  alternative model minus independence of the target model, so values > 0
+  suggest the target model.
+
+  MI differences should be read with caution. The MI difference is built from
+  marginal entropies only. In \code{dda.indep} this is valid because both
+  models are unit-determinant linear maps of the same pair of variables, so
+  their joint entropy is equal and cancels. In CDDA the target and alternative
+  models rest on differently purified variables. Their joint entropies differ
+  and do not cancel, so the MI difference carries a bias of unknown size and
+  sign. Read it alongside the HSIC and dCor differences.
 }
 \examples{
 set.seed(321)
@@ -210,12 +230,14 @@ result <- cdda.indep(m,
                      nlfun = 2,
                      B = 500)
 
-summary(result, hsic.diff = TRUE, dcor.diff = TRUE, mi.diff = TRUE)
+summary(result, hsic.diff = TRUE, dcor.diff = TRUE)
 plot(result, stat = "hsic.diff")
 }
 
 }
 \references{
+Li, X., Martens, M. P., & Wiedermann, W. (2023). Conditional direction of dependence modeling: Application and implementation in SPSS. \emph{Social Science Computer Review, 41}(4), 1252-1275. \doi{10.1177/08944393211073168}
+
 Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
 }
 \seealso{
