@@ -70,14 +70,6 @@
 #'   alternative model minus independence of the target model, so values > 0
 #'   suggest the target model.
 #'
-#'   MI differences should be read with caution. The MI difference is built from
-#'   marginal entropies only. In \code{dda.indep} this is valid because both
-#'   models are unit-determinant linear maps of the same pair of variables, so
-#'   their joint entropy is equal and cancels. In CDDA the target and alternative
-#'   models rest on differently purified variables. Their joint entropies differ
-#'   and do not cancel, so the MI difference carries a bias of unknown size and
-#'   sign. Read it alongside the HSIC and dCor differences.
-#'
 #' @examples
 #' set.seed(321)
 #' n <- 700
@@ -180,16 +172,6 @@ cdda.indep <- function(
     delete.pred <- which( colnames(X) == pred ) # get position of tentative predictor
     if ( length(delete.pred) == 0 ) stop( "Specified predictor not found in the target model." )
 
-    ## OLD
-    ## if(is.factor(data[,mod])){
-    ##   delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
-    ## }
-    ## if(is.numeric(data[,mod])){
-    ##   delete.mod <- which(colnames(X) == mod)
-    ## }
-    ##
-    ## if ( is.null(delete.mod) ) stop( "Specified moderator not found in the target model." )
-    ## NEW 0.2.0
     delete.mod <- integer(0)
     if(is.factor(data[,mod])){
       delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
@@ -219,15 +201,6 @@ cdda.indep <- function(
     delete.pred <- which( colnames(X) == pred ) # get position of tentative predictor
     if ( length(delete.pred) == 0 ) stop( "Specified predictor not found in the target model." )
 
-    ## OLD
-    ## if(is.factor(data[,mod])){
-    ##   delete.mod <- which(colnames(X) %in% paste(mod, levels(data[,mod]), sep ="")) # get position of moderator
-    ## }
-    ## if(is.numeric(data[,mod])){
-    ##   delete.mod <- which(colnames(X) == mod)
-    ## }
-    ##
-    ## if ( is.null(delete.mod) == TRUE ) stop( "Specified moderator not found in the target model." )
     ## NEW 0.2.0
     delete.mod <- integer(0)
     if(is.factor(data[,mod])){
@@ -267,23 +240,27 @@ cdda.indep <- function(
 
   ## OLD (none)
   ## NEW 0.2.0
-  # difference statistics: independence of the alternative model (Li et al., 2023, eq. 20)
-  # minus independence of the target model (eq. 17) at the same moderator value
+  # difference statistics: independence of the alternative model
+  # minus independence of the target model at the same moderator value
   fit.cm <- function(f) {
     if (isTRUE(robust)) RobustLinearReg::siegel_regression(f) else lm(f)
   }
 
   boot.cdda <- function(dat, g){
     dat <- dat[g, ]
+    ## NEW 0.2.0
+    ## mi.dat <- dat[!duplicated(g), ]  # distinct rows; repeated rows sit at distance zero
     hsic <- function(a, b) dHSIC::dhsic.test(a, b, method = "gamma")$statistic
     c(hsic(dat$ry.alt, dat$e.alt) - hsic(dat$rx.tar, dat$e.tar),
       dccpp::dcor(dat$ry.alt, dat$e.alt) - dccpp::dcor(dat$rx.tar, dat$e.tar),
-      # MI issue: the entropy sums below equal an MI difference only when the
-      # joint entropies of (rx.tar, ry.tar) and (rx.alt, ry.alt) are equal. The two
-      # pairs are purified against different terms (xm vs. ym), so their joint
-      # entropies differ and the difference keeps a bias of unknown size and sign.
+      # OLD: MI difference from marginal entropies (Hyvarinen & Smith, 2013). The
+      # joint-entropy term of the two purified pairs is not included.
+      # NEW 0.2.0: MI estimated directly for each model (Kraskov et al., 2004).
+      ## OLD
       (max.entropy(dat$ry.alt) + max.entropy(dat$e.alt)) -
         (max.entropy(dat$rx.tar) + max.entropy(dat$e.tar)))
+      ## NEW 0.2.0
+      ## mi.ksg(mi.dat$ry.alt, mi.dat$e.alt) - mi.ksg(mi.dat$rx.tar, mi.dat$e.tar))
   }
 
   max.entropy <- function(x){
@@ -296,6 +273,23 @@ cdda.indep <- function(
     NegE <- k1 * (mean(log(cosh(x))) - g)^2 + k2 * mean(x * exp(-x^2/2))^2
     GaussE - NegE + log(sdx)
   }
+
+  ## NEW 0.2.0
+  ## Kraskov, Stoegbauer, & Grassberger (2004) estimator 1 (eq. 8), maximum norm
+  ## mi.ksg <- function(u, e, k = 3){
+  ##   u <- as.vector(scale(u))
+  ##   e <- as.vector(scale(e))
+  ##   n <- length(u)
+  ##   nu <- ne <- numeric(n)
+  ##   for (i in 1:n) {
+  ##     du <- abs(u - u[i])
+  ##     de <- abs(e - e[i])
+  ##     eps <- sort(pmax(du, de), partial = k + 1)[k + 1]  # distance to the k-th neighbour
+  ##     nu[i] <- sum(du < eps) - 1
+  ##     ne[i] <- sum(de < eps) - 1
+  ##   }
+  ##   digamma(k) + digamma(n) - mean(digamma(nu + 1) + digamma(ne + 1))
+  ## }
 
   cdda.diff <- function(rx.tar, ry.tar, rx.alt, ry.alt){
     dat <- data.frame(rx.tar = rx.tar,
@@ -368,20 +362,7 @@ cdda.indep <- function(
 
 
       #DDA Implementation
-      ## OLD
-      ## indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
-      ##                                         hsic.method = hsic.method, nlfun = nlfun,
-      ##                                         B = B, boot.type = boot.type,
-      ##                                         conf.level = conf.level, diff = diff, hetero = hetero,
-      ##                                         robust = robust # 0.2.0 robust estimation of the competing models
-      ## ))
-      ## indep.temp.xy[[i]] <- unclass(dda.indep(rx.aux.alt ~ ry.aux.alt, pred = "ry.aux.alt",
-      ##                                         hsic.method = hsic.method, nlfun = nlfun,
-      ##                                         B = B, boot.type = boot.type,
-      ##                                         conf.level = conf.level, diff = diff, hetero = hetero,
-      ##                                         robust = robust # 0.2.0 robust estimation of the competing models
-      ## ))
-      ## NEW 0.2.0
+      ## NEW 0.2.0: diff calculated outside of core dda function, so diff = F
       indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,
@@ -502,22 +483,7 @@ cdda.indep <- function(
       rx.aux.alt <- resid(aux.xy.alt)
 
       #DDA Implementation
-      ## OLD
-      ## indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
-      ##                                         hsic.method = hsic.method, nlfun = nlfun,
-      ##                                         B = B, boot.type = boot.type,
-      ##                                         conf.level = conf.level, diff = diff,
-      ##                                         hetero = hetero, parallelize = parallelize, cores = cores,
-      ##                                         robust = robust # 0.2.0 robust estimation of the competing models
-      ## ))
-      ## indep.temp.xy[[i]] <- unclass(dda.indep(rx.aux.alt ~ ry.aux.alt, pred = "ry.aux.alt",
-      ##                                         hsic.method = hsic.method, nlfun = nlfun,
-      ##                                         B = B, boot.type = boot.type,
-      ##                                         conf.level = conf.level, diff = diff,
-      ##                                         hetero = hetero, parallelize = parallelize, cores = cores,
-      ##                                         robust = robust # 0.2.0 robust estimation of the competing models
-      ## ))
-      ## NEW 0.2.0
+      ## NEW 0.2.0: diff = FALSE, as it's calculated outside of the package
       indep.temp.yx[[i]] <- unclass(dda.indep(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
                                               hsic.method = hsic.method, nlfun = nlfun,
                                               B = B, boot.type = boot.type,

@@ -124,9 +124,9 @@ dda.vardist <- function(formula,
               y <- dat[, 2]  # "purified" outcome
 
               x <- as.vector(scale(x))
-			  y <- as.vector(scale(y))
+		      	  y <- as.vector(scale(y))
 
-              ## Optional robust estimation, option 1 (not active): robust correlation
+              ## Optional robust estimation, opt 1 (not active): robust correlation
               ## from the repeated median slopes of y ~ x and x ~ y
               ## rho <- cor(x, y)
               ## if (isTRUE(robust)) {
@@ -190,7 +190,7 @@ dda.vardist <- function(formula,
 		   if (!is.matrix(X)) X <- as.matrix(X)
 	}
 
-    ## Optional robust estimation, option 2 (not active): robust partialling of
+    ## Optional robust estimation (not active): robust partialling of
     ## covariates with M-estimation; replaces the two lm.fit lines below and
     ## needs MASS in Imports
     ## if (isTRUE(robust) && ncol(X) > 1) {
@@ -200,7 +200,7 @@ dda.vardist <- function(formula,
     ##   ry <- lm.fit(X, y)$residuals
     ##   rx <- lm.fit(X, x)$residuals
     ## }
-    ry <- lm.fit(X, y)$residuals
+  ry <- lm.fit(X, y)$residuals
 	rx <- lm.fit(X, x)$residuals
 
 	ry <- as.vector(scale(ry))
@@ -213,7 +213,7 @@ dda.vardist <- function(formula,
 	agostino.out <- apply(dat, 2, moments::agostino.test)
 	agostino.out <- lapply(agostino.out, unclass)
 	agostino.out$predictor[3:5] <- NULL
-    agostino.out$outcome[3:5] <- NULL
+  agostino.out$outcome[3:5] <- NULL
 
 	anscombe.out <- apply(dat, 2, moments::anscombe.test)
 	anscombe.out <- lapply(anscombe.out, unclass)

@@ -295,9 +295,7 @@ summary.cdda.indep <- function(object,
   ##
   ## }
   ## NEW 0.2.0
-  if (mi.diff == TRUE) show.diff("MI", "Mutual Information Differences",
-                                note = paste("Caution: the two models use differently purified variables,",
-                                             "so MI differences may be biased. See ?cdda.indep."))
+  if (mi.diff == TRUE) show.diff("MI", "Mutual Information Differences")
 }
 
 

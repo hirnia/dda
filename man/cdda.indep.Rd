@@ -160,14 +160,6 @@ At each moderator value the target model is estimated from
   2023). Difference statistics compare these two models: independence of the
   alternative model minus independence of the target model, so values > 0
   suggest the target model.
-
-  MI differences should be read with caution. The MI difference is built from
-  marginal entropies only. In \code{dda.indep} this is valid because both
-  models are unit-determinant linear maps of the same pair of variables, so
-  their joint entropy is equal and cancels. In CDDA the target and alternative
-  models rest on differently purified variables. Their joint entropies differ
-  and do not cancel, so the MI difference carries a bias of unknown size and
-  sign. Read it alongside the HSIC and dCor differences.
 }
 \examples{
 set.seed(321)
