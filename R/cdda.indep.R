@@ -278,7 +278,7 @@ cdda.indep <- function(
     hsic <- function(a, b) dHSIC::dhsic.test(a, b, method = "gamma")$statistic
     c(hsic(dat$ry.alt, dat$e.alt) - hsic(dat$rx.tar, dat$e.tar),
       dccpp::dcor(dat$ry.alt, dat$e.alt) - dccpp::dcor(dat$rx.tar, dat$e.tar),
-      # MI caveat: the entropy sums below equal an MI difference only when the
+      # MI issue: the entropy sums below equal an MI difference only when the
       # joint entropies of (rx.tar, ry.tar) and (rx.alt, ry.alt) are equal. The two
       # pairs are purified against different terms (xm vs. ym), so their joint
       # entropies differ and the difference keeps a bias of unknown size and sign.
@@ -299,9 +299,10 @@ cdda.indep <- function(
 
   cdda.diff <- function(rx.tar, ry.tar, rx.alt, ry.alt){
     dat <- data.frame(rx.tar = rx.tar,
-                      e.tar  = resid(fit.cm(ry.tar ~ rx.tar)),  # target model, eq. 17
+                      e.tar  = resid(fit.cm(ry.tar ~ rx.tar)),  # target model
                       ry.alt = ry.alt,
-                      e.alt  = resid(fit.cm(rx.alt ~ ry.alt)))  # alternative model, eq. 20
+                      e.alt  = resid(fit.cm(rx.alt ~ ry.alt)))  # alternative model
+
 
     if (parallelize) {
       boot.res <- boot::boot(dat, boot.cdda, R = B, parallel = "snow", ncpus = cores)

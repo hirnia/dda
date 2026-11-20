@@ -61,7 +61,10 @@ summary.dda.bagging <- function(object, show = NULL, digits = 2, ...){
 
   labels <- c(hsic      = "HSIC",
               dcor      = "dCor",
-              bp        = "Robust BP-test",
+              ## OLD
+              ## bp        = "Robust BP-test",
+              ## NEW 0.2.0
+              bp        = "BP-test",
               nlcor     = "Non-linear Correlation",
               hsic.diff = "HSIC Difference",
               dcor.diff = "dCor Difference",

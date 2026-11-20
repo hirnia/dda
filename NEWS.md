@@ -22,6 +22,8 @@
 -	`cdda.indep` and `cdda.vardist` now return "Specified moderator not found in the target model." for a moderator that is neither numeric nor a factor (previously, "object 'delete.mod' not found").
 -	With `modval = "JN"`, `cdda.indep` and `cdda.vardist` now stop with an error when the Johnson-Neyman bounds leave no moderator values in the observed range.
 -	For factor moderators, `cdda.indep` now passes `parallelize` and `cores` on.
+-	The Breusch-Pagan decision in `dda.bagging` now uses the standard Breusch-Pagan tests of the target and alternative models (previously, the robust tests).
+-	The help pages of `dda.vardist` and `cdda.vardist` now describe the co-skewness, co-kurtosis, Hyvarinen-Smith, Chen-Chan and hyperbolic tangent statistics.
 -	Various minor documentation changes and clarifications.
 
 

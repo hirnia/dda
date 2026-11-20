@@ -143,10 +143,10 @@ For \code{dda.resdist} with \code{prob.trans = TRUE} the target and
 alternative residual p-values swap roles in these rules
 (\code{p.yx <= alpha} and \code{p.xy > alpha}: target model).
 
-Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
-Breusch-Pagan tests, and non-linear correlation tests using the smallest of
-the three p-values; a Bonferroni-corrected alpha (\code{alpha / 3}) is used
-for non-linear correlation tests):
+Separate independence tests (\code{dda.indep}: HSIC, dCor, Breusch-Pagan
+tests, and non-linear correlation tests using the smallest of the three
+p-values; a Bonferroni-corrected alpha (\code{alpha / 3}) is used for
+non-linear correlation tests):
 \itemize{
   \item \code{p.yx > alpha} and \code{p.xy <= alpha}: target model
   \item \code{p.yx <= alpha} and \code{p.xy > alpha}: alternative model

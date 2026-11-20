@@ -1,28 +1,35 @@
+## OLD
+## #' @param stat   A character indicating the statistic to be plotted. Must be one
+## #'   of \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}. All statistics are
+## #'   computed from the standardized purified predictor \code{x} and outcome
+## #'   \code{y} at each moderator value:
+## #'   \itemize{
+## #'     \item \code{"coskew"}: co-skewness difference
+## #'       \eqn{cor(x^2, y)^2 - cor(x, y^2)^2}.
+## #'     \item \code{"cokurt"}: co-kurtosis difference
+## #'       \eqn{cor(x^3, y)^2 - cor(x, y^3)^2}, multiplied by the sign of the
+## #'       excess kurtosis of \code{x}.
+## #'     \item \code{"rhs"}: Hyvarinen-Smith co-skewness
+## #'       \eqn{cor(x, y) E(x^2 y - x y^2)}, with \code{x} and \code{y} multiplied
+## #'       by the sign of their skewness.
+## #'     \item \code{"rcc"}: Chen-Chan co-kurtosis
+## #'       \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx})}{(Cxy + Cyx)(Cxy - Cyx)} with
+## #'       \eqn{C_{xy} = E(x^3 y) - 3 cor(x, y) var(x)}{Cxy = E(x^3 y) - 3 cor(x, y) var(x)} and
+## #'       \eqn{C_{yx} = E(x y^3) - 3 cor(x, y) var(y)}{Cyx = E(x y^3) - 3 cor(x, y) var(y)}.
+## #'     \item \code{"rtanh"}: Hyvarinen-Smith hyperbolic tangent
+## #'       \eqn{cor(x, y) E(x \tanh(y) - \tanh(x) y)}{cor(x, y) E(x tanh(y) - tanh(x) y)}.
+## #'   }
+## NEW 0.2.0
+## @param stat now points to the descriptions in Details of cdda.vardist.
+
 #' @title Plots of \code{cdda.vardist} Class Objects
 #' @description \code{plot} returns graphs of \code{cdda.vardist} results.
 #'
 #' @name plot.cdda.vardist
 #'
 #' @param stat   A character indicating the statistic to be plotted. Must be one
-#'   of \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}. All statistics are
-#'   computed from the standardized purified predictor \code{x} and outcome
-#'   \code{y} at each moderator value:
-#'   \itemize{
-#'     \item \code{"coskew"}: co-skewness difference
-#'       \eqn{cor(x^2, y)^2 - cor(x, y^2)^2}.
-#'     \item \code{"cokurt"}: co-kurtosis difference
-#'       \eqn{cor(x^3, y)^2 - cor(x, y^3)^2}, multiplied by the sign of the
-#'       excess kurtosis of \code{x}.
-#'     \item \code{"rhs"}: Hyvarinen-Smith co-skewness
-#'       \eqn{cor(x, y) E(x^2 y - x y^2)}, with \code{x} and \code{y} multiplied
-#'       by the sign of their skewness.
-#'     \item \code{"rcc"}: Chen-Chan co-kurtosis
-#'       \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx})}{(Cxy + Cyx)(Cxy - Cyx)} with
-#'       \eqn{C_{xy} = E(x^3 y) - 3 cor(x, y) var(x)}{Cxy = E(x^3 y) - 3 cor(x, y) var(x)} and
-#'       \eqn{C_{yx} = E(x y^3) - 3 cor(x, y) var(y)}{Cyx = E(x y^3) - 3 cor(x, y) var(y)}.
-#'     \item \code{"rtanh"}: Hyvarinen-Smith hyperbolic tangent
-#'       \eqn{cor(x, y) E(x \tanh(y) - \tanh(x) y)}{cor(x, y) E(x tanh(y) - tanh(x) y)}.
-#'   }
+#'   of \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}. Details describes
+#'   what each statistic computes.
 #' @param ylim   A numeric vector of length 2 indicating the y-axis limits. If \code{NULL}, the function will set the limits automatically.
 #' @param ...    Additional arguments to be passed to the function.
 #'

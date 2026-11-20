@@ -1,3 +1,9 @@
+## OLD
+## #' Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
+## #' Breusch-Pagan tests, ...
+## NEW 0.2.0
+## Edited in the roxygen block below: Breusch-Pagan decision rule without "robust".
+
 #' @title Bootstrap Aggregated Direction Dependence Analysis (DDA)
 #'
 #' @description
@@ -85,10 +91,10 @@
 #' alternative residual p-values swap roles in these rules
 #' (\code{p.yx <= alpha} and \code{p.xy > alpha}: target model).
 #'
-#' Separate independence tests (\code{dda.indep}: HSIC, dCor, robust
-#' Breusch-Pagan tests, and non-linear correlation tests using the smallest of
-#' the three p-values; a Bonferroni-corrected alpha (\code{alpha / 3}) is used
-#' for non-linear correlation tests):
+#' Separate independence tests (\code{dda.indep}: HSIC, dCor, Breusch-Pagan
+#' tests, and non-linear correlation tests using the smallest of the three
+#' p-values; a Bonferroni-corrected alpha (\code{alpha / 3}) is used for
+#' non-linear correlation tests):
 #' \itemize{
 #'   \item \code{p.yx > alpha} and \code{p.xy <= alpha}: target model
 #'   \item \code{p.yx <= alpha} and \code{p.xy > alpha}: alternative model
@@ -657,9 +663,15 @@ dda.decisions <- function(dda.result, alpha = 0.05){
     dec["hsic"] <- decide.p(obj$hsic.yx$p.value, obj$hsic.xy$p.value, alpha)
     dec["dcor"] <- decide.p(obj$distance.cor.dcor.yx$p.value, obj$distance.cor.dcor.xy$p.value, alpha)
 
-    # robust Breusch-Pagan tests are elements 2 (target) and 4 (alternative)
+    ## OLD
+    ## # robust Breusch-Pagan tests are elements 2 (target) and 4 (alternative)
+    ## if (!is.null(obj$breusch.pagan)) {
+    ##   dec["bp"] <- decide.p(obj$breusch.pagan[[2]]$p.value, obj$breusch.pagan[[4]]$p.value, alpha)
+    ## }
+    ## NEW 0.2.0
+    # Breusch-Pagan tests are elements 1 (target) and 3 (alternative)
     if (!is.null(obj$breusch.pagan)) {
-      dec["bp"] <- decide.p(obj$breusch.pagan[[2]]$p.value, obj$breusch.pagan[[4]]$p.value, alpha)
+      dec["bp"] <- decide.p(obj$breusch.pagan[[1]]$p.value, obj$breusch.pagan[[3]]$p.value, alpha)
     }
 
     # smallest p-value of the three non-linear correlation tests, Bonferroni corrected

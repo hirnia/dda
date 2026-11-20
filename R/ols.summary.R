@@ -1,3 +1,9 @@
+## OLD
+## #' @details For each regression coefficient the table reports the aggregated
+## #'   point estimate, the bootstrap percentile confidence interval of the ...
+## NEW 0.2.0
+## Edited in the roxygen block below: @details in WW's wording.
+
 #' @title OLS Summary of Bootstrap Aggregated DDA Objects
 #'
 #' @description \code{ols.summary} returns aggregated ordinary least squares
@@ -26,11 +32,11 @@
 #' @param x An object of class \code{ols.summary} when using \code{print}.
 #' @param ... Additional arguments to be passed to the function.
 #'
-#' @details For each regression coefficient the table reports the aggregated
-#'   point estimate, the bootstrap percentile confidence interval of the
-#'   estimates with confidence level \code{1 - alpha}, and the proportion of
-#'   bootstrap samples in which the regression coefficient is significant at
-#'   level \code{alpha}, with \code{alpha} as used in \code{dda.bagging}.
+#' @details For each coefficient the table reports the aggregated point
+#'   estimates, the bootstrap percentile confidence intervals for the estimates
+#'   (confidence level \code{1 - alpha}, with \code{alpha} as used in
+#'   \code{dda.bagging}), and the proportion of bootstrap samples in which the
+#'   regression coefficients are significant at the \code{alpha} level.
 #'
 #' @return An object of class \code{ols.summary} containing the coefficient
 #'   tables and aggregated R-squared values of the target and alternative

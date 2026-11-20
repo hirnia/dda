@@ -21,7 +21,6 @@ Useful links:
 
 Authors:
 \itemize{
-  \item Wolfgang Wiedermann \email{wiedermannw@missouri.edu}
   \item Megan Hirni \email{mj.hirni@missouri.edu}
 }
 

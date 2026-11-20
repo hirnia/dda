@@ -70,11 +70,11 @@ aggregated across bootstrap samples with the method used in
 objects.
 }
 \details{
-For each regression coefficient the table reports the aggregated
-  point estimate, the bootstrap percentile confidence interval of the
-  estimates with confidence level \code{1 - alpha}, and the proportion of
-  bootstrap samples in which the regression coefficient is significant at
-  level \code{alpha}, with \code{alpha} as used in \code{dda.bagging}.
+For each coefficient the table reports the aggregated point
+  estimates, the bootstrap percentile confidence intervals for the estimates
+  (confidence level \code{1 - alpha}, with \code{alpha} as used in
+  \code{dda.bagging}), and the proportion of bootstrap samples in which the
+  regression coefficients are significant at the \code{alpha} level.
 }
 \examples{
 set.seed(123)

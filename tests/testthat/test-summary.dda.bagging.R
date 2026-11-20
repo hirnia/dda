@@ -69,7 +69,7 @@ test_that("Confounding appears only for independence properties", {
 test_that("show filters the reported statistics", {
   out <- withVisible(summary(bag.indep, show = "hsic"))$value
   expect_setequal(rownames(out), c("hsic", "hsic.diff"))
-  expect_output(summary(bag.indep, show = "bp"), regexp = "Robust BP-test")
+  expect_output(summary(bag.indep, show = "bp"), regexp = "BP-test")
   expect_output(summary(bag.indep, show = "nlcor"), regexp = "Non-linear Correlation")
 
   out <- withVisible(summary(bag.vardist, show = c("skew", "coskew")))$value

@@ -58,25 +58,8 @@ pick-a-point approach is used for the selected numeric values.}
 \item{...}{Additional arguments to be passed to the function.}
 
 \item{stat}{A character indicating the statistic to be plotted. Must be one
-of \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}. All statistics are
-computed from the standardized purified predictor \code{x} and outcome
-\code{y} at each moderator value:
-\itemize{
-  \item \code{"coskew"}: co-skewness difference
-    \eqn{cor(x^2, y)^2 - cor(x, y^2)^2}.
-  \item \code{"cokurt"}: co-kurtosis difference
-    \eqn{cor(x^3, y)^2 - cor(x, y^3)^2}, multiplied by the sign of the
-    excess kurtosis of \code{x}.
-  \item \code{"rhs"}: Hyvarinen-Smith co-skewness
-    \eqn{cor(x, y) E(x^2 y - x y^2)}, with \code{x} and \code{y} multiplied
-    by the sign of their skewness.
-  \item \code{"rcc"}: Chen-Chan co-kurtosis
-    \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx})}{(Cxy + Cyx)(Cxy - Cyx)} with
-    \eqn{C_{xy} = E(x^3 y) - 3 cor(x, y) var(x)}{Cxy = E(x^3 y) - 3 cor(x, y) var(x)} and
-    \eqn{C_{yx} = E(x y^3) - 3 cor(x, y) var(y)}{Cyx = E(x y^3) - 3 cor(x, y) var(y)}.
-  \item \code{"rtanh"}: Hyvarinen-Smith hyperbolic tangent
-    \eqn{cor(x, y) E(x \tanh(y) - \tanh(x) y)}{cor(x, y) E(x tanh(y) - tanh(x) y)}.
-}}
+of \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}. Details describes
+what each statistic computes.}
 
 \item{ylim}{A numeric vector of length 2 indicating the y-axis limits. If \code{NULL}, the function will set the limits automatically.}
 
@@ -113,6 +96,45 @@ An object of class \code{cdda.vardist} containing the results of
 
 \code{summary} returns test statistics from the
 \code{cdda.vardist} class object.
+}
+\details{
+At each moderator value \code{dda.vardist} is applied twice. In the
+  target panel \code{x} and \code{y} are the predictor and outcome purified
+  against the moderator and the product of moderator and predictor; values
+  > 0 suggest \code{x -> y}. In the alternative panel the roles of the two
+  variables switch (purified against the moderator and the product of
+  moderator and outcome); values > 0 suggest \code{y -> x}.
+
+  The statistics returned by \code{summary} and drawn by \code{plot} are
+  computed from the standardized purified variables, with \eqn{\rho}{rho}
+  denoting their Pearson correlation:
+  \itemize{
+    \item \code{coskew}: co-skewness difference
+      \eqn{cor_{21}(x, y)^2 - cor_{12}(x, y)^2}{cor21(x, y)^2 - cor12(x, y)^2},
+      where \eqn{cor_{ij}(x, y) = E[(x - \bar{x})^i (y - \bar{y})^j] / (s_x^i s_y^j)}{corij(x, y) = E[(x - mean(x))^i (y - mean(y))^j] / (sd(x)^i sd(y)^j)}
+      is the standardized co-moment of order \eqn{(i, j)}{(i, j)}.
+    \item \code{cokurt}: co-kurtosis difference
+      \eqn{cor_{31}(x, y)^2 - cor_{13}(x, y)^2}{cor31(x, y)^2 - cor13(x, y)^2},
+      multiplied by the sign of the excess kurtosis of \code{x}.
+    \item \code{rhs}: Hyvarinen-Smith co-skewness, a skewness-based
+      approximation of the likelihood ratio of the two models (Hyvarinen &
+      Smith, 2013), \eqn{\rho E(x^2 y - x y^2)}{rho E(x^2 y - x y^2)}. Before
+      it is computed \code{x} and \code{y} are multiplied by the sign of
+      their skewness so that both are right-skewed. It is informative when
+      the variables are skewed.
+    \item \code{rcc}: Chen-Chan co-kurtosis, a kurtosis-based measure built
+      from the fourth-order cross-cumulants
+      \eqn{C_{xy} = E(x^3 y) - 3 \rho var(x)}{Cxy = E(x^3 y) - 3 rho var(x)} and
+      \eqn{C_{yx} = E(x y^3) - 3 \rho var(y)}{Cyx = E(x y^3) - 3 rho var(y)}
+      (Chen & Chan, 2013), \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx}) = C_{xy}^2 - C_{yx}^2}{(Cxy + Cyx)(Cxy - Cyx) = Cxy^2 - Cyx^2}.
+      It is informative when the variables are symmetric but have nonzero
+      excess kurtosis.
+    \item \code{rtanh}: Hyvarinen-Smith hyperbolic tangent, an
+      approximation of the likelihood ratio that uses \eqn{\tanh}{tanh} as
+      nonlinearity (Hyvarinen & Smith, 2013),
+      \eqn{\rho E(x \tanh(y) - \tanh(x) y)}{rho E(x tanh(y) - tanh(x) y)}.
+      It is designed for symmetric variables with positive excess kurtosis.
+  }
 }
 \examples{
 set.seed(321)
@@ -162,6 +184,14 @@ plot(result, stat = "rtanh")
 }
 \references{
 Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
+
+Chen, Z., & Chan, L. (2013). Causality in linear nongaussian acyclic models
+in the presence of latent Gaussian confounders. \emph{Neural Computation,
+25}(6), 1605-1641. \doi{10.1162/NECO_a_00444}
+
+Hyvarinen, A., & Smith, S. M. (2013). Pairwise likelihood ratios for
+estimation of non-Gaussian structural equation models. \emph{Journal of
+Machine Learning Research, 14}, 111-152.
 }
 \seealso{
 \code{\link{dda.vardist}} for an unconditional version.
