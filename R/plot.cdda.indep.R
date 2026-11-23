@@ -160,7 +160,6 @@ plot.cdda.indep <- function(x = NULL,
        xlab = "Moderator Values", ylab = y.title,
        main = paste0(pred.name, " -> ", resp.name, " vs. ", resp.name, " -> ", pred.name))
   sub.title <- paste("Values > 0 suggest", pred.name, "->", resp.name)
-  if (stat == "mi.diff") sub.title <- paste0(sub.title, " (MI may be biased, see ?cdda.indep)")
   mtext(sub.title, side = 3, line = 0.3, cex = 0.8)
   axis(1, at = seq_along(out.diff$condition), labels = x.axis.labels)
   polygon(x = c(out.diff$condition, rev(out.diff$condition)),

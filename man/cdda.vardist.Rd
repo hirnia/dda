@@ -58,8 +58,8 @@ pick-a-point approach is used for the selected numeric values.}
 \item{...}{Additional arguments to be passed to the function.}
 
 \item{stat}{A character indicating the statistic to be plotted. Must be one
-of \code{c("coskew", "cokurt", "rhs", "rcc", "rtanh")}. Details describes
-what each statistic computes.}
+of \code{c("CoSk", "CoKurt", "HS.CoSk", "CC.CoKurt", "Rtanh")}; Details
+explains the labels.}
 
 \item{ylim}{A numeric vector of length 2 indicating the y-axis limits. If \code{NULL}, the function will set the limits automatically.}
 
@@ -71,14 +71,14 @@ separate D'Agostino skewness tests should be returned when using
 \code{summary}, default is \code{TRUE}.}
 
 \item{coskew}{A logical value indicating whether co-skewness differences
-should be returned when using \code{summary}, default is \code{FALSE}.}
+(CoSk and HS.CoSk) should be returned when using \code{summary}, default is \code{FALSE}.}
 
 \item{kurt}{A logical value indicating whether excess kurtosis differences
 and Anscombe-Glynn kurtosis tests should be returned when using
 \code{summary}, default is \code{TRUE}.}
 
 \item{cokurt}{A logical value indicating whether co-kurtosis differences
-should be returned when using \code{summary}, default is \code{FALSE}.}
+(CoKurt, CC.CoKurt, and Rtanh) should be returned when using \code{summary}, default is \code{FALSE}.}
 }
 \value{
 An object of class \code{cdda.vardist} containing the results of
@@ -105,36 +105,16 @@ At each moderator value \code{dda.vardist} is applied twice. In the
   variables switch (purified against the moderator and the product of
   moderator and outcome); values > 0 suggest \code{y -> x}.
 
-  The statistics returned by \code{summary} and drawn by \code{plot} are
-  computed from the standardized purified variables, with \eqn{\rho}{rho}
-  denoting their Pearson correlation:
+  The joint higher moment statistics returned by \code{summary} and drawn
+  by \code{plot} are labelled as follows:
   \itemize{
-    \item \code{coskew}: co-skewness difference
-      \eqn{cor_{21}(x, y)^2 - cor_{12}(x, y)^2}{cor21(x, y)^2 - cor12(x, y)^2},
-      where \eqn{cor_{ij}(x, y) = E[(x - \bar{x})^i (y - \bar{y})^j] / (s_x^i s_y^j)}{corij(x, y) = E[(x - mean(x))^i (y - mean(y))^j] / (sd(x)^i sd(y)^j)}
-      is the standardized co-moment of order \eqn{(i, j)}{(i, j)}.
-    \item \code{cokurt}: co-kurtosis difference
-      \eqn{cor_{31}(x, y)^2 - cor_{13}(x, y)^2}{cor31(x, y)^2 - cor13(x, y)^2},
-      multiplied by the sign of the excess kurtosis of \code{x}.
-    \item \code{rhs}: Hyvarinen-Smith co-skewness, a skewness-based
-      approximation of the likelihood ratio of the two models (Hyvarinen &
-      Smith, 2013), \eqn{\rho E(x^2 y - x y^2)}{rho E(x^2 y - x y^2)}. Before
-      it is computed \code{x} and \code{y} are multiplied by the sign of
-      their skewness so that both are right-skewed. It is informative when
-      the variables are skewed.
-    \item \code{rcc}: Chen-Chan co-kurtosis, a kurtosis-based measure built
-      from the fourth-order cross-cumulants
-      \eqn{C_{xy} = E(x^3 y) - 3 \rho var(x)}{Cxy = E(x^3 y) - 3 rho var(x)} and
-      \eqn{C_{yx} = E(x y^3) - 3 \rho var(y)}{Cyx = E(x y^3) - 3 rho var(y)}
-      (Chen & Chan, 2013), \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx}) = C_{xy}^2 - C_{yx}^2}{(Cxy + Cyx)(Cxy - Cyx) = Cxy^2 - Cyx^2}.
-      It is informative when the variables are symmetric but have nonzero
-      excess kurtosis.
-    \item \code{rtanh}: Hyvarinen-Smith hyperbolic tangent, an
-      approximation of the likelihood ratio that uses \eqn{\tanh}{tanh} as
-      nonlinearity (Hyvarinen & Smith, 2013),
-      \eqn{\rho E(x \tanh(y) - \tanh(x) y)}{rho E(x tanh(y) - tanh(x) y)}.
-      It is designed for symmetric variables with positive excess kurtosis.
+    \item \code{CoSk}: co-skewness difference.
+    \item \code{CoKurt}: co-kurtosis difference.
+    \item \code{HS.CoSk}: Hyvarinen-Smith co-skewness (Hyvarinen & Smith, 2013).
+    \item \code{CC.CoKurt}: Chen-Chan co-kurtosis (Chen & Chan, 2013).
+    \item \code{Rtanh}: Hyvarinen-Smith hyperbolic tangent (Hyvarinen & Smith, 2013).
   }
+  Wiedermann and von Eye (2025, Chapter 3) give the definitions.
 }
 \examples{
 set.seed(321)
@@ -170,7 +150,7 @@ result <- cdda.vardist(m, pred = "x", mod = "z", B = 50,
 
 print(result)
 summary(result, skew = FALSE, kurt = FALSE, coskew = TRUE)
-plot(result, stat = "rhs")
+plot(result, stat = "HS.CoSk")
 
 \dontrun{
 
@@ -178,7 +158,7 @@ result <- cdda.vardist(m, pred = "x", mod = "z", B = 500,
                        modval = c(-1, 1), data = d)
 
 summary(result, coskew = TRUE, cokurt = TRUE)
-plot(result, stat = "rtanh")
+plot(result, stat = "Rtanh")
 }
 
 }

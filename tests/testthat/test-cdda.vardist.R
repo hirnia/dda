@@ -193,3 +193,28 @@ test_that("cdda.vardist rejects a moderator that is neither numeric nor a factor
                             modval = "mean", data = d.c),
                "Specified moderator not found")
 })
+
+test_that("cdda.vardist summary and plot use the statistic labels", {
+  out <- cdda.vardist(m, pred = "x", mod = "z", modval = c(-1, 1), data = dat, B = 10)
+  printed <- capture.output(summary(out, coskew = TRUE, cokurt = TRUE))
+  for (lab in c("CoSk differences", "HS.CoSk differences", "CoKurt differences",
+                "CC.CoKurt differences", "Rtanh differences")) {
+    expect_true(any(grepl(lab, printed, fixed = TRUE)), info = lab)
+  }
+  pdf(NULL)
+  on.exit(dev.off(), add = TRUE)
+  for (s in c("CoSk", "CoKurt", "HS.CoSk", "CC.CoKurt", "Rtanh", "rhs")) {
+    expect_no_error(plot(out, stat = s))
+  }
+  expect_error(plot(out, stat = "RHS"), "stat must be one of")
+})
+
+test_that("cdda.vardist summary places the model labels over their columns", {
+  out <- cdda.vardist(m, pred = "x", mod = "z", modval = c(-1, 1), data = dat, B = 10)
+  printed <- capture.output(summary(out, skew = TRUE, kurt = FALSE))
+  i <- grep("Alternative Model", printed)[1]
+  head <- printed[i + 2]
+  # the alternative label starts right after the target columns and their gap
+  end.tar <- gregexpr("\\S+", head)[[1]][3] + attr(gregexpr("\\S+", head)[[1]], "match.length")[3] - 1
+  expect_equal(as.integer(regexpr("Alternative Model", printed[i])), as.integer(end.tar) + 5L)
+})

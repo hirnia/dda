@@ -171,7 +171,7 @@ test_that("cdda.indep returns one difference matrix per moderator value", {
   expect_output(summary(out, hsic.diff = TRUE, dcor.diff = TRUE),
                 "Values > 0 suggest x -> y", fixed = TRUE)
   expect_output(summary(out, hsic = FALSE, dcor = FALSE, mi.diff = TRUE),
-                "Caution", fixed = TRUE)
+                "Mutual Information Differences", fixed = TRUE)
   pdf(NULL)
   on.exit(dev.off(), add = TRUE)
   expect_no_error(plot(out, stat = "hsic.diff"))

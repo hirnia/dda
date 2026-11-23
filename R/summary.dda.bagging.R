@@ -75,13 +75,13 @@ summary.dda.bagging <- function(object, show = NULL, digits = 2, ...){
               kurtdiff.test = "Kurtosis Difference Test",
               skewdiff  = "Skewness Difference",
               kurtdiff  = "Kurtosis Difference",
-              cor12diff = "Co-Skewness Difference",
-              cor13diff = "Co-Kurtosis Difference",
-              RHS       = "Hyvarinen-Smith (Co-Skewness) Difference",
-              RHS3      = "Hyvarinen-Smith (Co-Skewness) Difference",
-              RHS4      = "Hyvarinen-Smith (Co-Kurtosis) Difference",
-              RCC       = "Chen-Chan (Co-Kurtosis) Difference",
-              Rtanh     = "Hyvarinen-Smith (tanh) Difference")
+              cor12diff = "CoSk Difference",
+              cor13diff = "CoKurt Difference",
+              RHS       = "HS.CoSk Difference",
+              RHS3      = "HS.CoSk Difference",
+              RHS4      = "HS.CoKurt Difference",
+              RCC       = "CC.CoKurt Difference",
+              Rtanh     = "Rtanh Difference")
 
   if (!is.null(show)) {
     keep <- c()

@@ -11,12 +11,12 @@
 #'   separate D'Agostino skewness tests should be returned when using
 #'   \code{summary}, default is \code{TRUE}.
 #' @param coskew A logical value indicating whether co-skewness differences
-#'   should be returned when using \code{summary}, default is \code{FALSE}.
+#'   (CoSk and HS.CoSk) should be returned when using \code{summary}, default is \code{FALSE}.
 #' @param kurt A logical value indicating whether excess kurtosis differences
 #'   and Anscombe-Glynn kurtosis tests should be returned when using
 #'   \code{summary}, default is \code{TRUE}.
 #' @param cokurt A logical value indicating whether co-kurtosis differences
-#'   should be returned when using \code{summary}, default is \code{FALSE}.
+#'   (CoKurt, CC.CoKurt, and Rtanh) should be returned when using \code{summary}, default is \code{FALSE}.
 #' @param ... Additional arguments to be passed to the function.
 #'
 #' @export
@@ -79,7 +79,7 @@ summary.cdda.vardist <- function(object,
       cat(paste("D'Agostino Skewness Tests", "\n"))
       cdda.print.table(agos)
 
-      cat("\n")
+      cat(boot.print)
       cat(paste("Skewness differences"), "\n")
       cdda.print.table(round(momdif.stats.skew, 3))
 
@@ -88,7 +88,7 @@ summary.cdda.vardist <- function(object,
 
   if (coskew == TRUE){
 
-    if(is.null(cdda.output[[1]][[1]]$cor12diff)) { stop("Co-Skewness differences not found. Specify coskew = TRUE.") }
+    if(is.null(cdda.output[[1]][[1]]$cor12diff)) { stop("CoSk differences not found.") }
     hoctests.skew <-  matrix(NA, length(mod.names), 6)
 
     for(i in seq_along(mod.names)){
@@ -99,17 +99,17 @@ summary.cdda.vardist <- function(object,
 
     cat(boot.print)
 
-    cat(paste("Co-Skewness differences"), "\n")
+    cat("CoSk differences", "\n")
 
     rownames(hoctests.skew) <- mod.names
     colnames(hoctests.skew) <- rep(c("diff", "lower", "upper"), 2)
 
-    cdda.print.table(format(hoctests.skew, digits = max(3L, getOption("digits") - 3L)), gap = 2L, quote = FALSE)
+    cdda.print.table(hoctests.skew)
     cat("\n")
 
-    if(cdda.output[[1]][[1]]$boot.warning) { cat("Warning: Excess-kurtosis values of", varnames[2], "and", varnames[1], "have unequal signs", "\n", "        Cor^2[3,1] - Cor^2[1,3] should also be computed for the model", varnames[1], "->", varnames[2], "\n") }
+    if(cdda.output[[1]][[1]]$boot.warning) { cat("Warning: Excess-kurtosis values of", varnames[2], "and", varnames[1], "have unequal signs", "\n", "        CoKurt should also be computed for the model", varnames[1], "->", varnames[2], "\n") }
 
-    ### Hyvarinen-Smith (co-skewness) ### --------------------------------------
+    ### HS.CoSk ### ------------------------------------------------------------
     rhs <- matrix(NA, length(mod.names), 6)
 
     for (i in seq_along(mod.names)) {
@@ -120,7 +120,7 @@ summary.cdda.vardist <- function(object,
     rownames(rhs) <- mod.names
     colnames(rhs) <- rep(c("diff", "lower", "upper"), 2)
 
-    cat(paste("Hyvarinen-Smith Co-Skewness differences", "\n"))
+    cat("HS.CoSk differences", "\n")
     cdda.print.table(rhs)
 
     cat("---", "\n")
@@ -140,8 +140,6 @@ summary.cdda.vardist <- function(object,
                      )
         ansc[i, ] <- round(ansc[i, ], 3)
        }
-
-      cat(boot.print)
 
       cat(paste("Anscombe-Glynn Kurtosis Tests", "\n"))
       cdda.print.table(ansc)
@@ -171,7 +169,7 @@ summary.cdda.vardist <- function(object,
 
     if (cokurt == TRUE){
 
-    ### CoKurt Bootstrap CIS: Corr ### ----------------------------------------
+    ### CoKurt ### -------------------------------------------------------------
 
     hoctests.kurt <-  matrix(NA, length(mod.names), 6)
 
@@ -185,14 +183,14 @@ summary.cdda.vardist <- function(object,
 
     cat(boot.print)
 
-    cat(paste("Co-Kurtosis differences"), "\n")
+    cat("CoKurt differences", "\n")
 
-    cdda.print.table(format(hoctests.kurt, digits = max(3L, getOption("digits") - 3L)), gap = 2L, quote = FALSE)
+    cdda.print.table(hoctests.kurt)
     cat("---", "\n")
 
-    if(cdda.output[[1]][[1]]$boot.warning) { cat("Warning: Excess-kurtosis values of", varnames[2], "and", varnames[1], "have unequal signs", "\n", "        Cor^2[3,1] - Cor^2[1,3] should also be computed for the model", varnames[1], "->", varnames[2], "\n") }
+    if(cdda.output[[1]][[1]]$boot.warning) { cat("Warning: Excess-kurtosis values of", varnames[2], "and", varnames[1], "have unequal signs", "\n", "        CoKurt should also be computed for the model", varnames[1], "->", varnames[2], "\n") }
 
-    #### Chen-Chan (co-kurtosis) ### -------------------------------------------
+    ### CC.CoKurt ### ----------------------------------------------------------
 
     rcc <- matrix(NA, length(mod.names), 6)
 
@@ -206,12 +204,12 @@ summary.cdda.vardist <- function(object,
 
     cat(boot.print)
 
-    cat(paste("Chen-Chan Co-Kurtosis differences", "\n"))
+    cat("CC.CoKurt differences", "\n")
     cdda.print.table(rcc)
 
     cat("---", "\n")
 
-    ### Hyperbolic Tangent (Rtanh) ### -----------------------------------------
+    ### Rtanh ### --------------------------------------------------------------
 
     rtanh <- matrix(NA, length(mod.names), 6)
 
@@ -226,7 +224,7 @@ summary.cdda.vardist <- function(object,
 
     cat(boot.print)
 
-    cat(paste("Hyperbolic Tangent", "\n"))
+    cat("Rtanh differences", "\n")
     cdda.print.table(rtanh)
 
     cat("---", "\n")

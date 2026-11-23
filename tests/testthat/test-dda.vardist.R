@@ -96,6 +96,14 @@ test_that("dda.vardist print works (unconditional)", {
   expect_output(print(out))
 })
 
+test_that("dda.vardist print uses the statistic labels", {
+  out <- dda.vardist(y ~ x, pred = "x", data = data.frame(x = x, y = y), B = 20)
+  printed <- capture.output(print(out))
+  for (lab in c("CoSk", "HS.CoSk", "CoKurt", "CC.CoKurt", "Rtanh")) {
+    expect_true(any(grepl(paste0("^", lab, " "), printed)), info = lab)
+  }
+})
+
 test_that("dda.vardist errors when pred is missing", {
   expect_error(dda.vardist(formula = y ~ x, pred = NULL, data = data.frame(x = x, y = y), B = 20))
 })

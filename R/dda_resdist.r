@@ -37,6 +37,13 @@
 #'   covariates are partialled out with OLS and repeated median estimation is
 #'   applied to the causally competing models of the purified variables.
 #'
+#'   The joint higher moment statistics of the residuals are labelled
+#'   \code{CoSk} (co-skewness difference), \code{HS.CoSk} (Hyvarinen-Smith
+#'   co-skewness), \code{CoKurt} (co-kurtosis difference), \code{HS.CoKurt}
+#'   (Hyvarinen-Smith co-kurtosis), and \code{CC.CoKurt} (Chen-Chan
+#'   co-kurtosis). Wiedermann and von Eye (2025, Chapter 4) give the
+#'   definitions.
+#'
 #' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction
 #'   Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK:
 #'   Cambridge University Press.
@@ -508,7 +515,7 @@ print.dda.resdist <- function(x, ...){
 
     jointtests <- rbind(object$cor12diff, object$RHS3, object$cor13diff, object$RHS4, object$RCC)
     jointtests <- round(jointtests, 4)
-    rownames(jointtests) <- c("Co-Skewness", "Hyvarinen-Smith (Co-Skewness)", "Co-Kurtosis", "Hyvarinen-Smith (Co-Kurtosis)", "Chen-Chan (Co-Kurtosis)")
+    rownames(jointtests) <- c("CoSk", "HS.CoSk", "CoKurt", "HS.CoKurt", "CC.CoKurt") # 0.2.0 labels
     colnames(jointtests) <- c("estimate", "lower", "upper")
     print.default(format( jointtests, digits = max(3L, getOption("digits") - 3L)), print.gap = 2L, quote = FALSE)
 
@@ -551,7 +558,7 @@ print.dda.resdist <- function(x, ...){
   }
   cat("\n")
   if(isTRUE(object$boot.warning)) { # 0.2.0 isTRUE for B = 0
-    cat("Warning: Excess-kurtosis values of residuals have unequal signs", "\n", "        Also compute Co-Kurtosis and Hyvarinen-Smith Co-Kurtosis for", varnames[1], "->", varnames[2], "\n") }
+    cat("Warning: Excess-kurtosis values of residuals have unequal signs", "\n", "        Also compute CoKurt and HS.CoKurt for", varnames[1], "->", varnames[2], "\n") } # 0.2.0 labels
 	cat("\n")
   }
 

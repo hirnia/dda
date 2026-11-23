@@ -56,36 +56,16 @@ When covariates are included in the target model (e.g., when
   where \code{z} represents a covariate), their effects are partialled out
   before the DDA test statistics are computed.
 
-  The joint higher moment statistics are computed from the standardized
-  purified predictor \code{x} and outcome \code{y}, with \eqn{\rho}{rho}
-  denoting their Pearson correlation. Values > 0 suggest \code{x -> y}.
+  The joint higher moment statistics are labelled as follows; values > 0
+  suggest \code{x -> y}:
   \itemize{
-    \item Co-Skewness (\code{cor12diff}): co-skewness difference
-      \eqn{cor_{21}(x, y)^2 - cor_{12}(x, y)^2}{cor21(x, y)^2 - cor12(x, y)^2},
-      where \eqn{cor_{ij}(x, y) = E[(x - \bar{x})^i (y - \bar{y})^j] / (s_x^i s_y^j)}{corij(x, y) = E[(x - mean(x))^i (y - mean(y))^j] / (sd(x)^i sd(y)^j)}
-      is the standardized co-moment of order \eqn{(i, j)}{(i, j)}.
-    \item Co-Kurtosis (\code{cor13diff}): co-kurtosis difference
-      \eqn{cor_{31}(x, y)^2 - cor_{13}(x, y)^2}{cor31(x, y)^2 - cor13(x, y)^2},
-      multiplied by the sign of the excess kurtosis of \code{x}.
-    \item Hyvarinen-Smith Co-Skewness (\code{RHS}): Hyvarinen-Smith co-skewness, a skewness-based
-      approximation of the likelihood ratio of the two models (Hyvarinen &
-      Smith, 2013), \eqn{\rho E(x^2 y - x y^2)}{rho E(x^2 y - x y^2)}. Before
-      it is computed \code{x} and \code{y} are multiplied by the sign of
-      their skewness so that both are right-skewed. It is informative when
-      the variables are skewed.
-    \item Chen-Chan Co-Kurtosis (\code{RCC}): Chen-Chan co-kurtosis, a kurtosis-based measure built
-      from the fourth-order cross-cumulants
-      \eqn{C_{xy} = E(x^3 y) - 3 \rho var(x)}{Cxy = E(x^3 y) - 3 rho var(x)} and
-      \eqn{C_{yx} = E(x y^3) - 3 \rho var(y)}{Cyx = E(x y^3) - 3 rho var(y)}
-      (Chen & Chan, 2013), \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx}) = C_{xy}^2 - C_{yx}^2}{(Cxy + Cyx)(Cxy - Cyx) = Cxy^2 - Cyx^2}.
-      It is informative when the variables are symmetric but have nonzero
-      excess kurtosis.
-    \item Hyvarinen-Smith Hyperbolic Tangent (\code{Rtanh}): Hyvarinen-Smith hyperbolic tangent, an
-      approximation of the likelihood ratio that uses \eqn{\tanh}{tanh} as
-      nonlinearity (Hyvarinen & Smith, 2013),
-      \eqn{\rho E(x \tanh(y) - \tanh(x) y)}{rho E(x tanh(y) - tanh(x) y)}.
-      It is designed for symmetric variables with positive excess kurtosis.
+    \item \code{CoSk}: co-skewness difference.
+    \item \code{CoKurt}: co-kurtosis difference.
+    \item \code{HS.CoSk}: Hyvarinen-Smith co-skewness (Hyvarinen & Smith, 2013).
+    \item \code{CC.CoKurt}: Chen-Chan co-kurtosis (Chen & Chan, 2013).
+    \item \code{Rtanh}: Hyvarinen-Smith hyperbolic tangent (Hyvarinen & Smith, 2013).
   }
+  Wiedermann and von Eye (2025, Chapter 3) give the definitions.
 }
 \examples{
 set.seed(123)
@@ -112,7 +92,8 @@ print(result)
 \references{
 Wiedermann, W., & von Eye, A. (2025). \emph{Direction
   Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK:
-  Cambridge University Press.#'
+  Cambridge University Press.
+
 Chen, Z., & Chan, L. (2013). Causality in linear nongaussian acyclic models
 in the presence of latent Gaussian confounders. \emph{Neural Computation,
 25}(6), 1605-1641. \doi{10.1162/NECO_a_00444}

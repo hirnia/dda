@@ -74,7 +74,7 @@ pick-a-point approach is used for the selected numeric values.}
     output. Default is \code{FALSE}.
 }}
 
-\item{diff}{A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples. MI differences carry a caveat described in Details.}
+\item{diff}{A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples.}
 
 \item{nlfun}{Determines handling of non-linear correlation tests
 depending on the function used:
@@ -99,7 +99,7 @@ depending on the function used:
 
 \item{cores}{A numeric value indicating the number of cores. Only used if \code{parallelize = TRUE}.}
 
-\item{robust}{A logical value indicating whether Siegel's (1982) repeated median estimator should be used for model estimation. If \code{robust = TRUE} repeated median estimation is applied for the causally competing models, otherwise ordinary least squares (OLS) estimation is used.}
+\item{robust}{A logical value indicating whether Siegel's (1982) repeated median estimator should be used for model estimation. If \code{robust = TRUE} repeated median estimation is applied for the causally competing models, otherwise ordinary least squares (OLS) estimation is used. Moderator, interaction, and covariate terms are partialled out with OLS in both cases.}
 
 \item{...}{Additional arguments to be passed to the function.}
 
@@ -131,8 +131,7 @@ statistics should be returned when using \code{summary}, default is
 
 \item{mi.diff}{A logical value indicating whether Mutual Information (MI)
 difference statistics should be returned when using \code{summary},
-default is \code{FALSE}. MI differences carry a caveat described in
-Details of \code{cdda.indep}.}
+default is \code{FALSE}.}
 }
 \value{
 A list of class \code{cdda.indep} containing the results of

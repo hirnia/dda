@@ -69,6 +69,13 @@ When covariates are included in the target model (e.g., when
   before the DDA test statistics are computed. With \code{robust = TRUE}
   covariates are partialled out with OLS and repeated median estimation is
   applied to the causally competing models of the purified variables.
+
+  The joint higher moment statistics of the residuals are labelled
+  \code{CoSk} (co-skewness difference), \code{HS.CoSk} (Hyvarinen-Smith
+  co-skewness), \code{CoKurt} (co-kurtosis difference), \code{HS.CoKurt}
+  (Hyvarinen-Smith co-kurtosis), and \code{CC.CoKurt} (Chen-Chan
+  co-kurtosis). Wiedermann and von Eye (2025, Chapter 4) give the
+  definitions.
 }
 \examples{
 set.seed(123)

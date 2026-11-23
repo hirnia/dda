@@ -1,7 +1,7 @@
 ## OLD (none)
 ## NEW 0.2.0
-## Edited in the roxygen block below: new @details describing the coskew,
-## cokurt, rhs, rcc, and rtanh statistics, and Chen & Chan (2013) and
+## Edited in the roxygen block below: new @details with the statistic labels
+## (CoSk, CoKurt, HS.CoSk, CC.CoKurt, Rtanh), and Chen & Chan (2013) and
 ## Hyvarinen & Smith (2013) in @references.
 
 #' @title Conditional Direction Dependence Analysis: Variable Distributions
@@ -40,36 +40,16 @@
 #'   variables switch (purified against the moderator and the product of
 #'   moderator and outcome); values > 0 suggest \code{y -> x}.
 #'
-#'   The statistics returned by \code{summary} and drawn by \code{plot} are
-#'   computed from the standardized purified variables, with \eqn{\rho}{rho}
-#'   denoting their Pearson correlation:
+#'   The joint higher moment statistics returned by \code{summary} and drawn
+#'   by \code{plot} are labelled as follows:
 #'   \itemize{
-#'     \item \code{coskew}: co-skewness difference
-#'       \eqn{cor_{21}(x, y)^2 - cor_{12}(x, y)^2}{cor21(x, y)^2 - cor12(x, y)^2},
-#'       where \eqn{cor_{ij}(x, y) = E[(x - \bar{x})^i (y - \bar{y})^j] / (s_x^i s_y^j)}{corij(x, y) = E[(x - mean(x))^i (y - mean(y))^j] / (sd(x)^i sd(y)^j)}
-#'       is the standardized co-moment of order \eqn{(i, j)}{(i, j)}.
-#'     \item \code{cokurt}: co-kurtosis difference
-#'       \eqn{cor_{31}(x, y)^2 - cor_{13}(x, y)^2}{cor31(x, y)^2 - cor13(x, y)^2},
-#'       multiplied by the sign of the excess kurtosis of \code{x}.
-#'     \item \code{rhs}: Hyvarinen-Smith co-skewness, a skewness-based
-#'       approximation of the likelihood ratio of the two models (Hyvarinen &
-#'       Smith, 2013), \eqn{\rho E(x^2 y - x y^2)}{rho E(x^2 y - x y^2)}. Before
-#'       it is computed \code{x} and \code{y} are multiplied by the sign of
-#'       their skewness so that both are right-skewed. It is informative when
-#'       the variables are skewed.
-#'     \item \code{rcc}: Chen-Chan co-kurtosis, a kurtosis-based measure built
-#'       from the fourth-order cross-cumulants
-#'       \eqn{C_{xy} = E(x^3 y) - 3 \rho var(x)}{Cxy = E(x^3 y) - 3 rho var(x)} and
-#'       \eqn{C_{yx} = E(x y^3) - 3 \rho var(y)}{Cyx = E(x y^3) - 3 rho var(y)}
-#'       (Chen & Chan, 2013), \eqn{(C_{xy} + C_{yx})(C_{xy} - C_{yx}) = C_{xy}^2 - C_{yx}^2}{(Cxy + Cyx)(Cxy - Cyx) = Cxy^2 - Cyx^2}.
-#'       It is informative when the variables are symmetric but have nonzero
-#'       excess kurtosis.
-#'     \item \code{rtanh}: Hyvarinen-Smith hyperbolic tangent, an
-#'       approximation of the likelihood ratio that uses \eqn{\tanh}{tanh} as
-#'       nonlinearity (Hyvarinen & Smith, 2013),
-#'       \eqn{\rho E(x \tanh(y) - \tanh(x) y)}{rho E(x tanh(y) - tanh(x) y)}.
-#'       It is designed for symmetric variables with positive excess kurtosis.
+#'     \item \code{CoSk}: co-skewness difference.
+#'     \item \code{CoKurt}: co-kurtosis difference.
+#'     \item \code{HS.CoSk}: Hyvarinen-Smith co-skewness (Hyvarinen & Smith, 2013).
+#'     \item \code{CC.CoKurt}: Chen-Chan co-kurtosis (Chen & Chan, 2013).
+#'     \item \code{Rtanh}: Hyvarinen-Smith hyperbolic tangent (Hyvarinen & Smith, 2013).
 #'   }
+#'   Wiedermann and von Eye (2025, Chapter 3) give the definitions.
 #'
 #' @examples
 #' set.seed(321)
@@ -105,7 +85,7 @@
 #'
 #' print(result)
 #' summary(result, skew = FALSE, kurt = FALSE, coskew = TRUE)
-#' plot(result, stat = "rhs")
+#' plot(result, stat = "HS.CoSk")
 #'
 #' \dontrun{
 #'
@@ -113,7 +93,7 @@
 #'                        modval = c(-1, 1), data = d)
 #'
 #' summary(result, coskew = TRUE, cokurt = TRUE)
-#' plot(result, stat = "rtanh")
+#' plot(result, stat = "Rtanh")
 #' }
 #'
 #' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
@@ -138,8 +118,6 @@ cdda.vardist <- function(formula,
                          B = 200,
                          boot.type = "perc",
                          conf.level = 0.95
-                         ## Optional robust estimation (not active): add the argument
-                         ## , robust = FALSE
                         ){
 
   if (length(data) == 0) stop("Please specify a data frame.")
@@ -253,12 +231,6 @@ cdda.vardist <- function(formula,
       design.tar <- as.data.frame(design.tar[,-1])
       design.tar$x <- NULL
 
-      ## Optional robust estimation, option 2 (not active): robust partialling of
-      ## the moderator, interaction and covariate terms; the same swap applies to
-      ## aux.yx.alt and aux.xy.alt below and needs MASS in Imports
-      ## fit.aux <- function(f) if (isTRUE(robust)) MASS::rlm(f, maxit = 50) else lm(f)
-      ## aux.yx.tar <- fit.aux(y ~ -1 + as.matrix(design.tar))
-      ## aux.xy.tar <- fit.aux(x ~ -1 + as.matrix(design.tar))
       aux.yx.tar <- lm(y ~ -1 + as.matrix(design.tar))
       aux.xy.tar <- lm(x ~ -1 + as.matrix(design.tar))
 
@@ -277,7 +249,6 @@ cdda.vardist <- function(formula,
       rx.aux.alt <- resid(aux.xy.alt)
 
       #DDA Implementation
-      ## Optional robust estimation, option 1 (not active): add robust = robust to both dda.vardist calls below
       indep.temp.yx[[i]] <- unclass(dda.vardist(ry.aux.tar ~ rx.aux.tar, pred = "rx.aux.tar",
                                                 B = B, boot.type = boot.type, conf.level = conf.level
       ))
@@ -371,13 +342,6 @@ cdda.vardist <- function(formula,
     for ( i in 1:(ncol(modmat)) ) {
 
       #Target model: x -> y
-      ## Optional robust estimation, option 2 (not active): robust partialling of
-      ## the moderator, interaction and covariate terms with -1 for the intercept
-      ## already in X; the same swap applies to aux.yx.alt and aux.xy.alt below
-      ## and needs MASS in Imports
-      ## fit.aux <- function(f) if (isTRUE(robust)) MASS::rlm(f, maxit = 50) else lm(f)
-      ## aux.yx.tar <- fit.aux(y ~ -1 + X + modmat[,i] + modmat[,i]:x)
-      ## aux.xy.tar <- fit.aux(x ~ -1 + X + modmat[,i] + modmat[,i]:x)
       aux.yx.tar <- lm(y ~ X + modmat[,i] + modmat[,i]:x)
       aux.xy.tar <- lm(x ~ X + modmat[,i] + modmat[,i]:x)
 
@@ -392,7 +356,6 @@ cdda.vardist <- function(formula,
       rx.aux.alt <- resid(aux.xy.alt)
 
       #DDA Implementation
-      ## Optional robust estimation, option 1 (not active): add robust = robust to both dda.vardist calls below
       indep.temp.yx[[i]] <- unclass(dda.vardist(ry.aux.tar ~ rx.aux.tar, B = B,
                                                 pred = "rx.aux.tar", boot.type = boot.type, conf.level = conf.level))
       indep.temp.xy[[i]] <- unclass(dda.vardist(rx.aux.alt ~ ry.aux.alt, B = B,

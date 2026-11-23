@@ -1,10 +1,3 @@
-## OLD
-## #' @param mi.diff A logical value indicating whether Mutual Information (MI)
-## #'   difference statistics should be returned when using \code{summary},
-## #'   default is \code{FALSE}.
-## NEW 0.2.0
-## Edited in the roxygen block below: @param mi.diff (MI caveat added).
-
 #' @title Summary of \code{cdda.indep} Class Objects
 #'
 #' @description \code{summary} returns test statistics from the
@@ -27,8 +20,7 @@
 #'   \code{FALSE}.
 #' @param mi.diff A logical value indicating whether Mutual Information (MI)
 #'   difference statistics should be returned when using \code{summary},
-#'   default is \code{FALSE}. MI differences carry a caveat described in
-#'   Details of \code{cdda.indep}.
+#'   default is \code{FALSE}.
 #' @param ... Additional arguments to be passed to the function.
 #'
 #' @export
@@ -307,21 +299,38 @@ summary.cdda.indep <- function(object,
 #'
 #' @keywords internal
 #' @noRd
-cdda.print.table <- function(tab, gap = 1L, ...){
+cdda.print.table <- function(tab, gap = 2L, digits = 3L){
 
-  lines <- capture.output(print(tab, print.gap = gap, ...))
-
-  # the target columns end where the last target value ends in the widest row
-  w <- max(nchar(rownames(tab)))
   k <- ncol(tab) / 2
-  end.tar <- 0
-  for (l in substring(lines, w + 1)) {
-    pos <- gregexpr("\\S+", l)[[1]]
-    if (length(pos) >= k) end.tar <- max(end.tar, pos[k] + attr(pos, "match.length")[k] - 1)
+  heads <- colnames(tab)
+
+  # numbers with a fixed number of decimals, degrees of freedom as integers
+  cells <- matrix("", nrow(tab), ncol(tab))
+  for (j in seq_len(ncol(tab))) {
+    if (heads[j] == "df") cells[, j] <- format(round(tab[, j]))
+    else cells[, j] <- formatC(tab[, j], format = "f", digits = digits)
   }
 
-  labels <- paste0(strrep(" ", w + gap), "Target Model")
-  labels <- paste0(labels, strrep(" ", max(w + end.tar + gap - nchar(labels), 2)), "Alternative Model")
+  # each model label must fit over its columns
+  w <- pmax(nchar(heads), apply(nchar(cells), 2, max))
+  labs <- c("Target Model", "Alternative Model")
+  for (m in 1:2) {
+    cols <- if (m == 1) 1:k else (k + 1):(2 * k)
+    span <- sum(w[cols]) + gap * (k - 1)
+    if (span < nchar(labs[m])) w[min(cols)] <- w[min(cols)] + nchar(labs[m]) - span
+  }
+  span.tar <- sum(w[1:k]) + gap * (k - 1)
+
+  rn <- formatC(c("", rownames(tab)), width = -max(nchar(rownames(tab))))
+  sep <- strrep(" ", gap)
+  join <- function(v) {
+    v <- sprintf("%*s", w, v)
+    paste0(paste(v[1:k], collapse = sep), strrep(" ", 2 * gap),
+           paste(v[(k + 1):(2 * k)], collapse = sep))
+  }
+  lines <- paste0(rn, sep, c(join(heads), apply(cells, 1, join)))
+  labels <- paste0(rn[1], sep, formatC(labs[1], width = -span.tar),
+                   strrep(" ", 2 * gap), labs[2])
   rule <- strrep("-", max(nchar(c(lines, labels))))
 
   cat(rule, labels, rule, lines, sep = "\n")

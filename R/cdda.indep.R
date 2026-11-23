@@ -4,8 +4,8 @@
 ## #'   CDDA independence tests for pre-specified moderator values.
 ## #' @references Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
 ## NEW 0.2.0
-## Edited in the roxygen block below: @param diff, @return, new @details
-## (including the MI caveat), and Li et al. (2023) in @references.
+## Edited in the roxygen block below: @param diff, @return, new @details,
+## and Li et al. (2023) in @references.
 
 #' @title Conditional Direction Dependence Analysis: Independence Properties
 #' @description \code{cdda.indep} evaluates asymmetries of predictor-error independence of competing
@@ -38,7 +38,7 @@
 #'       whether separate homoscedasticity tests should be returned in the
 #'       output. Default is \code{FALSE}.
 #'   }
-#' @param diff        A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples. MI differences carry a caveat described in Details.
+#' @param diff        A logical value indicating whether differences in HSIC, dCor, and MI values should be computed. Bootstrap confidence intervals are computed using B bootstrap samples.
 #' @param nlfun Determines handling of non-linear correlation tests
 #'   depending on the function used:
 #'   \itemize{
@@ -55,7 +55,7 @@
 #' @param conf.level  Confidence level for bootstrap confidence intervals.
 #' @param parallelize A logical value indicating whether bootstrapping is performed on multiple cores. Only used if \code{diff = TRUE}.
 #' @param cores       A numeric value indicating the number of cores. Only used if \code{parallelize = TRUE}.
-#' @param robust      A logical value indicating whether Siegel's (1982) repeated median estimator should be used for model estimation. If \code{robust = TRUE} repeated median estimation is applied for the causally competing models, otherwise ordinary least squares (OLS) estimation is used.
+#' @param robust      A logical value indicating whether Siegel's (1982) repeated median estimator should be used for model estimation. If \code{robust = TRUE} repeated median estimation is applied for the causally competing models, otherwise ordinary least squares (OLS) estimation is used. Moderator, interaction, and covariate terms are partialled out with OLS in both cases.
 #'
 #' @return A list of class \code{cdda.indep} containing the results of
 #'   CDDA independence tests for pre-specified moderator values. When
