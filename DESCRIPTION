@@ -22,3 +22,4 @@ Author: Wolfgang Wiedermann [aut, cre],
   Megan Hirni [aut]
 BugReports: https://github.com/hirnia/dda/issues
 Config/roxygen2/version: 8.1.0
+RoxygenNote: 7.3.3

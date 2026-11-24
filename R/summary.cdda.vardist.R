@@ -47,6 +47,12 @@ summary.cdda.vardist <- function(object,
   }
   cat("\n")
 
+  ## NEW 0.2.0: reading of the separate normality tests
+  sep.note <- paste0("Note: A model is supported when its predictor deviates from normality\n",
+                     "      and its outcome does not. The predictor is ", cdda.output$df.original$pred.name,
+                     " in the target model\n",
+                     "      and ", cdda.output$df.original$response.name, " in the alternative model.\n")
+
     if (skew == TRUE){
 
       ### ----------- Boot CI Loop Setup ------------ ###
@@ -64,20 +70,34 @@ summary.cdda.vardist <- function(object,
       }
 
       ### Agostino ### ---------------------------------------------------------
-      agos <- matrix(NA, length(mod.names), 6)
-      rownames(agos) <- mod.names
+      ## OLD
+      ## agos <- matrix(NA, length(mod.names), 6)
+      ## rownames(agos) <- mod.names
+      ## colnames(agos) <- rep(c("statistic", "z-value", "p-value"), 2)
+      ##
+      ## for (i in seq_along(mod.names)) {
+      ##
+      ##   agos[i, ]<- c(unlist(cdda.output[[1]][[i]]$agostino$predictor),
+      ##                 unlist(cdda.output[[2]][[i]]$agostino$predictor)
+      ##   )
+      ##   agos[i, ] <- round(agos[i, ], 3)
+      ## }
+      ## NEW 0.2.0: predictor and outcome tests of both panels
+      agos <- matrix(NA, 2 * length(mod.names), 6)
+      rownames(agos) <- paste(rep(mod.names, each = 2), c("predictor", "outcome"))
       colnames(agos) <- rep(c("statistic", "z-value", "p-value"), 2)
 
       for (i in seq_along(mod.names)) {
-
-        agos[i, ]<- c(unlist(cdda.output[[1]][[i]]$agostino$predictor),
-                      unlist(cdda.output[[2]][[i]]$agostino$predictor)
-        )
-        agos[i, ] <- round(agos[i, ], 3)
+        for (v in c("predictor", "outcome")) {
+          agos[paste(mod.names[i], v), ] <- c(unlist(cdda.output[[1]][[i]]$agostino[[v]]),
+                                              unlist(cdda.output[[2]][[i]]$agostino[[v]]))
+        }
       }
+      agos <- round(agos, 3)
 
       cat(paste("D'Agostino Skewness Tests", "\n"))
       cdda.print.table(agos)
+      cat(sep.note)
 
       cat(boot.print)
       cat(paste("Skewness differences"), "\n")
@@ -129,20 +149,34 @@ summary.cdda.vardist <- function(object,
     if (kurt == TRUE){
 
       ### Anscombe ### ---------------------------------------------------------
-      ansc <- matrix(NA, length(mod.names), 6)
-      rownames(ansc) <- mod.names
+      ## OLD
+      ## ansc <- matrix(NA, length(mod.names), 6)
+      ## rownames(ansc) <- mod.names
+      ## colnames(ansc) <- rep(c("statistic", "z-value", "p-value"), 2)
+      ##
+      ## for (i in seq_along(mod.names)) {
+      ##
+      ##   ansc[i, ]<- c(unlist(cdda.output[[1]][[i]]$anscombe$predictor),
+      ##                 unlist(cdda.output[[2]][[i]]$anscombe$predictor)
+      ##                )
+      ##   ansc[i, ] <- round(ansc[i, ], 3)
+      ##  }
+      ## NEW 0.2.0: predictor and outcome tests of both panels
+      ansc <- matrix(NA, 2 * length(mod.names), 6)
+      rownames(ansc) <- paste(rep(mod.names, each = 2), c("predictor", "outcome"))
       colnames(ansc) <- rep(c("statistic", "z-value", "p-value"), 2)
 
       for (i in seq_along(mod.names)) {
-
-        ansc[i, ]<- c(unlist(cdda.output[[1]][[i]]$anscombe$predictor),
-                      unlist(cdda.output[[2]][[i]]$anscombe$predictor)
-                     )
-        ansc[i, ] <- round(ansc[i, ], 3)
-       }
+        for (v in c("predictor", "outcome")) {
+          ansc[paste(mod.names[i], v), ] <- c(unlist(cdda.output[[1]][[i]]$anscombe[[v]]),
+                                              unlist(cdda.output[[2]][[i]]$anscombe[[v]]))
+        }
+      }
+      ansc <- round(ansc, 3)
 
       cat(paste("Anscombe-Glynn Kurtosis Tests", "\n"))
       cdda.print.table(ansc)
+      cat(sep.note)
 
       cat("---", "\n")
 

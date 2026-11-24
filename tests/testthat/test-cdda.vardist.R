@@ -218,3 +218,18 @@ test_that("cdda.vardist summary places the model labels over their columns", {
   end.tar <- gregexpr("\\S+", head)[[1]][3] + attr(gregexpr("\\S+", head)[[1]], "match.length")[3] - 1
   expect_equal(as.integer(regexpr("Alternative Model", printed[i])), as.integer(end.tar) + 5L)
 })
+
+test_that("cdda.vardist summary prints predictor and outcome tests of both panels", {
+  out <- cdda.vardist(m, pred = "x", mod = "z", modval = c(-1, 1), data = dat, B = 10)
+  printed <- capture.output(summary(out, skew = TRUE, kurt = TRUE))
+  for (v in c("ModVal -1 predictor", "ModVal -1 outcome", "ModVal 1 predictor", "ModVal 1 outcome")) {
+    expect_equal(sum(grepl(v, printed, fixed = TRUE)), 2L, info = v)
+  }
+  # the outcome row holds the outcome tests of the target and the alternative panel
+  row <- printed[grep("ModVal -1 outcome", printed, fixed = TRUE)[1]]
+  vals <- as.numeric(strsplit(trimws(sub("ModVal -1 outcome", "", row, fixed = TRUE)), "\\s+")[[1]])
+  ref <- round(c(unlist(out$cdda.target[[1]]$agostino$outcome),
+                 unlist(out$cdda.alternative[[1]]$agostino$outcome)), 3)
+  expect_equal(vals, unname(ref))
+})
+

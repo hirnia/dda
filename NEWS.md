@@ -26,6 +26,7 @@
 -	The Breusch-Pagan decision in `dda.bagging` now uses the standard Breusch-Pagan tests of the target and alternative models (previously, the robust tests).
 -	The help pages of `dda.vardist`, `dda.resdist`, and `cdda.vardist` now explain the statistic labels.
 -	The `summary` method of `cdda.vardist` now prints the bootstrap CI header above the skewness differences (previously, above the Anscombe-Glynn tests, which are not bootstrapped).
+-	The `summary` method of `cdda.vardist` now prints the D'Agostino and Anscombe-Glynn tests of both the predictor and the outcome in the target and alternative panels, since the separate normality decision needs both (previously, only the predictor tests were printed).
 -	Various minor documentation changes and clarifications.
 
 
