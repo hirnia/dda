@@ -155,8 +155,8 @@ A list of class \code{cdda.indep} containing the results of
 At each moderator value the target model is estimated from
   variables purified against the moderator and the product of moderator and
   predictor. The alternative model is estimated from variables purified
-  against the moderator and the product of moderator and outcome (Li et al.,
-  2023). Difference statistics compare these two models: independence of the
+  against the moderator and the product of moderator and outcome.
+  Difference statistics compare these two models: independence of the
   alternative model minus independence of the target model, so values > 0
   suggest the target model.
 }
@@ -227,8 +227,6 @@ plot(result, stat = "hsic.diff")
 
 }
 \references{
-Li, X., Martens, M. P., & Wiedermann, W. (2023). Conditional direction of dependence modeling: Application and implementation in SPSS. \emph{Social Science Computer Review, 41}(4), 1252-1275. \doi{10.1177/08944393211073168}
-
 Wiedermann, W., & von Eye, A. (2025). \emph{Direction Dependence Analysis: Foundations and Statistical Methods}. Cambridge, UK: Cambridge University Press.
 }
 \seealso{
