@@ -158,7 +158,7 @@ plot.cdda.indep <- function(x = NULL,
   plot(plot.axis, out.diff$out.mean, type = "n",
        ylim = y.range, xlim = x.range, xaxt = "n",
        xlab = "Moderator Values", ylab = y.title,
-       main = paste0(pred.name, " -> ", resp.name, " vs. ", resp.name, " -> ", pred.name))
+       main = "Target vs. Alternative")
   sub.title <- paste("Values > 0 suggest", pred.name, "->", resp.name)
   mtext(sub.title, side = 3, line = 0.3, cex = 0.8)
   axis(1, at = seq_along(out.diff$condition), labels = x.axis.labels)
